@@ -4,38 +4,38 @@ labels: "\U0001F41E Bug"
 body:
   - type: textarea
     attributes:
-      label: 🐞 버그 설명
+      label: 버그 설명 🐞
       description: 버그에 대한 설명을 작성해 주세요.
     validations:
       required: true
   - type: textarea
     attributes:
-      label: ✅ 예상 결과
+      label: 예상 결과 ✅
       description: 예상한 결과를 작성해 주세요.
     validations:
       required: true
   - type: textarea
     attributes:
-      label: ❗ 실제 결과
+      label: 실제 결과 ❗
       description: 실제 결과를 작성해 주세요.
     validations:
       required: true
   - type: textarea
     attributes:
-      label: 💻 버그 시뮬레이션
+      label: 버그 시뮬레이션 💻
       description: 버그를 발견하게 된 상황을 단계별로 적어주세요.
     validations:
       required: true
   - type: textarea
     attributes:
-      label: 📄 로그
+      label: 로그 📄
       description: 로그가 있으면 복붙해 주세요.
       render: shell
     validations:
       required: false
   - type: textarea
     attributes:
-      label: 🌏 환경
+      label: 환경 🌏
       description: 버그가 발생한 환경에 대해 작성해 주세요.
       placeholder: |
         OS: macOS 12.2.1
@@ -43,5 +43,5 @@ body:
       required: false
   - type: textarea
     attributes:
-      label: 🙋🏻 More
+      label: More 🙋🏻
       description: 더 하고 싶은 말이 있다면 작성해 주세요.
