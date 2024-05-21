@@ -2,6 +2,7 @@ package com.company.officecommute.service.team;
 
 import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.repository.team.TeamRepository;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.BDDMockito;
@@ -44,4 +45,15 @@ class TeamServiceTest {
         assertThat(expectedTeam).isEqualTo(actualTeam);
     }
 
+    @Test
+    void testRegisterTeamException() {
+        String teamName = "ATeam";
+
+        BDDMockito.given(teamRepository.findByName(teamName))
+                .willReturn(true);
+
+        Assertions.assertThatThrownBy(() -> teamService.registerTeam(teamName))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("이미 존재하는 팀명입니다.");
+    }
 }
