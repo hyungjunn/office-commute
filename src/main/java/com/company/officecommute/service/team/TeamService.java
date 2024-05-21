@@ -14,11 +14,14 @@ public class TeamService {
         this.teamRepository = teamRepository;
     }
 
-    @Transactional
-    public Long registerTeam(String teamName) {
-        Team team = new Team(teamName);
-        return teamRepository.save(team).getId();
-    }
+        @Transactional
+        public Long registerTeam(String teamName) {
+            boolean isExistTeamName = teamRepository.findByName(teamName);
+
+            Team team = new Team(teamName);
+            team.validateUniqueName(isExistTeamName);
+            return teamRepository.save(team).getId();
+        }
 
     public Team findTeamById(Long id) {
         return teamRepository.findById(id)
