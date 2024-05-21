@@ -24,6 +24,9 @@ public class Team {
     }
 
     public Team(Long id, String name, String managerName, int memberCount) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException(String.format("(%s)는 공백입니다. 팀명을 정확하게 입력해주세요.", name));
+        }
         this.id = id;
         this.name = name;
         this.managerName = managerName;
