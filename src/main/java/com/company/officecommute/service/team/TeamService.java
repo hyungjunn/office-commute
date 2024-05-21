@@ -19,4 +19,9 @@ public class TeamService {
         Team team = new Team(teamName);
         return teamRepository.save(team).getId();
     }
+
+    public Team findTeamById(Long id) {
+        return teamRepository.findById(id)
+                .orElseThrow();
+    }
 }

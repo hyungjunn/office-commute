@@ -9,6 +9,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 
@@ -29,6 +31,17 @@ class TeamServiceTest {
         Long teamId = teamService.registerTeam("ATeam");
 
         assertThat(teamId).isEqualTo(1L);
+    }
+
+    @Test
+    void testFindTeam() {
+        Team actualTeam = new Team(1L, "ATeam", "hyungjunn", 0);
+        BDDMockito.given(teamRepository.findById(1L))
+                .willReturn(Optional.of(actualTeam));
+
+        Team expectedTeam = teamService.findTeamById(actualTeam.getId());
+
+        assertThat(expectedTeam).isEqualTo(actualTeam);
     }
 
 }
