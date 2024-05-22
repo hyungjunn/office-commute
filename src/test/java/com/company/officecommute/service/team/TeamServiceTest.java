@@ -27,7 +27,8 @@ class TeamServiceTest {
     @Test
     void testRegisterTeam() {
         Team team = Teams.createTeamWithTeamName("ATeam");
-        BDDMockito.given(teamRepository.save(any(Team.class))).willReturn(team);
+        BDDMockito.given(teamRepository.save(any(Team.class)))
+                .willReturn(team);
 
         Long teamId = teamService.registerTeam("ATeam");
 
