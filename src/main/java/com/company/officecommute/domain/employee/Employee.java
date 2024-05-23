@@ -45,6 +45,16 @@ public class Employee {
             LocalDate birthday,
             LocalDate workStartDate
     ) {
+        validateEmployeeParameters(name, role, birthday, workStartDate);
+        this.id = id;
+        this.name = name;
+        this.teamName = teamName;
+        this.role = role;
+        this.birthday = birthday;
+        this.workStartDate = workStartDate;
+    }
+
+    private void validateEmployeeParameters(String name, Role role, LocalDate birthday, LocalDate workStartDate) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException(String.format("employee의 name(%s)이 올바르지 않은 형식입니다. 다시 입력해주세요.", name));
         }
@@ -60,11 +70,5 @@ public class Employee {
         if (workStartDate == null) {
             throw new IllegalArgumentException(String.format("employee의 workStartDate이 올바르지 않은 형식(%s)입니다. 다시 입력해주세요.", null));
         }
-        this.id = id;
-        this.name = name;
-        this.teamName = teamName;
-        this.role = role;
-        this.birthday = birthday;
-        this.workStartDate = workStartDate;
     }
 }
