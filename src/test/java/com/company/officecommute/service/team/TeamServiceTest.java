@@ -51,7 +51,7 @@ class TeamServiceTest {
         String teamName = "ATeam";
 
         BDDMockito.given(teamRepository.findByName(teamName))
-                .willReturn(true);
+                .willReturn(Teams.createTeamWithTeamName(teamName));
 
         Assertions.assertThatThrownBy(() -> teamService.registerTeam(teamName))
                 .isInstanceOf(IllegalArgumentException.class)

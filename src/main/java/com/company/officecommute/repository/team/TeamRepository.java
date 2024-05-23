@@ -4,5 +4,5 @@ import com.company.officecommute.domain.team.Team;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface TeamRepository extends JpaRepository<Team, Long> {
-    boolean findByName(String teamName);
+    Team findByName(String teamName);
 }

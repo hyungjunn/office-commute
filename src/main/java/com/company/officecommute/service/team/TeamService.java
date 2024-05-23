@@ -16,10 +16,11 @@ public class TeamService {
 
     @Transactional
     public Long registerTeam(String teamName) {
-        boolean isExistTeamName = teamRepository.findByName(teamName);
-
+        Team namedTeam = teamRepository.findByName(teamName);
+        if (namedTeam != null) {
+            throw new IllegalArgumentException("이미 존재하는 팀명입니다.");
+        }
         Team team = new Team(teamName);
-        team.validateUniqueName(isExistTeamName);
         return teamRepository.save(team).getId();
     }
 

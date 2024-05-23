@@ -38,9 +38,4 @@ public class Team {
         return this.id;
     }
 
-    public void validateUniqueName(boolean isExistTeamName) {
-        if (isExistTeamName) {
-            throw new IllegalArgumentException("이미 존재하는 팀명입니다.");
-        }
-    }
 }
