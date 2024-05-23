@@ -1,6 +1,7 @@
 package com.company.officecommute.service.team;
 
 import com.company.officecommute.domain.team.Team;
+import com.company.officecommute.dto.team.response.TeamFindResponse;
 import com.company.officecommute.repository.team.TeamRepository;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -10,6 +11,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,13 +39,14 @@ class TeamServiceTest {
 
     @Test
     void testFindTeam() {
-        Team actualTeam = new Team(1L, "ATeam", "hyungjunn", 0);
-        BDDMockito.given(teamRepository.findById(1L))
-                .willReturn(Optional.of(actualTeam));
+        Team team = Teams.createTeamWithTeamName("ATeam");
+        BDDMockito.given(teamRepository.findTeam())
+                .willReturn(List.of(team));
 
-        Team expectedTeam = teamService.findTeamById(actualTeam.getId());
+        List<TeamFindResponse> teams = teamService.findTeam();
 
-        assertThat(expectedTeam).isEqualTo(actualTeam);
+        assertThat(teams.size()).isEqualTo(1);
+        assertThat(teams.contains(TeamFindResponse.from(team))).isTrue();
     }
 
     @Test
@@ -51,7 +54,7 @@ class TeamServiceTest {
         String teamName = "ATeam";
 
         BDDMockito.given(teamRepository.findByName(teamName))
-                .willReturn(true);
+                .willReturn(Teams.createTeamWithTeamName(teamName));
 
         Assertions.assertThatThrownBy(() -> teamService.registerTeam(teamName))
                 .isInstanceOf(IllegalArgumentException.class)

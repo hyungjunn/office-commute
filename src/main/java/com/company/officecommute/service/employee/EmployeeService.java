@@ -5,9 +5,9 @@ import com.company.officecommute.dto.employee.request.EmployeeSaveRequest;
 import com.company.officecommute.dto.employee.response.EmployeeFindResponse;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class EmployeeService {
@@ -18,11 +18,13 @@ public class EmployeeService {
         this.employeeRepository = employeeRepository;
     }
 
+    @Transactional
     public void registerEmployee(EmployeeSaveRequest request) {
         Employee employee = new Employee(request.name(), request.role(), request.birthday(), request.workStartDate());
         employeeRepository.save(employee);
     }
 
+    @Transactional(readOnly = true)
     public List<EmployeeFindResponse> findAllEmployee() {
         return employeeRepository.findEmployeeHierarchy()
                 .stream()
