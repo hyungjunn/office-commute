@@ -1,8 +1,11 @@
 package com.company.officecommute.domain.team;
 
+import com.company.officecommute.dto.team.response.TeamFindResponse;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
+
+import java.util.Optional;
 
 @Entity
 public class Team {
@@ -24,6 +27,10 @@ public class Team {
         this(null, name, null, 0);
     }
 
+    public Team(String name, String managerName, int memberCount) {
+        this(null, name, managerName, memberCount);
+    }
+
     public Team(Long id, String name, String managerName, int memberCount) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException(String.format("(%s)는 공백입니다. 팀명을 정확하게 입력해주세요.", name));
@@ -38,4 +45,19 @@ public class Team {
         return this.id;
     }
 
+    public String getName() {
+        return this.name;
+    }
+
+    public String getManagerName() {
+        return this.managerName;
+    }
+
+    public int getMemberCount() {
+        return this.memberCount;
+    }
+
+    public Optional<TeamFindResponse> toResponse() {
+        return Optional.of(new TeamFindResponse(this.name, this.managerName, this.memberCount));
+    }
 }

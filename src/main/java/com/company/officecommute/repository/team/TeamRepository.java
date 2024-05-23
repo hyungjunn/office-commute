@@ -2,7 +2,16 @@ package com.company.officecommute.repository.team;
 
 import com.company.officecommute.domain.team.Team;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+
+import java.util.List;
 
 public interface TeamRepository extends JpaRepository<Team, Long> {
     Team findByName(String teamName);
+
+    @Query("""
+            select new Team(t.name, t.managerName, t.memberCount)
+            from Team t
+            """)
+    List<Team> findTeam();
 }
