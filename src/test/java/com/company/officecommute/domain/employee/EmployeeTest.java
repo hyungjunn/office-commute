@@ -27,4 +27,15 @@ class EmployeeTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage(String.format("employee의 role이 올바르지 않은 형식(%s)입니다. 다시 입력해주세요.", null));
     }
+
+    @Test
+    void testEmployeeBirthdayException() {
+        Assertions.assertThatThrownBy(() -> new EmployeeBuilder().withId(1L)
+                        .withName("input")
+                        .withRole(Role.MANAGER)
+                        .withBirthday(null)
+                        .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(String.format("employee의 birthday이 올바르지 않은 형식(%s)입니다. 다시 입력해주세요.", null));
+    }
 }

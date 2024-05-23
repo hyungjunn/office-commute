@@ -54,7 +54,7 @@ public class Employee {
         }
 
         if (birthday == null) {
-            throw new IllegalArgumentException(String.format("employee의 birthday가 올바르지 않은 형식(%s)입니다. 다시 입력해주세요.", birthday));
+            throw new IllegalArgumentException(String.format("employee의 birthday이 올바르지 않은 형식(%s)입니다. 다시 입력해주세요.", null));
         }
         this.id = id;
         this.name = name;
