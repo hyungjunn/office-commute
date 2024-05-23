@@ -11,7 +11,8 @@ import java.time.LocalDate;
 @Entity
 public class Employee {
 
-    @Id @GeneratedValue
+    @Id
+    @GeneratedValue
     private Long id;
 
     private String name;
