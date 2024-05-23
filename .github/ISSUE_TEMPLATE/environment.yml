@@ -1,0 +1,22 @@
+name: "Environment \U0001F30F"
+description: "추가적인 환경설정이 필요한가요?"
+labels: "Environment \U0001F30F"
+body:
+  - type: textarea
+    attributes:
+      label: Describe 🤔
+      description: 현재 어떤 상황인지 설명해 주세요.
+      placeholder: 자세히 적을수록 좋습니다!
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Tasks ✅
+      description: 추가할 환경 설정에 대해 간략히 기록해 주세요.
+      placeholder: 최대한 세분화 해서 적어주세요!
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: More 🙋🏻
+      description: 더 하고 싶은 말이 있다면 작성해 주세요.
