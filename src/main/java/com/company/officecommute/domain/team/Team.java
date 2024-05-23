@@ -7,7 +7,8 @@ import jakarta.persistence.Id;
 @Entity
 public class Team {
 
-    @Id @GeneratedValue
+    @Id
+    @GeneratedValue
     private Long id;
 
     private String name;
