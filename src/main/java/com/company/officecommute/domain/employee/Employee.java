@@ -48,6 +48,14 @@ public class Employee {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException(String.format("employee의 name(%s)이 올바르지 않은 형식입니다. 다시 입력해주세요.", name));
         }
+
+        if (role == null) {
+            throw new IllegalArgumentException(String.format("employee의 role이 올바르지 않은 형식(%s)입니다. 다시 입력해주세요.", role));
+        }
+
+        if (birthday == null) {
+            throw new IllegalArgumentException(String.format("employee의 birthday가 올바르지 않은 형식(%s)입니다. 다시 입력해주세요.", birthday));
+        }
         this.id = id;
         this.name = name;
         this.teamName = teamName;
