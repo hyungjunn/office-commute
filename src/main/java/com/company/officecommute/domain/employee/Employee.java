@@ -45,6 +45,9 @@ public class Employee {
             LocalDate birthday,
             LocalDate workStartDate
     ) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException(String.format("employee의 name(%s)이 올바르지 않은 형식입니다. 다시 입력해주세요.", name));
+        }
         this.id = id;
         this.name = name;
         this.teamName = teamName;

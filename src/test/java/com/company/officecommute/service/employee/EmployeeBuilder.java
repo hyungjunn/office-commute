@@ -39,7 +39,6 @@ public class EmployeeBuilder {
     }
 
     public Employee build() {
-        Employee employee = new Employee(id, name, teamName, role, birthday, workStartDate);
-        return employee;
+        return new Employee(id, name, teamName, role, birthday, workStartDate);
     }
 }
