@@ -71,4 +71,24 @@ public class Employee {
             throw new IllegalArgumentException(String.format("employee의 workStartDate이 올바르지 않은 형식(%s)입니다. 다시 입력해주세요.", null));
         }
     }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getTeamName() {
+        return teamName;
+    }
+
+    public Role getRole() {
+        return role;
+    }
+
+    public LocalDate getBirthday() {
+        return birthday;
+    }
+
+    public LocalDate getWorkStartDate() {
+        return workStartDate;
+    }
 }
