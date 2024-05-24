@@ -73,6 +73,10 @@ public class Employee {
         }
     }
 
+    public void changeTeam(String wantedTeamName) {
+        this.teamName = wantedTeamName;
+    }
+
     public String getName() {
         return name;
     }

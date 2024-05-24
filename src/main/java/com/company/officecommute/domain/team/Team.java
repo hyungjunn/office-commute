@@ -60,4 +60,8 @@ public class Team {
     public Optional<TeamFindResponse> toResponse() {
         return Optional.of(new TeamFindResponse(this.name, this.managerName, this.memberCount));
     }
+
+    public void increaseMemberCount() {
+        this.memberCount++;
+    }
 }
