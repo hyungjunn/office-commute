@@ -1,9 +1,11 @@
 package com.company.officecommute.domain.team;
 
 import com.company.officecommute.service.team.Teams;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TeamTest {
@@ -16,4 +18,11 @@ class TeamTest {
                 .hasMessage(String.format("(%s)는 공백입니다. 팀명을 정확하게 입력해주세요.", expected));
     }
 
+    @Test
+    void testIncreaseMemberCount() {
+        Team team = Teams.createTeamWithTeamName("teamName");
+        team.increaseMemberCount();
+
+        assertThat(team.getMemberCount()).isEqualTo(1);
+    }
 }

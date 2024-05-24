@@ -8,12 +8,14 @@ import org.junit.jupiter.params.provider.NullAndEmptySource;
 
 import java.time.LocalDate;
 
+import static org.assertj.core.api.Assertions.*;
+
 class EmployeeTest {
 
     @ParameterizedTest
     @NullAndEmptySource
     void testEmployeeNameException(String input) {
-        Assertions.assertThatThrownBy(() -> new EmployeeBuilder()
+        assertThatThrownBy(() -> new EmployeeBuilder()
                         .withId(1L)
                         .withName(input)
                         .build())
@@ -23,7 +25,7 @@ class EmployeeTest {
 
     @Test
     void testEmployeeRoleException() {
-        Assertions.assertThatThrownBy(() -> new EmployeeBuilder()
+        assertThatThrownBy(() -> new EmployeeBuilder()
                         .withId(1L)
                         .withName("input")
                         .withRole(null)
@@ -34,7 +36,7 @@ class EmployeeTest {
 
     @Test
     void testEmployeeBirthdayException() {
-        Assertions.assertThatThrownBy(() -> new EmployeeBuilder()
+        assertThatThrownBy(() -> new EmployeeBuilder()
                         .withId(1L)
                         .withName("input")
                         .withRole(Role.MANAGER)
@@ -46,7 +48,7 @@ class EmployeeTest {
 
     @Test
     void testEmployeeWorkDateException() {
-        Assertions.assertThatThrownBy(() -> new EmployeeBuilder()
+        assertThatThrownBy(() -> new EmployeeBuilder()
                         .withId(1L)
                         .withName("hyungjunn")
                         .withRole(Role.MANAGER)
@@ -56,5 +58,19 @@ class EmployeeTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage(String.format("employee의 workStartDate이 올바르지 않은 형식(%s)입니다. 다시 입력해주세요.", null));
 
+    }
+
+    @Test
+    void testChangeTeam() {
+        Employee employee = new EmployeeBuilder()
+                .withId(1L)
+                .withName("hyungjunn")
+                .withRole(Role.MANAGER)
+                .withBirthday(LocalDate.of(1998, 8, 18))
+                .withStartDate(LocalDate.of(2021, 8, 18))
+                .build();
+
+        employee.changeTeam("A");
+        assertThat(employee.getTeamName()).isEqualTo("A");
     }
 }

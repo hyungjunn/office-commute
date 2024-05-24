@@ -38,6 +38,11 @@ public class EmployeeBuilder {
         return this;
     }
 
+    public EmployeeBuilder withTeamName(String teamName) {
+        this.teamName = teamName;
+        return this;
+    }
+
     public Employee build() {
         return new Employee(id, name, teamName, role, birthday, workStartDate);
     }
