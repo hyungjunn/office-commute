@@ -2,10 +2,12 @@ package com.company.officecommute.service.commute;
 
 import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.domain.employee.Employee;
+import com.company.officecommute.dto.commute.request.WorkEndTimeRequest;
 import com.company.officecommute.dto.commute.request.WorkStartTimeRequest;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class CommuteHistoryService {
@@ -18,12 +20,13 @@ public class CommuteHistoryService {
         this.employeeRepository = employeeRepository;
     }
 
+    @Transactional
     public void registerWorkStartTime(WorkStartTimeRequest request) {
         Employee employee = employeeRepository.findById(request.employeeId())
                 .orElseThrow(() -> new IllegalArgumentException(String.format("이 직원의 id(%d)는 존재하지 않습니다.", request.employeeId())));
 
         // 직원의 마지막 출근 기록 조회
-        commuteHistoryRepository.findLatestWorkStartTimeByEmployeeId(employee.getId())
+        commuteHistoryRepository.findFirstByEmployeeIdOrderByWorkStartTimeDesc(employee.getId())
                         .ifPresent(lastCommute -> {
                             if (lastCommute.getWorkEndTime() == null) {
                                 throw new IllegalArgumentException(String.format("직원 id(%d)는 퇴근하지 않고 다시 출근할 수 없습니다.", employee.getId()));
@@ -31,5 +34,17 @@ public class CommuteHistoryService {
                         });
 
         commuteHistoryRepository.save(new CommuteHistory(null, employee.getId(), request.workStartTime(), null, 0));
+    }
+
+    @Transactional
+    public void registerWorkEndTime(WorkEndTimeRequest request) {
+        Employee employee = employeeRepository.findById(request.employeeId())
+                .orElseThrow(() -> new IllegalArgumentException(String.format("이 직원의 id(%d)는 존재하지 않습니다.", request.employeeId())));
+
+        CommuteHistory lastCommute = commuteHistoryRepository.findFirstByEmployeeIdOrderByWorkStartTimeDesc(employee.getId())
+                .orElseThrow(() -> new IllegalArgumentException(String.format("존재하지 않은 근무 이력(%s)입니다.", employee.getId())));
+
+        CommuteHistory commuteHistory = lastCommute.endWork(request.workEndTime());
+        commuteHistoryRepository.save(commuteHistory);
     }
 }
