@@ -1,9 +1,7 @@
 package com.company.officecommute.service.commute;
 
 import com.company.officecommute.domain.commute.CommuteHistory;
-import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.dto.commute.request.WorkEndTimeRequest;
-import com.company.officecommute.dto.commute.request.WorkStartTimeRequest;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,14 +45,12 @@ class CommuteHistoryServiceTest {
 
     @Test
     void testRegisterWorkStartTime() {
-        WorkStartTimeRequest request = new WorkStartTimeRequest(1L, workStartTime);
-
         BDDMockito.given(employeeRepository.findById(1L))
                 .willReturn(Optional.of(employee));
         BDDMockito.given(commuteHistoryRepository.save(any(CommuteHistory.class)))
                 .willReturn(new CommuteHistory(1L, 1L, workStartTime, null, 0));
 
-        commuteHistoryService.registerWorkStartTime(request);
+        commuteHistoryService.registerWorkStartTime(1L);
 
         verify(commuteHistoryRepository).save(any(CommuteHistory.class));
     }
