@@ -1,12 +1,12 @@
 package com.company.officecommute.service.commute;
 
 import com.company.officecommute.domain.commute.CommuteHistory;
-import com.company.officecommute.dto.commute.request.WorkEndTimeRequest;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.BDDMockito;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -17,6 +17,7 @@ import java.time.ZonedDateTime;
 import java.util.Optional;
 
 import static com.company.officecommute.service.employee.Employees.employee;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 
@@ -57,18 +58,25 @@ class CommuteHistoryServiceTest {
 
     @Test
     void testRegisterWorkEndTime() {
-        WorkEndTimeRequest request = new WorkEndTimeRequest(1L, workEndTime);
-
+        // given
         BDDMockito.given(employeeRepository.findById(1L))
                 .willReturn(Optional.of(employee));
         BDDMockito.given(commuteHistoryRepository.findFirstByEmployeeIdOrderByWorkStartTimeDesc(1L))
                 .willReturn(Optional.of(new CommuteHistory(1L, 1L, workStartTime, null, 0)));
 
+        CommuteHistory expectedCommuteHistory = new CommuteHistory(1L, 1L, workStartTime, workEndTime, 10L * 60);
         BDDMockito.given(commuteHistoryRepository.save(any(CommuteHistory.class)))
-                .willReturn(new CommuteHistory(1L, 1L, workStartTime, workEndTime, 10L * 60));
+                .willReturn(expectedCommuteHistory);
 
-        commuteHistoryService.registerWorkEndTime(request);
+        // todo 조금 더 나은 방법 있는지 생각해볼 것 !
+        // when
+        commuteHistoryService.registerWorkEndTime(1L, workEndTime);
 
-        verify(commuteHistoryRepository).save(any(CommuteHistory.class));
+        // then
+        ArgumentCaptor<CommuteHistory> commuteHistoryCaptor = ArgumentCaptor.forClass(CommuteHistory.class);
+        verify(commuteHistoryRepository).save(commuteHistoryCaptor.capture());
+        CommuteHistory savedCommuteHistory = commuteHistoryCaptor.getValue();
+
+        assertThat(savedCommuteHistory.getWorkEndTime()).isEqualTo(expectedCommuteHistory.getWorkEndTime());
     }
 }

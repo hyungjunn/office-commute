@@ -2,7 +2,6 @@ package com.company.officecommute.service.commute;
 
 import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.domain.employee.Employee;
-import com.company.officecommute.dto.commute.request.WorkEndTimeRequest;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import org.springframework.stereotype.Service;
@@ -38,14 +37,15 @@ public class CommuteHistoryService {
     }
 
     @Transactional
-    public void registerWorkEndTime(WorkEndTimeRequest request) {
-        Employee employee = employeeRepository.findById(request.employeeId())
-                .orElseThrow(() -> new IllegalArgumentException(String.format("이 직원의 id(%d)는 존재하지 않습니다.", request.employeeId())));
+    public void registerWorkEndTime(Long employeeId, ZonedDateTime workEndTime) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new IllegalArgumentException(String.format("이 직원의 id(%d)는 존재하지 않습니다.", employeeId)));
 
         CommuteHistory lastCommute = commuteHistoryRepository.findFirstByEmployeeIdOrderByWorkStartTimeDesc(employee.getId())
                 .orElseThrow(() -> new IllegalArgumentException(String.format("존재하지 않은 근무 이력(%s)입니다.", employee.getId())));
 
-        CommuteHistory commuteHistory = lastCommute.endWork(request.workEndTime());
+        CommuteHistory commuteHistory = lastCommute.endWork(workEndTime);
         commuteHistoryRepository.save(commuteHistory);
     }
+    
 }
