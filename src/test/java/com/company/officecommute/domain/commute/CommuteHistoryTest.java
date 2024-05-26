@@ -1,6 +1,5 @@
-package com.company.officecommute.service.commute;
+package com.company.officecommute.domain.commute;
 
-import com.company.officecommute.domain.commute.CommuteHistory;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 

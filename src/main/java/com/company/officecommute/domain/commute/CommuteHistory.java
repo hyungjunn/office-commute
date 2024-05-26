@@ -1,10 +1,17 @@
 package com.company.officecommute.domain.commute;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+
 import java.time.Duration;
 import java.time.ZonedDateTime;
 
+@Entity
 public class CommuteHistory {
 
+    @Id
+    @GeneratedValue
     private Long id;
 
     private Long employeeId;
@@ -41,8 +48,11 @@ public class CommuteHistory {
         return new CommuteHistory(this.id, this.employeeId, this.workStartTime, workEndTime, workingMinutes);
     }
 
+    public ZonedDateTime getWorkEndTime() {
+        return workEndTime;
+    }
+
     public long getWorkingMinutes() {
         return workingMinutes;
     }
-
 }
