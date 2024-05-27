@@ -77,6 +77,10 @@ public class Employee {
         this.teamName = wantedTeamName;
     }
 
+    public Long getId() {
+        return id;
+    }
+
     public String getName() {
         return name;
     }
