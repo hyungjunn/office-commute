@@ -5,6 +5,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 
 @Entity
@@ -43,6 +44,9 @@ public class CommuteHistory {
         if (this.workStartTime == null) {
             throw new IllegalArgumentException("출근을 하지 않은 상태입니다.");
         }
+        if (this.workEndTime != null) {
+            throw new IllegalArgumentException("이미 퇴근을 했습니다.");
+        }
         Duration duration = Duration.between(this.workStartTime, workEndTime);
         long workingMinutes = duration.toMinutes();
         return new CommuteHistory(this.id, this.employeeId, this.workStartTime, workEndTime, workingMinutes);
@@ -54,5 +58,13 @@ public class CommuteHistory {
 
     public long getWorkingMinutes() {
         return workingMinutes;
+    }
+
+    public LocalDate workStartTimeToLocalDate() {
+        return workStartTime.toLocalDate();
+    }
+
+    public Detail toDetail() {
+        return new Detail(this.workStartTimeToLocalDate(), this.workingMinutes);
     }
 }

@@ -1,8 +1,11 @@
 package com.company.officecommute.controller.commute;
 
+import com.company.officecommute.dto.commute.request.WorkDurationPerDateRequest;
 import com.company.officecommute.dto.commute.request.WorkEndTimeRequest;
 import com.company.officecommute.dto.commute.request.WorkStartTimeRequest;
+import com.company.officecommute.dto.commute.response.WorkDurationPerDateResponse;
 import com.company.officecommute.service.commute.CommuteHistoryService;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -27,6 +30,11 @@ public class CommuteHistoryController {
     @PutMapping("/commute")
     public void registerWorkEndTime(@RequestBody WorkEndTimeRequest request) {
         commuteHistoryService.registerWorkEndTime(request.employeeId(), ZonedDateTime.now());
+    }
+
+    @GetMapping("/commute")
+    public WorkDurationPerDateResponse getWorkDurationPerDate(WorkDurationPerDateRequest request) {
+        return commuteHistoryService.getWorkDurationPerDate(request.employeeId(), request.yearMonth());
     }
 
 }
