@@ -13,7 +13,7 @@ public class CommuteHistory {
 
     @Id
     @GeneratedValue
-    private Long id;
+    private Long commuteHistoryId;
 
     private Long employeeId;
 
@@ -27,13 +27,13 @@ public class CommuteHistory {
     }
 
     public CommuteHistory(
-            Long id,
+            Long commuteHistoryId,
             Long employeeId,
             ZonedDateTime workStartTime,
             ZonedDateTime workEndTime,
             long workingMinutes
     ) {
-        this.id = id;
+        this.commuteHistoryId = commuteHistoryId;
         this.employeeId = employeeId;
         this.workStartTime = workStartTime;
         this.workEndTime = workEndTime;
@@ -49,7 +49,7 @@ public class CommuteHistory {
         }
         Duration duration = Duration.between(this.workStartTime, workEndTime);
         long workingMinutes = duration.toMinutes();
-        return new CommuteHistory(this.id, this.employeeId, this.workStartTime, workEndTime, workingMinutes);
+        return new CommuteHistory(this.commuteHistoryId, this.employeeId, this.workStartTime, workEndTime, workingMinutes);
     }
 
     public ZonedDateTime getWorkEndTime() {

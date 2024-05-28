@@ -12,7 +12,7 @@ public class Team {
 
     @Id
     @GeneratedValue
-    private Long id;
+    private Long teamId;
 
     private String name;
 
@@ -31,18 +31,18 @@ public class Team {
         this(null, name, managerName, memberCount);
     }
 
-    public Team(Long id, String name, String managerName, int memberCount) {
+    public Team(Long teamId, String name, String managerName, int memberCount) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException(String.format("(%s)는 공백입니다. 팀명을 정확하게 입력해주세요.", name));
         }
-        this.id = id;
+        this.teamId = teamId;
         this.name = name;
         this.managerName = managerName;
         this.memberCount = memberCount;
     }
 
-    public Long getId() {
-        return this.id;
+    public Long getTeamId() {
+        return this.teamId;
     }
 
     public String getName() {
@@ -55,10 +55,6 @@ public class Team {
 
     public int getMemberCount() {
         return this.memberCount;
-    }
-
-    public Optional<TeamFindResponse> toResponse() {
-        return Optional.of(new TeamFindResponse(this.name, this.managerName, this.memberCount));
     }
 
     public void increaseMemberCount() {
