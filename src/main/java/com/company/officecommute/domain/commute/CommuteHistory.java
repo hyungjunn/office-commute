@@ -52,19 +52,24 @@ public class CommuteHistory {
         return new CommuteHistory(this.commuteHistoryId, this.employeeId, this.workStartTime, workEndTime, workingMinutes);
     }
 
-    public ZonedDateTime getWorkEndTime() {
-        return workEndTime;
-    }
-
-    public long getWorkingMinutes() {
-        return workingMinutes;
+    public Detail toDetail() {
+        return new Detail(this.workStartTimeToLocalDate(), this.workingMinutes);
     }
 
     public LocalDate workStartTimeToLocalDate() {
         return workStartTime.toLocalDate();
     }
 
-    public Detail toDetail() {
-        return new Detail(this.workStartTimeToLocalDate(), this.workingMinutes);
+    public boolean endTimeIsNull() {
+        return this.workEndTime == null;
+    }
+
+
+    public ZonedDateTime getWorkEndTime() {
+        return workEndTime;
+    }
+
+    public long getWorkingMinutes() {
+        return workingMinutes;
     }
 }
