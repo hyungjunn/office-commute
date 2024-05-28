@@ -33,7 +33,7 @@ public class CommuteHistoryService {
         // 직원의 마지막 출근 기록 조회
         commuteHistoryRepository.findFirstByEmployeeIdOrderByWorkStartTimeDesc(employee.getEmployeeId())
                 .ifPresent(lastCommute -> {
-                    if (lastCommute.getWorkEndTime() == null) {
+                    if (lastCommute.endTimeIsNull()) {
                         throw new IllegalArgumentException(String.format("직원 id(%d)는 퇴근하지 않고 다시 출근할 수 없습니다.", employee.getEmployeeId()));
                     }
                 });
@@ -61,6 +61,7 @@ public class CommuteHistoryService {
     public WorkDurationPerDateResponse getWorkDurationPerDate(Long employeeId, YearMonth yearMonth) {
         Employee employee = findEmployeeById(employeeId);
 
+        // todo: 순수 자바 라이브러리 계산이 서비스 계층에 들어가는게 바람직한건가? 대안은?
         ZonedDateTime startOfMonth = yearMonth.atDay(1).atStartOfDay(ZoneId.systemDefault());
         ZonedDateTime endOfMonth = yearMonth.atEndOfMonth().atStartOfDay(ZoneId.systemDefault());
 
