@@ -24,7 +24,7 @@ public class TeamService {
             throw new IllegalArgumentException("이미 존재하는 팀명입니다.");
         }
         Team team = new Team(teamName);
-        return teamRepository.save(team).getId();
+        return teamRepository.save(team).getTeamId();
     }
 
     @Transactional(readOnly = true)

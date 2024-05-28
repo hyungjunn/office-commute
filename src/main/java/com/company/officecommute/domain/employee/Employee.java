@@ -13,7 +13,7 @@ public class Employee {
 
     @Id
     @GeneratedValue
-    private Long id;
+    private Long employeeId;
 
     private String name;
 
@@ -39,7 +39,7 @@ public class Employee {
     }
 
     public Employee(
-            Long id,
+            Long employeeId,
             String name,
             String teamName,
             Role role,
@@ -47,7 +47,7 @@ public class Employee {
             LocalDate workStartDate
     ) {
         validateEmployeeParameters(name, role, birthday, workStartDate);
-        this.id = id;
+        this.employeeId = employeeId;
         this.name = name;
         this.teamName = teamName;
         this.role = role;
@@ -77,8 +77,8 @@ public class Employee {
         this.teamName = wantedTeamName;
     }
 
-    public Long getId() {
-        return id;
+    public Long getEmployeeId() {
+        return employeeId;
     }
 
     public String getName() {

@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+import static com.company.officecommute.web.ApiUrlConstant.TEAM;
+
 @RestController
 public class TeamController {
 
@@ -19,13 +21,14 @@ public class TeamController {
         this.teamService = teamService;
     }
 
-    @PostMapping("/team")
+    @PostMapping(TEAM)
     public Long registerTeam(@RequestBody TeamRegisterRequest request) {
         return teamService.registerTeam(request.teamName());
     }
 
-    @GetMapping("/team")
+    @GetMapping(TEAM)
     public List<TeamFindResponse> findAllTeam() {
         return teamService.findTeam();
     }
+
 }

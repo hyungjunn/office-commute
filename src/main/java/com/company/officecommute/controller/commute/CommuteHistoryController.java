@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.ZonedDateTime;
 
+import static com.company.officecommute.web.ApiUrlConstant.COMMUTE;
+
 @RestController
 public class CommuteHistoryController {
 
@@ -22,17 +24,17 @@ public class CommuteHistoryController {
         this.commuteHistoryService = commuteHistoryService;
     }
 
-    @PostMapping("/commute")
+    @PostMapping(COMMUTE)
     public void registerWorkStartTime(@RequestBody WorkStartTimeRequest request) {
         commuteHistoryService.registerWorkStartTime(request.employeeId());
     }
 
-    @PutMapping("/commute")
+    @PutMapping(COMMUTE)
     public void registerWorkEndTime(@RequestBody WorkEndTimeRequest request) {
         commuteHistoryService.registerWorkEndTime(request.employeeId(), ZonedDateTime.now());
     }
 
-    @GetMapping("/commute")
+    @GetMapping(COMMUTE)
     public WorkDurationPerDateResponse getWorkDurationPerDate(WorkDurationPerDateRequest request) {
         return commuteHistoryService.getWorkDurationPerDate(request.employeeId(), request.yearMonth());
     }
