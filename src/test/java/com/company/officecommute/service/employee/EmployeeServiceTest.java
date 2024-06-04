@@ -11,6 +11,7 @@ import com.company.officecommute.dto.employee.response.EmployeeFindResponse;
 import com.company.officecommute.repository.annual_leave.AnnualLeaveRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.repository.team.TeamRepository;
+import com.company.officecommute.service.team.TeamDomainService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,7 +41,10 @@ class EmployeeServiceTest {
     private EmployeeRepository employeeRepository;
 
     @Mock
-    private TeamRepository teamRepository;
+    private EmployeeDomainService employeeDomainService;
+
+    @Mock
+    private TeamDomainService teamDomainService;
 
     @Mock
     private AnnualLeaveRepository annualLeaveRepository;
@@ -85,11 +89,11 @@ class EmployeeServiceTest {
     @Test
     void testUpdateEmployeeTeamName() {
         EmployeeUpdateTeamNameRequest request = new EmployeeUpdateTeamNameRequest(1L, "teamName");
-        BDDMockito.given(employeeRepository.findById(1L))
-                .willReturn(Optional.of(employee));
+        BDDMockito.given(employeeDomainService.findEmployeeById(1L))
+                .willReturn(employee);
 
-        BDDMockito.given(teamRepository.findByName(anyString()))
-                .willReturn(Optional.of(team));
+        BDDMockito.given(teamDomainService.findTeamByName(anyString()))
+                .willReturn(team);
 
         employeeService.updateEmployeeTeamName(request);
 
@@ -103,11 +107,11 @@ class EmployeeServiceTest {
         ArrayList<AnnualLeave> wantedLeaves = new ArrayList<>(List.of(new AnnualLeave(1L, 1L, LocalDate.now().plusDays(20))));
 
         EmployeeUpdateTeamNameRequest request = new EmployeeUpdateTeamNameRequest(1L, "teamName");
-        BDDMockito.given(employeeRepository.findById(1L))
-                .willReturn(Optional.of(employee));
+        BDDMockito.given(employeeDomainService.findEmployeeById(1L))
+                .willReturn(employee);
 
-        BDDMockito.given(teamRepository.findByName(anyString()))
-                .willReturn(Optional.of(team));
+        BDDMockito.given(teamDomainService.findTeamByName(anyString()))
+                .willReturn(team);
 
         AnnualLeaves annualLeaves = new AnnualLeaves(wantedLeaves);
         BDDMockito.given(annualLeaveRepository.saveAll(annualLeaves.getAnnualLeaves()))
