@@ -89,7 +89,7 @@ class EmployeeServiceTest {
                 .willReturn(Optional.of(employee));
 
         BDDMockito.given(teamRepository.findByName(anyString()))
-                .willReturn(team);
+                .willReturn(Optional.of(team));
 
         employeeService.updateEmployeeTeamName(request);
 
@@ -107,7 +107,7 @@ class EmployeeServiceTest {
                 .willReturn(Optional.of(employee));
 
         BDDMockito.given(teamRepository.findByName(anyString()))
-                .willReturn(team);
+                .willReturn(Optional.of(team));
 
         AnnualLeaves annualLeaves = new AnnualLeaves(wantedLeaves);
         BDDMockito.given(annualLeaveRepository.saveAll(annualLeaves.getAnnualLeaves()))

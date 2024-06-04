@@ -50,10 +50,9 @@ public class EmployeeService {
                 .orElseThrow(() -> new IllegalArgumentException(String.format("해당하는 직원(%s)이 없습니다.", request.employeeId())));
 
         String wantedTeamName = request.teamName();
-        Team team = teamRepository.findByName(wantedTeamName);
-        if (team == null) {
-            throw new IllegalArgumentException(String.format("해당하는 팀(%s)이 없습니다.", wantedTeamName));
-        }
+        Team team = teamRepository.findByName(wantedTeamName)
+                .orElseThrow(() -> new IllegalArgumentException(String.format("해당하는 팀(%s)이 없습니다.", wantedTeamName)));
+
         employee.changeTeam(wantedTeamName);
         team.increaseMemberCount();
     }
@@ -62,7 +61,8 @@ public class EmployeeService {
     public List<AnnualLeaveEnrollmentResponse> enrollAnnualLeave(Long employeeId, List<AnnualLeave> wantedLeaves) {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new IllegalArgumentException(String.format("해당하는 직원(%s)이 없습니다.", employeeId)));
-        Team team = teamRepository.findByName(employee.getTeamName());
+        Team team = teamRepository.findByName(employee.getTeamName())
+                .orElseThrow(() -> new IllegalArgumentException(String.format("해당하는 팀(%s)이 없습니다.", employee.getTeamName())));
         List<AnnualLeave> existingAnnualLeaves = annualLeaveRepository.findByEmployeeId(employeeId);
 
         AnnualLeaveEnrollment enrollment = new AnnualLeaveEnrollment(employeeId, team, existingAnnualLeaves);

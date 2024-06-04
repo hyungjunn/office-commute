@@ -19,9 +19,8 @@ public class TeamService {
 
     @Transactional
     public Long registerTeam(String teamName) {
-        Team namedTeam = teamRepository.findByName(teamName);
-        if (namedTeam != null) {
-            throw new IllegalArgumentException("이미 존재하는 팀명입니다.");
+        if (teamRepository.findByName(teamName).isPresent()) {
+            throw new IllegalArgumentException(String.format("이미 존재하는 팀명(%s)입니다.", teamName));
         }
         Team team = new Team(teamName);
         return teamRepository.save(team).getTeamId();
