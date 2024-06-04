@@ -5,12 +5,12 @@ import com.company.officecommute.domain.annual_leave.AnnualLeaves;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveEnrollmentResponse;
+import com.company.officecommute.dto.annual_leave.response.AnnualLeaveGetRemainingResponse;
 import com.company.officecommute.dto.employee.request.EmployeeSaveRequest;
 import com.company.officecommute.dto.employee.request.EmployeeUpdateTeamNameRequest;
 import com.company.officecommute.dto.employee.response.EmployeeFindResponse;
 import com.company.officecommute.repository.annual_leave.AnnualLeaveRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
-import com.company.officecommute.repository.team.TeamRepository;
 import com.company.officecommute.service.team.TeamDomainService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,7 +23,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import static com.company.officecommute.domain.employee.Role.MANAGER;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -127,5 +126,16 @@ class EmployeeServiceTest {
         assertThat(responses).hasSize(1);
         assertThat(responses.get(0).employeeId()).isEqualTo(1L);
         assertThat(responses.get(0).enrolledDate()).isEqualTo(LocalDate.now().plusDays(20));
+    }
+
+    @Test
+    void testGetRemainingAnnualLeave() {
+        BDDMockito.given(annualLeaveRepository.findByEmployeeId(1L))
+                .willReturn(List.of(new AnnualLeave(1L, 1L, LocalDate.now().plusDays(20))));
+
+        AnnualLeaveGetRemainingResponse response = employeeService.getRemainingAnnualLeaves(1L);
+
+        verify(annualLeaveRepository).findByEmployeeId(1L);
+        assertThat(response.employeeId()).isEqualTo(1L);
     }
 }

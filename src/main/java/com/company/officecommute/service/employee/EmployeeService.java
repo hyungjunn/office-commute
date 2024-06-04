@@ -77,6 +77,7 @@ public class EmployeeService {
         return new AnnualLeaves(enrolledLeaves).toAnnualLeaveEnrollmentResponse();
     }
 
+    @Transactional(readOnly = true)
     public AnnualLeaveGetRemainingResponse getRemainingAnnualLeaves(Long employeeId) {
         List<AnnualLeave> remainingLeaves = annualLeaveRepository.findByEmployeeId(employeeId)
                 .stream()

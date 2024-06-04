@@ -8,9 +8,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface TeamRepository extends JpaRepository<Team, Long> {
-    // TODO optional 로
-    //Team findByName(String teamName);
-
     Optional<Team> findByName(String teamName);
 
     @Query("""

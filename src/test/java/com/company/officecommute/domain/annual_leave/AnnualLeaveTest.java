@@ -1,11 +1,10 @@
 package com.company.officecommute.domain.annual_leave;
 
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 class AnnualLeaveTest {
@@ -24,5 +23,17 @@ class AnnualLeaveTest {
 
         assertThat(annualLeave.isNotEnoughForEnroll(10)).isTrue();
         assertThat(annualLeave.isNotEnoughForEnroll(9)).isFalse();
+    }
+
+    @Test
+    void testIsRemain() {
+        AnnualLeave annualLeave = new AnnualLeave(1L, 1L, LocalDate.now().plusDays(10));
+
+        assertThat(annualLeave.isRemain()).isTrue();
+
+
+        annualLeave = new AnnualLeave(1L, 1L, LocalDate.now());
+
+        assertThat(annualLeave.isRemain()).isFalse();
     }
 }
