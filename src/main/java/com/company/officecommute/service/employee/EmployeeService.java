@@ -6,6 +6,7 @@ import com.company.officecommute.domain.annual_leave.AnnualLeaves;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveEnrollmentResponse;
+import com.company.officecommute.dto.annual_leave.response.AnnualLeaveGetRemainingResponse;
 import com.company.officecommute.dto.employee.request.EmployeeSaveRequest;
 import com.company.officecommute.dto.employee.request.EmployeeUpdateTeamNameRequest;
 import com.company.officecommute.dto.employee.response.EmployeeFindResponse;
@@ -76,4 +77,12 @@ public class EmployeeService {
         return new AnnualLeaves(enrolledLeaves).toAnnualLeaveEnrollmentResponse();
     }
 
+    public AnnualLeaveGetRemainingResponse getRemainingAnnualLeaves(Long employeeId) {
+        List<AnnualLeave> remainingLeaves = annualLeaveRepository.findByEmployeeId(employeeId)
+                .stream()
+                .filter(AnnualLeave::isRemain)
+                .toList();
+
+        return new AnnualLeaveGetRemainingResponse(employeeId, remainingLeaves);
+    }
 }

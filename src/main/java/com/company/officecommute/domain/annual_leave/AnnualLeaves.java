@@ -3,7 +3,6 @@ package com.company.officecommute.domain.annual_leave;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveEnrollmentResponse;
 
 import java.util.List;
-import java.util.Objects;
 
 public class AnnualLeaves {
 

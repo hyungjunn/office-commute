@@ -32,8 +32,14 @@ request_annual_leave() {
   http -v POST "$base_url/annual-leave" employeeId="$employee_id" wantedDates:="$wanted_dates"
 }
 
+# 남은 연차 조회
+get_remaining_annual_leave() {
+  employee_id=$1
+  http -v GET "$base_url/annual-leave?employeeId=$employee_id"
+}
 # 예시 사용법
 create_team "백엔드"
 create_employee "임형준" "MANAGER" "1995-05-15" "2024-01-02"
 assign_employee_to_team 1 "백엔드"
 request_annual_leave 1 '["2024-12-30", "2024-12-31"]'
+get_remaining_annual_leave 1 
