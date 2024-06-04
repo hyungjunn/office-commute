@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import java.util.List;
 
 public interface TeamRepository extends JpaRepository<Team, Long> {
+    // TODO optional 로
     Team findByName(String teamName);
 
     @Query("""
