@@ -1,5 +1,7 @@
 package com.company.officecommute.domain.employee;
 
+import com.company.officecommute.domain.annual_leave.AnnualLeave;
+import com.company.officecommute.domain.annual_leave.AnnualLeaves;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -7,6 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Entity
 public class Employee {
@@ -75,6 +78,12 @@ public class Employee {
 
     public void changeTeam(String wantedTeamName) {
         this.teamName = wantedTeamName;
+    }
+
+    public AnnualLeaves enroll(List<AnnualLeave> wantedLeaves, List<AnnualLeave> existingLeaves) {
+        AnnualLeaves annualLeaves = new AnnualLeaves(existingLeaves);
+        annualLeaves.enroll(wantedLeaves);
+        return annualLeaves;
     }
 
     public Long getEmployeeId() {

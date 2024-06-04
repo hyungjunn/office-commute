@@ -1,11 +1,12 @@
 package com.company.officecommute.domain.team;
 
-import com.company.officecommute.dto.team.response.TeamFindResponse;
+import com.company.officecommute.domain.annual_leave.AnnualLeave;
+import com.company.officecommute.domain.annual_leave.AnnualLeaves;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 
-import java.util.Optional;
+import java.util.List;
 
 @Entity
 public class Team {
@@ -20,6 +21,8 @@ public class Team {
 
     private int memberCount;
 
+    private int annualLeaveCriteria;
+
     protected Team() {
     }
 
@@ -32,6 +35,10 @@ public class Team {
     }
 
     public Team(Long teamId, String name, String managerName, int memberCount) {
+        this(teamId, name, managerName, memberCount, 0);
+    }
+
+    public Team(Long teamId, String name, String managerName, int memberCount, int annualLeaveCriteria) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException(String.format("(%s)는 공백입니다. 팀명을 정확하게 입력해주세요.", name));
         }
@@ -39,6 +46,7 @@ public class Team {
         this.name = name;
         this.managerName = managerName;
         this.memberCount = memberCount;
+        this.annualLeaveCriteria = annualLeaveCriteria;
     }
 
     public Long getTeamId() {
@@ -59,5 +67,13 @@ public class Team {
 
     public void increaseMemberCount() {
         this.memberCount++;
+    }
+
+    public boolean isNotEnoughCriteria(List<AnnualLeave> wantedLeaves) {
+        return isNotEnoughCriteria(new AnnualLeaves(wantedLeaves));
+    }
+
+    public boolean isNotEnoughCriteria(AnnualLeaves wantedLeaves) {
+        return wantedLeaves.isMatchNotEnoughCriteria(this.annualLeaveCriteria);
     }
 }

@@ -6,4 +6,8 @@ public class Teams {
     public static Team createTeamWithTeamName(String teamName) {
         return new Team(1L, teamName, null, 0);
     }
+
+    public static Team createTeamWithCriteria(int criteria) {
+        return new Team(1L, "teamName", null, 10, criteria);
+    }
 }
