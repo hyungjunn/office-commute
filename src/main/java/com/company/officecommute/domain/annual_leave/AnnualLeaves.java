@@ -1,5 +1,7 @@
 package com.company.officecommute.domain.annual_leave;
 
+import com.company.officecommute.dto.annual_leave.response.AnnualLeaveEnrollmentResponse;
+
 import java.util.List;
 import java.util.Objects;
 
@@ -28,20 +30,14 @@ public class AnnualLeaves {
                         -> annualLeave.isNotEnoughForEnroll(annualLeaveCriteria));
     }
 
+    public List<AnnualLeaveEnrollmentResponse> toAnnualLeaveEnrollmentResponse() {
+        return this.annualLeaves.stream()
+                .map(it -> new AnnualLeaveEnrollmentResponse(it.getId(), it.getDate()))
+                .toList();
+    }
+
     public List<AnnualLeave> getAnnualLeaves() {
         return annualLeaves;
     }
 
-    @Override
-    public boolean equals(Object object) {
-        if (this == object) return true;
-        if (object == null || getClass() != object.getClass()) return false;
-        AnnualLeaves that = (AnnualLeaves) object;
-        return Objects.equals(annualLeaves, that.annualLeaves);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(annualLeaves);
-    }
 }

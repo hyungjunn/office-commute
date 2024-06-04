@@ -73,9 +73,7 @@ public class EmployeeService {
         enrollment.enroll(annualLeaves);
 
         List<AnnualLeave> enrolledLeaves = annualLeaveRepository.saveAll(annualLeaves.getAnnualLeaves());
-        return enrolledLeaves.stream()
-                .map(it -> new AnnualLeaveEnrollmentResponse(it.getId(), it.getDate()))
-                .toList();
+        return new AnnualLeaves(enrolledLeaves).toAnnualLeaveEnrollmentResponse();
     }
 
 }
