@@ -2,6 +2,7 @@ package com.company.officecommute.service.employee;
 
 import com.company.officecommute.domain.annual_leave.AnnualLeave;
 import com.company.officecommute.domain.annual_leave.AnnualLeaves;
+import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveEnrollmentResponse;
@@ -10,6 +11,7 @@ import com.company.officecommute.dto.employee.request.EmployeeSaveRequest;
 import com.company.officecommute.dto.employee.request.EmployeeUpdateTeamNameRequest;
 import com.company.officecommute.dto.employee.response.EmployeeFindResponse;
 import com.company.officecommute.repository.annual_leave.AnnualLeaveRepository;
+import com.company.officecommute.repository.commute.CommuteHistoryRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.service.team.TeamDomainService;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +23,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -47,6 +50,9 @@ class EmployeeServiceTest {
 
     @Mock
     private AnnualLeaveRepository annualLeaveRepository;
+
+    @Mock
+    private CommuteHistoryRepository commuteHistoryRepository;
 
     private Employee employee;
     private Team team;
@@ -116,6 +122,9 @@ class EmployeeServiceTest {
         BDDMockito.given(annualLeaveRepository.saveAll(annualLeaves.getAnnualLeaves()))
                 .willReturn(wantedLeaves);
 
+        BDDMockito.given(commuteHistoryRepository.save(any(CommuteHistory.class)))
+                .willReturn(new CommuteHistory(1L, 1L, ZonedDateTime.now(), null, 0));
+
         employeeService.updateEmployeeTeamName(request);
 
         // when
@@ -124,7 +133,7 @@ class EmployeeServiceTest {
         // then
         verify(annualLeaveRepository).saveAll(annualLeaves.getAnnualLeaves());
         assertThat(responses).hasSize(1);
-        assertThat(responses.get(0).employeeId()).isEqualTo(1L);
+        assertThat(responses.get(0).annualLeaveId()).isEqualTo(1L);
         assertThat(responses.get(0).enrolledDate()).isEqualTo(LocalDate.now().plusDays(20));
     }
 

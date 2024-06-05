@@ -51,4 +51,30 @@ public class CommuteHistoryTest {
         assertThat(commuteHistory.endTimeIsNull()).isTrue();
     }
 
+    @Test
+    void toDetail_workingDate() {
+        ZonedDateTime workStartTime = ZonedDateTime.of(2024, 1, 1, 8, 0, 0, 0, ZoneId.of(KOREA));
+        ZonedDateTime workEndTime = ZonedDateTime.of(2024, 1, 1, 18, 0, 0, 0, ZoneId.of(KOREA));
+        CommuteHistory commuteHistory = new CommuteHistory(1L, 1L, workStartTime, workEndTime, 10L * 60);
+
+        Detail detail = commuteHistory.toDetail();
+
+        assertThat(detail.getDate()).isEqualTo(workStartTime.toLocalDate());
+        assertThat(detail.getWorkingMinutes()).isEqualTo(10L * 60);
+        assertThat(detail.isUsingDayOff()).isFalse();
+    }
+
+    @Test
+    void toDetail_AnnualLeaveDate() {
+        ZonedDateTime workStartTime = ZonedDateTime.of(2024, 1, 1, 8, 0, 0, 0, ZoneId.of(KOREA));
+        ZonedDateTime workEndTime = ZonedDateTime.of(2024, 1, 1, 8, 0, 0, 0, ZoneId.of(KOREA));
+        // usingDayOff = true 로 적용
+        CommuteHistory commuteHistory = new CommuteHistory(1L, 1L, workStartTime, workEndTime, 0, true);
+
+        Detail detail = commuteHistory.toDetail();
+
+        assertThat(detail.getDate()).isEqualTo(workStartTime.toLocalDate());
+        assertThat(detail.getWorkingMinutes()).isEqualTo(0);
+        assertThat(detail.isUsingDayOff()).isTrue();
+    }
 }

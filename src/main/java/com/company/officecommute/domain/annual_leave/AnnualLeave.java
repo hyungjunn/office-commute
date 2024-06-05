@@ -50,4 +50,5 @@ public class AnnualLeave {
     public Long getEmployeeId() {
         return employeeId;
     }
+
 }

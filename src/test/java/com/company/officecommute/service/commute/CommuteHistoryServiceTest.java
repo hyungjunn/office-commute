@@ -2,7 +2,7 @@ package com.company.officecommute.service.commute;
 
 import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
-import com.company.officecommute.repository.employee.EmployeeRepository;
+import com.company.officecommute.service.employee.EmployeeDomainService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,7 +14,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.Optional;
 
 import static com.company.officecommute.service.employee.Employees.employee;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,7 +30,10 @@ class CommuteHistoryServiceTest {
     private CommuteHistoryRepository commuteHistoryRepository;
 
     @Mock
-    private EmployeeRepository employeeRepository;
+    private CommuteHistoryDomainService commuteHistoryDomainService;
+
+    @Mock
+    private EmployeeDomainService employeeDomainService;
 
 
     private ZonedDateTime workStartTime;
@@ -46,10 +48,10 @@ class CommuteHistoryServiceTest {
 
     @Test
     void testRegisterWorkStartTime() {
-        BDDMockito.given(employeeRepository.findById(1L))
-                .willReturn(Optional.of(employee));
-        BDDMockito.given(commuteHistoryRepository.save(any(CommuteHistory.class)))
-                .willReturn(new CommuteHistory(1L, 1L, workStartTime, null, 0));
+        BDDMockito.given(employeeDomainService.findEmployeeById(1L))
+                .willReturn(employee);
+        BDDMockito.doNothing().when(commuteHistoryDomainService)
+                .distinguishItIsPossibleToWork(1L);
 
         commuteHistoryService.registerWorkStartTime(1L);
 
@@ -59,16 +61,15 @@ class CommuteHistoryServiceTest {
     @Test
     void testRegisterWorkEndTime() {
         // given
-        BDDMockito.given(employeeRepository.findById(1L))
-                .willReturn(Optional.of(employee));
-        BDDMockito.given(commuteHistoryRepository.findFirstByEmployeeIdOrderByWorkStartTimeDesc(1L))
-                .willReturn(Optional.of(new CommuteHistory(1L, 1L, workStartTime, null, 0)));
+        BDDMockito.given(employeeDomainService.findEmployeeById(1L))
+                .willReturn(employee);
+        BDDMockito.given(commuteHistoryDomainService.findFirstByDomainService(1L))
+                .willReturn(new CommuteHistory(1L, 1L, workStartTime, null, 0));
 
         CommuteHistory expectedCommuteHistory = new CommuteHistory(1L, 1L, workStartTime, workEndTime, 10L * 60);
         BDDMockito.given(commuteHistoryRepository.save(any(CommuteHistory.class)))
                 .willReturn(expectedCommuteHistory);
 
-        // todo 조금 더 나은 방법 있는지 생각해볼 것 !
         // when
         commuteHistoryService.registerWorkEndTime(1L, workEndTime);
 
