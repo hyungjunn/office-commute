@@ -23,7 +23,14 @@ public class CommuteHistory {
 
     private long workingMinutes;
 
+    private boolean usingDayOff;
+
     protected CommuteHistory() {
+    }
+
+    // 연차일 때, 근무 이력을 나타내는 생성자
+    public CommuteHistory(Long employeeId) {
+        this(null, employeeId, ZonedDateTime.now(), ZonedDateTime.now(), 0, true);
     }
 
     public CommuteHistory(
@@ -33,11 +40,23 @@ public class CommuteHistory {
             ZonedDateTime workEndTime,
             long workingMinutes
     ) {
+        this(commuteHistoryId, employeeId, workStartTime, workEndTime, workingMinutes, false);
+    }
+
+    public CommuteHistory(
+            Long commuteHistoryId,
+            Long employeeId,
+            ZonedDateTime workStartTime,
+            ZonedDateTime workEndTime,
+            long workingMinutes,
+            boolean usingDayOff
+    ) {
         this.commuteHistoryId = commuteHistoryId;
         this.employeeId = employeeId;
         this.workStartTime = workStartTime;
         this.workEndTime = workEndTime;
         this.workingMinutes = workingMinutes;
+        this.usingDayOff = usingDayOff;
     }
 
     public CommuteHistory endWork(ZonedDateTime workEndTime) {
@@ -53,7 +72,14 @@ public class CommuteHistory {
     }
 
     public Detail toDetail() {
-        return new Detail(this.workStartTimeToLocalDate(), this.workingMinutes);
+        if (isAnnualLeaveDate()) {
+            return new Detail(this.workStartTimeToLocalDate(), 0, this.usingDayOff);
+        }
+        return new Detail(this.workStartTimeToLocalDate(), this.workingMinutes, this.usingDayOff);
+    }
+
+    private boolean isAnnualLeaveDate() {
+        return this.workStartTime == this.workEndTime;
     }
 
     public LocalDate workStartTimeToLocalDate() {

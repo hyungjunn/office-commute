@@ -12,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -53,10 +54,10 @@ class TeamServiceTest {
         String teamName = "ATeam";
 
         BDDMockito.given(teamRepository.findByName(teamName))
-                .willReturn(Teams.createTeamWithTeamName(teamName));
+                .willReturn(Optional.of(Teams.createTeamWithTeamName(teamName)));
 
         Assertions.assertThatThrownBy(() -> teamService.registerTeam(teamName))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("이미 존재하는 팀명입니다.");
+                .hasMessage(String.format("이미 존재하는 팀명(%s)입니다.", teamName));
     }
 }

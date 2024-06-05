@@ -35,6 +35,10 @@ public class AnnualLeave {
         return wantedDate.isBefore(LocalDate.now().plusDays(annualLeaveCriteria));
     }
 
+    public boolean isRemain() {
+        return wantedDate.isAfter(LocalDate.now());
+    }
+
     public Long getId() {
         return id;
     }
@@ -42,4 +46,9 @@ public class AnnualLeave {
     public LocalDate getDate() {
         return wantedDate;
     }
+
+    public Long getEmployeeId() {
+        return employeeId;
+    }
+
 }
