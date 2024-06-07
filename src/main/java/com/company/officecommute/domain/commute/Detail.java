@@ -6,7 +6,7 @@ import java.util.Objects;
 public class Detail {
 
     private final LocalDate date;
-    
+
     private final WorkingMinutes workingMinutes;
 
     private final boolean usingDayOff;

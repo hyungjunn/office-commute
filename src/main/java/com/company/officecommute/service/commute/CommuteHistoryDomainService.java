@@ -8,6 +8,7 @@ import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -54,4 +55,10 @@ public class CommuteHistoryDomainService {
                 .orElseThrow(() -> new IllegalArgumentException(String.format("해당하는 직원(%s)의 출근 기록이 없습니다.", employeeId)));
     }
 
+    public Map<Long, Long> findWorkingMinutesTimeByMonth(YearMonth yearMonth) {
+        return commuteHistoryRepository.findWorkingMinutesTimeByEmployeeAndDateRange(
+                convertStartOfMonthFrom(yearMonth),
+                convertEndOfMonthFrom(yearMonth)
+        );
+    }
 }
