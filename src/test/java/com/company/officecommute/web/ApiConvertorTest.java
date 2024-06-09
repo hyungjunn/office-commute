@@ -21,9 +21,14 @@ class ApiConvertorTest {
     }
 
     @Test
-    void testNumberOfHolidays() throws MalformedURLException, URISyntaxException {
-        long numberOfHolidays = apiConvertor.getNumberOfHolidays(YearMonth.of(2024, 5));
-        assertThat(numberOfHolidays).isEqualTo(3L);
+    void test() throws MalformedURLException, URISyntaxException {
+        long numberOfStandardWorkingDays = apiConvertor.countNumberOfStandardWorkingDays(YearMonth.of(2024, 5));
+        assertThat(numberOfStandardWorkingDays).isEqualTo(21L);
     }
 
+    @Test
+    void testCalculateStandardWorkingMinutes() {
+        long standardWorkingMinutes = apiConvertor.calculateStandardWorkingMinutes(21L);
+        assertThat(standardWorkingMinutes).isEqualTo(21L * 8 * 60);
+    }
 }

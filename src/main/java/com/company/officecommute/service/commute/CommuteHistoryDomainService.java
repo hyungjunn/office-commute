@@ -2,6 +2,7 @@ package com.company.officecommute.service.commute;
 
 import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
+import com.company.officecommute.service.overtime.TotalWorkingMinutes;
 import org.springframework.stereotype.Service;
 
 import java.time.YearMonth;
@@ -55,10 +56,11 @@ public class CommuteHistoryDomainService {
                 .orElseThrow(() -> new IllegalArgumentException(String.format("해당하는 직원(%s)의 출근 기록이 없습니다.", employeeId)));
     }
 
-    public Map<Long, Long> findWorkingMinutesTimeByMonth(YearMonth yearMonth) {
-        return commuteHistoryRepository.findWorkingMinutesTimeByEmployeeAndDateRange(
+    public List<TotalWorkingMinutes> findWorkingMinutesTimeByMonth(YearMonth yearMonth) {
+        return commuteHistoryRepository.findWithEmployeeIdByDateRange(
                 convertStartOfMonthFrom(yearMonth),
                 convertEndOfMonthFrom(yearMonth)
         );
     }
+
 }

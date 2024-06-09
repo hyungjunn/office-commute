@@ -8,6 +8,7 @@ import java.util.List;
 
 @JacksonXmlRootElement(localName = "response")
 public class HolidayResponse {
+
     @JacksonXmlProperty(localName = "body")
     private Body body;
 
@@ -37,12 +38,23 @@ public class HolidayResponse {
         @JacksonXmlProperty(localName = "isHoliday")
         private String isHoliday;
 
+        @JacksonXmlProperty(localName = "locdate")
+        private String locdate;
+
         public String getIsHoliday() {
             return isHoliday;
         }
 
+        public String getLocdate() {
+            return locdate;
+        }
+
         public void setIsHoliday(String isHoliday) {
             this.isHoliday = isHoliday;
+        }
+
+        public void setLocDate(String locdate) {
+            this.locdate = locdate;
         }
     }
 

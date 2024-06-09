@@ -18,6 +18,7 @@ public class CommuteHistories {
     public WorkDurationPerDateResponse toWorkDurationPerDateResponse() {
         List<Detail> details = toDetails();
         long sumWorkingMinutes = new Details(details).sumWorkingMinutes();
+        // TODO 여기서 dto 변환 처리를 해줘도 되는지 생각해보기
         return new WorkDurationPerDateResponse(details, sumWorkingMinutes);
     }
 

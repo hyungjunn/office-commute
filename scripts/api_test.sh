@@ -66,7 +66,7 @@ create_employee "존카맥" "MEMBER" "1960-05-15" "2024-01-02"
 assign_employee_to_team 1 "백엔드"
 
 register_work_start_time 1
-regitser_work_end_time 1
+register_work_end_time 1
 
 request_annual_leave 1 '["2024-12-28", "2024-12-29", "2024-12-30"]'
 request_annual_leave 1 '["2024-06-29", "2024-06-30"]'
