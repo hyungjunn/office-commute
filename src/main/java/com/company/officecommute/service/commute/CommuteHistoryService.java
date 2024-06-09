@@ -33,7 +33,7 @@ public class CommuteHistoryService {
     public void registerWorkStartTime(Long employeeId) {
         Employee employee = employeeDomainService.findEmployeeById(employeeId);
 
-        // 직원의 마지막 출근 기록 조회
+        // 이 직원이 퇴근을 했는지 안했는지 확인 후 퇴근을 안했으면 예외를 발생시킨다. (출근을 할 수 없음)
         commuteHistoryDomainService.distinguishItIsPossibleToWork(employee.getEmployeeId());
 
         commuteHistoryRepository.save(new CommuteHistory(null, employee.getEmployeeId(), ZonedDateTime.now(), null, 0));

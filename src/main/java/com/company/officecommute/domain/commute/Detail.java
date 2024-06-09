@@ -7,11 +7,15 @@ public class Detail {
 
     private final LocalDate date;
 
-    private final long workingMinutes;
+    private final WorkingMinutes workingMinutes;
 
     private final boolean usingDayOff;
 
     public Detail(LocalDate date, long workingMinutes, boolean usingDayOff) {
+        this(date, new WorkingMinutes(workingMinutes), usingDayOff);
+    }
+
+    public Detail(LocalDate date, WorkingMinutes workingMinutes, boolean usingDayOff) {
         this.date = date;
         this.workingMinutes = workingMinutes;
         this.usingDayOff = usingDayOff;
@@ -21,12 +25,12 @@ public class Detail {
         return date;
     }
 
-    public long getWorkingMinutes() {
-        return workingMinutes;
-    }
-
     public boolean isUsingDayOff() {
         return usingDayOff;
+    }
+
+    public long getWorkingMinutes() {
+        return workingMinutes.getWorkingMinutes();
     }
 
     @Override

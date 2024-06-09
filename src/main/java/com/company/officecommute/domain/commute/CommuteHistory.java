@@ -25,12 +25,16 @@ public class CommuteHistory {
 
     private boolean usingDayOff;
 
+    private static final int ANNUAL_LEAVE_TIME = 0;
+
+    private static final boolean IS_ANNUAL_LEAVE = true;
+
     protected CommuteHistory() {
     }
 
     // 연차일 때, 근무 이력을 나타내는 생성자
     public CommuteHistory(Long employeeId) {
-        this(null, employeeId, ZonedDateTime.now(), ZonedDateTime.now(), 0, true);
+        this(null, employeeId, ZonedDateTime.now(), ZonedDateTime.now(), ANNUAL_LEAVE_TIME, IS_ANNUAL_LEAVE);
     }
 
     public CommuteHistory(
@@ -73,7 +77,7 @@ public class CommuteHistory {
 
     public Detail toDetail() {
         if (isAnnualLeaveDate()) {
-            return new Detail(this.workStartTimeToLocalDate(), 0, this.usingDayOff);
+            return new Detail(this.workStartTimeToLocalDate(), ANNUAL_LEAVE_TIME, this.usingDayOff);
         }
         return new Detail(this.workStartTimeToLocalDate(), this.workingMinutes, this.usingDayOff);
     }
