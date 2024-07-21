@@ -4,9 +4,8 @@ import com.company.officecommute.domain.overtime.HolidayResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
@@ -28,21 +27,7 @@ public class ApiConvertor {
         this.apiProperties = apiProperties;
     }
 
-    private List<HolidayResponse.Item> itemsOfResponse(YearMonth yearMonth) throws MalformedURLException, URISyntaxException {
-        String solYear = String.valueOf(yearMonth.getYear());
-
-        int month = yearMonth.getMonthValue();
-        String solMonth = (month < 10) ? "0" + month : String.valueOf(month);
-
-        String stringURL = apiProperties.combineURL(solYear, solMonth);
-        URL url = new URL(stringURL);
-
-        HolidayResponse holidayResponse = restTemplate.getForObject(url.toURI(), HolidayResponse.class);
-        List<HolidayResponse.Item> items = holidayResponse.getBody().getItems();
-        return items;
-    }
-
-    public long countNumberOfStandardWorkingDays(YearMonth yearMonth) throws MalformedURLException, URISyntaxException {
+    public long countNumberOfStandardWorkingDays(YearMonth yearMonth) {
         List<HolidayResponse.Item> items = itemsOfResponse(yearMonth);
 
         int lengthOfMonth = yearMonth.lengthOfMonth();
@@ -56,21 +41,39 @@ public class ApiConvertor {
         return numberOfWeekDays - numberOfHolidays;
     }
 
-    public long calculateStandardWorkingMinutes(long numberOfStandardWorkingDays) {
-        return numberOfStandardWorkingDays * 8 * 60;
+    private List<HolidayResponse.Item> itemsOfResponse(YearMonth yearMonth) {
+        String solYear = String.valueOf(yearMonth.getYear());
+
+        int month = yearMonth.getMonthValue();
+        String solMonth = (month < 10) ? "0" + month : String.valueOf(month);
+
+        String stringURL = apiProperties.combineURL(solYear, solMonth);
+        URI uri;
+        try {
+            uri = new URI(stringURL);
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
+
+        HolidayResponse holidayResponse = restTemplate.getForObject(uri, HolidayResponse.class);
+        return holidayResponse.getBody().getItems();
     }
 
-    private static long minusDuplicateHolidays(long numberOfHolidays, Set<LocalDate> holidays) {
+    private long minusDuplicateHolidays(long numberOfHolidays, Set<LocalDate> holidays) {
         numberOfHolidays -= holidays.stream()
                 .filter(WeekendCalculator::isWeekend)
                 .count();
         return numberOfHolidays;
     }
 
-    private static Set<LocalDate> convertToLocalDate(List<HolidayResponse.Item> items) {
+    private Set<LocalDate> convertToLocalDate(List<HolidayResponse.Item> items) {
         return items.stream()
                 .map(item -> LocalDate.parse(item.getLocdate(), DATE_FORMATTER))
                 .collect(toSet());
+    }
+
+    public long calculateStandardWorkingMinutes(long numberOfStandardWorkingDays) {
+        return numberOfStandardWorkingDays * 8 * 60;
     }
 
 }

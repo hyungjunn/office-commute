@@ -12,7 +12,6 @@ public class WeekendCalculator {
         LocalDate startDate = yearMonth.atDay(1);
         return IntStream.rangeClosed(0, yearMonth.lengthOfMonth() - 1)
                 .mapToObj(startDate::plusDays)
-                .peek(System.out::println)
                 .filter(WeekendCalculator::isWeekend)
                 .count();
     }
