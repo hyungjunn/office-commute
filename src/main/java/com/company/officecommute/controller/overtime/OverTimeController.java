@@ -6,8 +6,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.net.MalformedURLException;
-import java.net.URISyntaxException;
 import java.time.YearMonth;
 import java.util.List;
 
@@ -21,8 +19,7 @@ public class OverTimeController {
     }
 
     @GetMapping("/overtime")
-    public List<OverTimeCalculateResponse> calculateOverTime(@RequestParam YearMonth yearMonth)
-            throws MalformedURLException, URISyntaxException {
+    public List<OverTimeCalculateResponse> calculateOverTime(@RequestParam YearMonth yearMonth) {
         return overTimeService.calculateOverTime(yearMonth);
     }
 

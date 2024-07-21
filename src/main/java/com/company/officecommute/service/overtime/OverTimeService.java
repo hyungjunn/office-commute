@@ -5,8 +5,6 @@ import com.company.officecommute.service.commute.CommuteHistoryDomainService;
 import com.company.officecommute.web.ApiConvertor;
 import org.springframework.stereotype.Service;
 
-import java.net.MalformedURLException;
-import java.net.URISyntaxException;
 import java.time.YearMonth;
 import java.util.List;
 
@@ -24,7 +22,7 @@ public class OverTimeService {
         this.apiConvertor = apiConvertor;
     }
 
-    public List<OverTimeCalculateResponse> calculateOverTime(YearMonth yearMonth) throws MalformedURLException, URISyntaxException {
+    public List<OverTimeCalculateResponse> calculateOverTime(YearMonth yearMonth) {
         List<TotalWorkingMinutes> totalWorkingMinutes = commuteHistoryDomainService.findWorkingMinutesTimeByMonth(yearMonth);
         long numberOfStandardWorkingDays = apiConvertor.countNumberOfStandardWorkingDays(yearMonth);
         long standardWorkingMinutes = apiConvertor.calculateStandardWorkingMinutes(numberOfStandardWorkingDays);

@@ -7,9 +7,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.web.client.RestTemplate;
 
-import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.time.YearMonth;
 import java.util.List;
 
@@ -31,7 +29,7 @@ class ApiConvertor1Test {
     private ApiConvertor apiConvertor;
 
     @Test
-    void _2024년_5월의_기준_근로_시간을_구하는_메서드를_검증하라() throws MalformedURLException, URISyntaxException {
+    void _2024년_5월의_기준_근로_시간을_구하는_메서드를_검증하라() {
         ApiProperties fakeApiProperties = new TestApi();
         HolidayResponse fakeResponse = new HolidayResponse();
         // fakeItems에 필요한 가짜 데이터 추가
