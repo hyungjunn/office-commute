@@ -25,13 +25,8 @@ public class OverTimeService {
     }
 
     public List<OverTimeCalculateResponse> calculateOverTime(YearMonth yearMonth) throws MalformedURLException, URISyntaxException {
-        // 각 직원의 월간 근무 시간을 조회
         List<TotalWorkingMinutes> totalWorkingMinutes = commuteHistoryDomainService.findWorkingMinutesTimeByMonth(yearMonth);
-        // 1. 공공데이터포털 사이트에서 주말과 법정 공휴일 데이터를 가지고 온다
-        // 2. 그 달의 총 일 수 에서 1번(주말+공휴일)을 뺀다
-        // 이 때, 공휴일이면서 주말인 경우는 겹치기 때문에 그 일수만큼 더해준다
         long numberOfStandardWorkingDays = apiConvertor.countNumberOfStandardWorkingDays(yearMonth);
-        // 3. 2번에 곱하기 8을 한다
         long standardWorkingMinutes = apiConvertor.calculateStandardWorkingMinutes(numberOfStandardWorkingDays);
         return totalWorkingMinutes.stream()
                 .map(totalWorkingMinute -> {

@@ -56,10 +56,6 @@ public class ApiConvertor {
         return numberOfWeekDays - numberOfHolidays;
     }
 
-    public long calculateStandardWorkingMinutes(long numberOfStandardWorkingDays) {
-        return numberOfStandardWorkingDays * 8 * 60;
-    }
-
     private static long minusDuplicateHolidays(long numberOfHolidays, Set<LocalDate> holidays) {
         numberOfHolidays -= holidays.stream()
                 .filter(WeekendCalculator::isWeekend)
@@ -71,6 +67,10 @@ public class ApiConvertor {
         return items.stream()
                 .map(item -> LocalDate.parse(item.getLocdate(), DATE_FORMATTER))
                 .collect(toSet());
+    }
+
+    public long calculateStandardWorkingMinutes(long numberOfStandardWorkingDays) {
+        return numberOfStandardWorkingDays * 8 * 60;
     }
 
 }
