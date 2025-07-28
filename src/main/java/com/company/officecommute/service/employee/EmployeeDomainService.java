@@ -1,6 +1,8 @@
 package com.company.officecommute.service.employee;
 
 import com.company.officecommute.domain.employee.Employee;
+import com.company.officecommute.global.exception.CustomException;
+import com.company.officecommute.global.exception.ErrorCode;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +17,6 @@ public class EmployeeDomainService {
 
     public Employee findEmployeeById(Long employeeId) {
         return employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new IllegalArgumentException(String.format("해당하는 직원(%s)이 없습니다.", employeeId)));
+                .orElseThrow(() -> new CustomException(ErrorCode.EMPLOYEE_NOT_FOUND));
     }
 }
