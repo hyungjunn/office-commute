@@ -31,7 +31,7 @@ class EmployeeTest {
                         .withRole(null)
                         .build())
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage(String.format("employee의 role이 올바르지 않은 형식(%s)입니다. 다시 입력해주세요.", null));
+                .hasMessage(String.format("employee의 role이 올바르지 않은 형식(%s)입니다. 다시 입력해주세요.", (Object) null));
     }
 
     @Test
@@ -43,7 +43,7 @@ class EmployeeTest {
                         .withBirthday(null)
                         .build())
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage(String.format("employee의 birthday이 올바르지 않은 형식(%s)입니다. 다시 입력해주세요.", null));
+                .hasMessage(String.format("employee의 birthday이 올바르지 않은 형식(%s)입니다. 다시 입력해주세요.", (Object) null));
     }
 
     @Test
@@ -56,7 +56,7 @@ class EmployeeTest {
                         .withStartDate(null)
                         .build())
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage(String.format("employee의 workStartDate이 올바르지 않은 형식(%s)입니다. 다시 입력해주세요.", null));
+                .hasMessage(String.format("employee의 workStartDate이 올바르지 않은 형식(%s)입니다. 다시 입력해주세요.", (Object) null));
 
     }
 
