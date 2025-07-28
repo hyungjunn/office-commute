@@ -21,6 +21,23 @@ else
   }
 fi
 
+# ▒ 실패 추적 및 테스트 래퍼 ▒
+errors=()
+passed_count=0
+
+do_test_step() {
+  description=$1
+  shift
+  if "$@"; then
+    echo "✅ $description"
+    passed_count=$((passed_count + 1))
+
+  else
+    echo "❌ $description"
+    errors+=("$description")
+  fi
+}
+
 # 날짜 계산
 today=$($DATE_CMD +%F)
 year_month=$($DATE_CMD +%Y-%m)
@@ -41,7 +58,9 @@ base_url="http://localhost:8080"
 
 create_team() {
   team_name=$1
-  http -v POST "$base_url/team" teamName="$team_name"
+  if ! http -v POST "$base_url/team" teamName="$team_name"; then
+    return 1
+  fi
 }
 
 create_employee() {
@@ -87,18 +106,46 @@ get_work_duration_per_date() {
 
 # API 테스트 실행
 
-create_team "백엔드"
-create_employee "임형준" "MANAGER" "1995-05-15" "$today"
-create_employee "고슬링" "MEMBER" "1950-05-15" "$today"
-create_employee "존카맥" "MEMBER" "1960-05-15" "$today"
+do_test_step "팀 생성" create_team "백엔드"
 
-assign_employee_to_team 1 "백엔드"
+do_test_step "임형준 사원 생성" create_employee "임형준" "MANAGER" "1995-05-15" "$today"
+do_test_step "고슬링 사원 생성" create_employee "고슬링" "MEMBER" "1950-05-15" "$today"
+do_test_step "존카맥 사원 생성" create_employee "존카맥" "MEMBER" "1960-05-15" "$today"
 
-register_work_start_time 1
-register_work_end_time 1
+do_test_step "팀 배정" assign_employee_to_team 1 "백엔드"
 
-request_annual_leave 1 "[\"$future_date1\", \"$future_date2\", \"$future_date3\"]"
-request_annual_leave 1 "[\"$past_date1\", \"$past_date2\"]"
+do_test_step "출근 등록" register_work_start_time 1
+do_test_step "퇴근 등록" register_work_end_time 1
 
-get_remaining_annual_leave 1
-get_work_duration_per_date 1 "$year_month"
+do_test_step "미래 연차 신청" request_annual_leave 1 "[\"$future_date1\", \"$future_date2\", \"$future_date3\"]"
+do_test_step "과거 연차 신청" request_annual_leave 1 "[\"$past_date1\", \"$past_date2\"]"
+
+do_test_step "남은 연차 조회" get_remaining_annual_leave 1
+do_test_step "월별 근무 시간 조회" get_work_duration_per_date 1 "$year_month"
+
+echo
+echo "========================="
+echo "🧪 TEST REPORT"
+echo "========================="
+
+# 총 테스트 개수: do_test_step 사용 횟수 기준
+total_steps=$((passed_count + failed_count))
+failed_count=${#errors[@]}
+#passed_count=$((total_steps - failed_count))
+
+echo "✅ $passed_count passed"
+echo "❌ $failed_count failed"
+echo
+
+if [ "$failed_count" -gt 0 ]; then
+  echo "❌ Failed steps:"
+  for err in "${errors[@]}"; do
+    echo " - $err"
+  done
+  echo
+  echo "Result: ❌ FAILED"
+  exit 1
+else
+  echo "Result: ✅ ALL TESTS PASSED"
+  exit 0
+fi
