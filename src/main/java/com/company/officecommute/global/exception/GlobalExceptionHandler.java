@@ -3,6 +3,7 @@ package com.company.officecommute.global.exception;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -38,5 +39,12 @@ public class GlobalExceptionHandler {
                 .map(error -> new FieldErrorResult(error.getField(), error.getDefaultMessage()))
                 .toList();
         return new ValidationErrorResult("VALIDATION_ERROR", "입력값이 올바르지 않습니다", errors);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResult handleInvalidJson(HttpMessageNotReadableException e) {
+        log.warn("JSON 파싱 실패", e);
+        return new ErrorResult("INVALID_JSON", "역할 값이 올바르지 않습니다.");
     }
 }

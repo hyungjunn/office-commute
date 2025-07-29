@@ -4,6 +4,7 @@ import com.company.officecommute.dto.employee.request.EmployeeSaveRequest;
 import com.company.officecommute.dto.employee.request.EmployeeUpdateTeamNameRequest;
 import com.company.officecommute.dto.employee.response.EmployeeFindResponse;
 import com.company.officecommute.service.employee.EmployeeService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -22,7 +23,7 @@ public class EmployeeController {
     }
 
     @PostMapping("/employee")
-    public void saveEmployee(@RequestBody EmployeeSaveRequest request) {
+    public void saveEmployee(@Valid @RequestBody EmployeeSaveRequest request) {
         employeeService.registerEmployee(request);
     }
 

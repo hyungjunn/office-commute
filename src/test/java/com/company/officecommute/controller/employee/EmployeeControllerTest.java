@@ -26,6 +26,68 @@ class EmployeeControllerTest {
     private EmployeeService employeeService;
 
     @Test
+    @DisplayName("유효하지 않은 값들로 직원 등록 요청 시 예외 발생")
+    void testValidInputFailsValidation() {
+        // 통제변인: role = "MEMBER" (정상)
+        String invalidRequest = """
+                    {
+                        "name": "",
+                        "role": "MEMBER",
+                        "birthday": "2030-01-01",
+                        "workStartDate": "2099-12-31"
+                    }
+                """;
+
+        assertThat(mockMvcTester
+                .post()
+                .uri("/employee")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(invalidRequest))
+                .hasStatus(HttpStatus.BAD_REQUEST)
+                .bodyJson()
+                .isLenientlyEqualTo("""
+                            {
+                                "code": "VALIDATION_ERROR",
+                                "message": "입력값이 올바르지 않습니다",
+                                "fieldErrorResults": [
+                                    { "field": "name", "message": "직원 이름은 필수입니다." },
+                                    { "field": "birthday", "message": "생일은 과거 날짜여야 합니다." },
+                                    { "field": "workStartDate", "message": "입사일은 오늘이거나 과거 날짜여야 합니다." }
+                                ]
+                            }
+                        """);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 역할 값 입력 시 예외 발생")
+    void testInvalidEnumFailsJsonParsing() {
+        // JSON 파싱 실패 → INVALID_JSON
+        // 통제변인: 나머지 필드 정상
+        String invalidEnumRequest = """
+                    {
+                        "name": "John",
+                        "role": "CEO",
+                        "birthday": "1990-01-01",
+                        "workStartDate": "2020-01-01"
+                    }
+                """;
+
+        assertThat(mockMvcTester
+                .post()
+                .uri("/employee")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(invalidEnumRequest))
+                .hasStatus(HttpStatus.BAD_REQUEST)
+                .bodyJson()
+                .isLenientlyEqualTo("""
+                            {
+                                "code": "INVALID_JSON",
+                                "message": "역할 값이 올바르지 않습니다."
+                            }
+                        """);
+    }
+
+    @Test
     @DisplayName("존재하지 않는 팀 배정시 예외 발생")
     void update_nonExistTeam() {
         doThrow(new IllegalArgumentException("해당하는 팀명(없는팀)이 없습니다."))
