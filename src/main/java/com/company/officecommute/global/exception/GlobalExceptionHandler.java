@@ -3,9 +3,13 @@ package com.company.officecommute.global.exception;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.List;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -24,5 +28,15 @@ public class GlobalExceptionHandler {
     public ErrorResult exHandler(Exception e) {
         log.error("Exception", e);
         return new ErrorResult("INTERNAL_SERVER_ERROR", "내부 서버 오류가 발생했습니다");
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ValidationErrorResult validationExHandler(MethodArgumentNotValidException e) {
+        log.error("MethodArgumentNotValidException", e);
+        List<FieldErrorResult> errors = e.getBindingResult().getFieldErrors().stream()
+                .map(error -> new FieldErrorResult(error.getField(), error.getDefaultMessage()))
+                .toList();
+        return new ValidationErrorResult("VALIDATION_ERROR", "입력값이 올바르지 않습니다", errors);
     }
 }

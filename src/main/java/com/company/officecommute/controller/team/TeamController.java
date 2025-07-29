@@ -3,6 +3,7 @@ package com.company.officecommute.controller.team;
 import com.company.officecommute.dto.team.request.TeamRegisterRequest;
 import com.company.officecommute.dto.team.response.TeamFindResponse;
 import com.company.officecommute.service.team.TeamService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,7 +21,7 @@ public class TeamController {
     }
 
     @PostMapping("/team")
-    public Long registerTeam(@RequestBody TeamRegisterRequest request) {
+    public Long registerTeam(@Valid @RequestBody TeamRegisterRequest request) {
         return teamService.registerTeam(request.teamName());
     }
 
