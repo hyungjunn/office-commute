@@ -50,4 +50,4 @@ src/main/resources/static/docs/
 
 ### application*.yml ###
 src/main/resources/*.yml
-src/test/resources/application-local.yml
+src/test/resources/*.yml

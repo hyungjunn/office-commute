@@ -12,8 +12,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-import static com.company.officecommute.web.ApiUrlConstant.EMPLOYEE;
-
 @RestController
 public class EmployeeController {
 
@@ -23,17 +21,17 @@ public class EmployeeController {
         this.employeeService = employeeService;
     }
 
-    @PostMapping(EMPLOYEE)
+    @PostMapping("/employee")
     public void saveEmployee(@RequestBody EmployeeSaveRequest request) {
         employeeService.registerEmployee(request);
     }
 
-    @GetMapping(EMPLOYEE)
+    @GetMapping("/employee")
     public List<EmployeeFindResponse> findAllEmployee() {
         return employeeService.findAllEmployee();
     }
 
-    @PutMapping(EMPLOYEE)
+    @PutMapping("/employee")
     public void updateEmployeeTeamName(@RequestBody EmployeeUpdateTeamNameRequest request) {
         employeeService.updateEmployeeTeamName(request);
     }
