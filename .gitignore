@@ -5,6 +5,9 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
+# p6spy log
+spy.log
+
 ### STS ###
 .apt_generated
 .classpath
