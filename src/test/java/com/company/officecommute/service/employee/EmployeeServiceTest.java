@@ -15,12 +15,14 @@ import com.company.officecommute.repository.commute.CommuteHistoryRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.service.team.TeamDomainService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.BDDMockito;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
@@ -29,6 +31,7 @@ import java.util.List;
 
 import static com.company.officecommute.domain.employee.Role.MANAGER;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
@@ -38,21 +41,18 @@ class EmployeeServiceTest {
 
     @InjectMocks
     private EmployeeService employeeService;
-
     @Mock
     private EmployeeRepository employeeRepository;
-
     @Mock
     private EmployeeDomainService employeeDomainService;
-
     @Mock
     private TeamDomainService teamDomainService;
-
     @Mock
     private AnnualLeaveRepository annualLeaveRepository;
-
     @Mock
     private CommuteHistoryRepository commuteHistoryRepository;
+    @Mock
+    private PasswordEncoder passwordEncoder;
 
     private Employee employee;
     private Team team;
@@ -64,16 +64,72 @@ class EmployeeServiceTest {
                 .withRole(MANAGER)
                 .withBirthday(LocalDate.of(1998, 8, 18))
                 .withStartDate(LocalDate.of(2024, 1, 1))
+                .withEmployeeCode("EMP001")
+                .withPassword("password123!")
                 .build();
 
         team = new Team("teamName");
     }
 
     @Test
+    @DisplayName("직원이 정상적으로 등록된다")
+    void registerEmployee_success() {
+        EmployeeSaveRequest request = new EmployeeSaveRequest(
+                "hyungjunn",
+                MANAGER,
+                LocalDate.of(1998, 8, 18),
+                LocalDate.of(2024, 1, 1),
+                "EMP001",
+                "password123!"
+        );
+        BDDMockito.given(employeeRepository.existsByEmployeeCode("EMP001"))
+                .willReturn(false);
+        BDDMockito.given(passwordEncoder.encode("password123!"))
+                .willReturn("encodedPassword");
+
+        employeeService.registerEmployee(request);
+
+        verify(employeeRepository).existsByEmployeeCode("EMP001");
+        verify(passwordEncoder).encode("password123!");
+        verify(employeeRepository).save(any(Employee.class));
+    }
+
+    @Test
+    @DisplayName("중복된 직원 코드로 등록시 예외가 발생한다")
+    void registerEmployee_with_duplicateEmpCode() {
+        EmployeeSaveRequest request = new EmployeeSaveRequest(
+                "hyungjunn",
+                MANAGER,
+                LocalDate.of(1998, 8, 18),
+                LocalDate.of(2024, 1, 1),
+                "EMP001",
+                "password123!"
+        );
+        BDDMockito.given(employeeRepository.existsByEmployeeCode("EMP001"))
+                .willReturn(true);
+
+        assertThatThrownBy(() -> employeeService.registerEmployee(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("이미 존재하는 직원 코드입니다.");
+        verify(employeeRepository).existsByEmployeeCode("EMP001");
+        verify(passwordEncoder, BDDMockito.never()).encode(anyString());
+        verify(employeeRepository, BDDMockito.never()).save(any(Employee.class));
+    }
+
+    @Test
     void testRegisterEmployee() {
-        EmployeeSaveRequest request = new EmployeeSaveRequest("hyungjunn", MANAGER, LocalDate.of(1998, 8, 18), LocalDate.of(2024, 1, 1));
+        EmployeeSaveRequest request = new EmployeeSaveRequest(
+                "hyungjunn",
+                MANAGER,
+                LocalDate.of(1998, 8, 18),
+                LocalDate.of(2024, 1, 1),
+                "EMP001",
+                "password123!"
+        );
         BDDMockito.given(employeeRepository.save(any(Employee.class)))
                 .willReturn(employee);
+        BDDMockito.given(passwordEncoder.encode("password123!"))
+                .willReturn("encodedPassword");
 
         employeeService.registerEmployee(request);
 

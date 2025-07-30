@@ -28,13 +28,15 @@ class EmployeeControllerTest {
     @Test
     @DisplayName("유효하지 않은 값들로 직원 등록 요청 시 예외 발생")
     void testValidInputFailsValidation() {
-        // 통제변인: role = "MEMBER" (정상)
+        // 통제변인: role = "MEMBER", employeeCode = "E00001", password = "password123!" (정상)
         String invalidRequest = """
                     {
                         "name": "",
                         "role": "MEMBER",
                         "birthday": "2030-01-01",
-                        "workStartDate": "2099-12-31"
+                        "workStartDate": "2099-12-31",
+                        "employeeCode": "E00001",
+                        "password": "password123!"
                     }
                 """;
 

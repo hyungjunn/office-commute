@@ -68,7 +68,9 @@ create_employee() {
   role=$2
   birthday=$3
   work_start_date=$4
-  http -v POST "$base_url/employee" name="$name" role="$role" birthday="$birthday" workStartDate="$work_start_date"
+  employee_code=$5
+  password=$6
+  http -v POST "$base_url/employee" name="$name" role="$role" birthday="$birthday" workStartDate="$work_start_date" employeeCode="$employee_code" password="$password"
 }
 
 assign_employee_to_team() {
@@ -108,9 +110,9 @@ get_work_duration_per_date() {
 
 do_test_step "팀 생성" create_team "백엔드"
 
-do_test_step "임형준 사원 생성" create_employee "임형준" "MANAGER" "1995-05-15" "$today"
-do_test_step "고슬링 사원 생성" create_employee "고슬링" "MEMBER" "1950-05-15" "$today"
-do_test_step "존카맥 사원 생성" create_employee "존카맥" "MEMBER" "1960-05-15" "$today"
+do_test_step "임형준 사원 생성" create_employee "임형준" "MANAGER" "1995-05-15" "$today" "EMP001" "password123!"
+do_test_step "고슬링 사원 생성" create_employee "고슬링" "MEMBER" "1950-05-15" "$today" "EMP002" "password123!"
+do_test_step "존카맥 사원 생성" create_employee "존카맥" "MEMBER" "1960-05-15" "$today" "EMP003" "password123!"
 
 do_test_step "팀 배정" assign_employee_to_team 1 "백엔드"
 

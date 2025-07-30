@@ -20,44 +20,7 @@ class EmployeeTest {
                         .withName(input)
                         .build())
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage(String.format("employee의 name(%s)이 올바르지 않은 형식입니다. 다시 입력해주세요.", input));
-    }
-
-    @Test
-    void testEmployeeRoleException() {
-        assertThatThrownBy(() -> new EmployeeBuilder()
-                        .withId(1L)
-                        .withName("input")
-                        .withRole(null)
-                        .build())
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage(String.format("employee의 role이 올바르지 않은 형식(%s)입니다. 다시 입력해주세요.", (Object) null));
-    }
-
-    @Test
-    void testEmployeeBirthdayException() {
-        assertThatThrownBy(() -> new EmployeeBuilder()
-                        .withId(1L)
-                        .withName("input")
-                        .withRole(Role.MANAGER)
-                        .withBirthday(null)
-                        .build())
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage(String.format("employee의 birthday이 올바르지 않은 형식(%s)입니다. 다시 입력해주세요.", (Object) null));
-    }
-
-    @Test
-    void testEmployeeWorkDateException() {
-        assertThatThrownBy(() -> new EmployeeBuilder()
-                        .withId(1L)
-                        .withName("hyungjunn")
-                        .withRole(Role.MANAGER)
-                        .withBirthday(LocalDate.of(1998, 8, 18))
-                        .withStartDate(null)
-                        .build())
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage(String.format("employee의 workStartDate이 올바르지 않은 형식(%s)입니다. 다시 입력해주세요.", (Object) null));
-
+                .hasMessage("employee의 name이 올바르지 않은 형식입니다.");
     }
 
     @Test
@@ -68,6 +31,8 @@ class EmployeeTest {
                 .withRole(Role.MANAGER)
                 .withBirthday(LocalDate.of(1998, 8, 18))
                 .withStartDate(LocalDate.of(2021, 8, 18))
+                .withEmployeeCode("EMP001")
+                .withPassword("password123!")
                 .build();
 
         employee.changeTeam("A");

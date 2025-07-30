@@ -12,4 +12,6 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             FROM Employee e
             """)
     List<Employee> findEmployeeHierarchy();
+
+    boolean existsByEmployeeCode(String employeeCode);
 }

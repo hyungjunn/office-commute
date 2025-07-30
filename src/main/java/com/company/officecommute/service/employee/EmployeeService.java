@@ -15,6 +15,8 @@ import com.company.officecommute.repository.annual_leave.AnnualLeaveRepository;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.service.team.TeamDomainService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,23 +30,37 @@ public class EmployeeService {
     private final TeamDomainService teamDomainService;
     private final AnnualLeaveRepository annualLeaveRepository;
     private final CommuteHistoryRepository commuteHistoryRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public EmployeeService(
             EmployeeRepository employeeRepository,
             EmployeeDomainService employeeDomainService,
             TeamDomainService teamDomainService,
             AnnualLeaveRepository annualLeaveRepository,
-            CommuteHistoryRepository commuteHistoryRepository) {
+            CommuteHistoryRepository commuteHistoryRepository,
+            PasswordEncoder passwordEncoder) {
         this.employeeRepository = employeeRepository;
         this.employeeDomainService = employeeDomainService;
         this.teamDomainService = teamDomainService;
         this.annualLeaveRepository = annualLeaveRepository;
         this.commuteHistoryRepository = commuteHistoryRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
     public void registerEmployee(EmployeeSaveRequest request) {
-        Employee employee = new Employee(request.name(), request.role(), request.birthday(), request.workStartDate());
+        if (employeeRepository.existsByEmployeeCode(request.employeeCode())) {
+            throw new IllegalArgumentException("이미 존재하는 직원 코드입니다.");
+        }
+        String encodedPassword = passwordEncoder.encode(request.password());
+        Employee employee = new Employee(
+                request.name(),
+                request.role(),
+                request.birthday(),
+                request.workStartDate(),
+                request.employeeCode(),
+                encodedPassword
+        );
         employeeRepository.save(employee);
     }
 
