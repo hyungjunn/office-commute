@@ -28,6 +28,7 @@ import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static com.company.officecommute.domain.employee.Role.MANAGER;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -69,6 +70,46 @@ class EmployeeServiceTest {
                 .build();
 
         team = new Team("teamName");
+    }
+
+    @Test
+    @DisplayName("올바른 사번과 비밀번호로 인증 성공")
+    void authenticate_success() {
+        String employeeCode = "EMP001";
+        String password = "password123!";
+        BDDMockito.given(employeeRepository.findByEmployeeCode(employeeCode))
+                .willReturn(Optional.of(employee));
+        BDDMockito.given(passwordEncoder.matches(password, employee.getPassword()))
+                .willReturn(true);
+
+        Employee result = employeeService.authenticate(employeeCode, password);
+
+        assertThat(result).isEqualTo(employee);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 사번으로 인증 실패")
+    void authenticate_employeeCodeNotFound() {
+        BDDMockito.given(employeeRepository.findByEmployeeCode("INVALID_CODE"))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> employeeService.authenticate("INVALID_CODE", "password123!"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("존재하지 않는 사번입니다");
+    }
+
+    @Test
+    @DisplayName("잘못된 비밀번호로 인증 실패")
+    void authenticate_wrongPassword() {
+        String wrongPassword = "wrongPassword!";
+        BDDMockito.given(employeeRepository.findByEmployeeCode("EMP001"))
+                .willReturn(Optional.of(employee));
+        BDDMockito.given(passwordEncoder.matches(wrongPassword, employee.getPassword()))
+                .willReturn(false);
+
+        assertThatThrownBy(() -> employeeService.authenticate("EMP001", wrongPassword))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("비밀번호가 일치하지 않습니다.");
     }
 
     @Test

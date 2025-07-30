@@ -138,4 +138,8 @@ public class Employee {
     public LocalDate getWorkStartDate() {
         return workStartDate;
     }
+
+    public String getPassword() {
+        return password;
+    }
 }

@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     @Query("""
@@ -12,6 +13,8 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             FROM Employee e
             """)
     List<Employee> findEmployeeHierarchy();
+
+    Optional<Employee> findByEmployeeCode(String employeeCode);
 
     boolean existsByEmployeeCode(String employeeCode);
 }

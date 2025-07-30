@@ -83,6 +83,15 @@ public class EmployeeService {
         team.increaseMemberCount();
     }
 
+    public Employee authenticate(String employeeCode, String password) {
+        Employee employee = employeeRepository.findByEmployeeCode(employeeCode)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사번입니다"));
+        if (!passwordEncoder.matches(password, employee.getPassword())) {
+            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
+        }
+        return employee;
+    }
+
     @Transactional
     public List<AnnualLeaveEnrollmentResponse> enrollAnnualLeave(Long employeeId, List<AnnualLeave> wantedLeaves) {
         Employee employee = employeeDomainService.findEmployeeById(employeeId);
