@@ -55,7 +55,6 @@ past_date2=$(get_date "-29 days")
 base_url="http://localhost:8080"
 
 # API 함수 정의
-
 create_team() {
   team_name=$1
   if ! http -v POST "$base_url/team" teamName="$team_name"; then
@@ -79,35 +78,44 @@ assign_employee_to_team() {
   http -v PUT "$base_url/employee" employeeId="$employee_id" teamName="$team_name"
 }
 
+# 로그인을 먼저 요청한 후 work_start_time과 work_end_time을 등록합니다.
+login_employee() {
+  employee_code=$1
+  password=$2
+  if http --session=mysession POST "$base_url/login" \
+      employeeCode="$employee_code" \
+      password="$password"; then
+      echo "✅ 로그인 성공: $employee_code"
+      return 0
+    else
+      echo "❌ 로그인 실패: $employee_code"
+      return 1
+    fi
+}
+
 register_work_start_time() {
-  employee_id=$1
-  http -v POST "$base_url/commute" employeeId="$employee_id"
+  http -v --session=mysession POST "$base_url/commute"
 }
 
 register_work_end_time() {
-  employee_id=$1
-  http -v PUT "$base_url/commute" employeeId="$employee_id"
+  http -v --session=mysession PUT "$base_url/commute"
 }
 
 request_annual_leave() {
-  employee_id=$1
-  wanted_dates=$2
-  http -v POST "$base_url/annual-leave" employeeId="$employee_id" wantedDates:="$wanted_dates"
+  wanted_dates=$1
+  http -v --session=mysession POST "$base_url/annual-leave" wantedDates:="$wanted_dates"
 }
 
 get_remaining_annual_leave() {
-  employee_id=$1
-  http -v GET "$base_url/annual-leave?employeeId=$employee_id"
+  http -v --session=mysession GET "$base_url/annual-leave"
 }
 
 get_work_duration_per_date() {
-  employee_id=$1
-  year_month=$2
-  http -v GET "$base_url/commute?employeeId=$employee_id&yearMonth=$year_month"
+  year_month=$1
+  http -v --session=mysession GET "$base_url/commute?yearMonth=$year_month"
 }
 
 # API 테스트 실행
-
 do_test_step "팀 생성" create_team "백엔드"
 
 do_test_step "임형준 사원 생성" create_employee "임형준" "MANAGER" "1995-05-15" "$today" "EMP001" "password123!"
@@ -116,14 +124,16 @@ do_test_step "존카맥 사원 생성" create_employee "존카맥" "MEMBER" "196
 
 do_test_step "팀 배정" assign_employee_to_team 1 "백엔드"
 
+do_test_step "로그인" login_employee "EMP001" "password123!"
+
 do_test_step "출근 등록" register_work_start_time 1
 do_test_step "퇴근 등록" register_work_end_time 1
 
-do_test_step "미래 연차 신청" request_annual_leave 1 "[\"$future_date1\", \"$future_date2\", \"$future_date3\"]"
-do_test_step "과거 연차 신청" request_annual_leave 1 "[\"$past_date1\", \"$past_date2\"]"
+do_test_step "미래 연차 신청" request_annual_leave "[\"$future_date1\", \"$future_date2\", \"$future_date3\"]"
+do_test_step "과거 연차 신청" request_annual_leave "[\"$past_date1\", \"$past_date2\"]"
 
-do_test_step "남은 연차 조회" get_remaining_annual_leave 1
-do_test_step "월별 근무 시간 조회" get_work_duration_per_date 1 "$year_month"
+do_test_step "남은 연차 조회" get_remaining_annual_leave
+do_test_step "월별 근무 시간 조회" get_work_duration_per_date "$year_month"
 
 echo
 echo "========================="

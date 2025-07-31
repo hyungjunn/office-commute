@@ -20,7 +20,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class EmployeeService {
@@ -93,7 +95,11 @@ public class EmployeeService {
     }
 
     @Transactional
-    public List<AnnualLeaveEnrollmentResponse> enrollAnnualLeave(Long employeeId, List<AnnualLeave> wantedLeaves) {
+    public List<AnnualLeaveEnrollmentResponse> enrollAnnualLeave(Long employeeId, List<LocalDate> wantedDates) {
+        // TODO: 추후 리팩터링 고려
+        List<AnnualLeave> wantedLeaves = wantedDates.stream()
+                .map(wantedDate -> new AnnualLeave(employeeId, wantedDate))
+                .toList();
         Employee employee = employeeDomainService.findEmployeeById(employeeId);
         Team team = teamDomainService.findTeamByName(employee.getTeamName());
         List<AnnualLeave> existingAnnualLeaves = annualLeaveRepository.findByEmployeeId(employeeId);

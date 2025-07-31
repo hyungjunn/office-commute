@@ -4,10 +4,10 @@ import com.company.officecommute.dto.annual_leave.request.AnnualLeaveEnrollReque
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveEnrollmentResponse;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveGetRemainingResponse;
 import com.company.officecommute.service.employee.EmployeeService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -22,12 +22,17 @@ public class AnnualLeaveController {
     }
 
     @PostMapping("/annual-leave")
-    public List<AnnualLeaveEnrollmentResponse> enrollAnnualLeave(@RequestBody AnnualLeaveEnrollRequest request) {
-        return employeeService.enrollAnnualLeave(request.employeeId(), request.datesToAnnualLeaves());
+    public List<AnnualLeaveEnrollmentResponse> enrollAnnualLeave(
+            HttpServletRequest request,
+            @RequestBody AnnualLeaveEnrollRequest enrollRequest
+    ) {
+        Long employeeId = (Long) request.getAttribute("employeeId");
+        return employeeService.enrollAnnualLeave(employeeId, enrollRequest.wantedDates());
     }
 
     @GetMapping("/annual-leave")
-    public AnnualLeaveGetRemainingResponse getRemainingAnnualLeaves(@RequestParam Long employeeId) {
+    public AnnualLeaveGetRemainingResponse getRemainingAnnualLeaves(HttpServletRequest request) {
+        Long employeeId = (Long) request.getAttribute("employeeId");
         return employeeService.getRemainingAnnualLeaves(employeeId);
     }
 

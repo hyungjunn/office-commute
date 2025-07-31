@@ -2,6 +2,7 @@ package com.company.officecommute.domain.annual_leave;
 
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveEnrollmentResponse;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class AnnualLeaves {
@@ -9,7 +10,7 @@ public class AnnualLeaves {
     private final List<AnnualLeave> annualLeaves;
 
     public AnnualLeaves(List<AnnualLeave> annualLeaves) {
-        this.annualLeaves = annualLeaves;
+        this.annualLeaves = new ArrayList<>(annualLeaves);
     }
 
     public void enroll(List<AnnualLeave> wantedLeaves) {
