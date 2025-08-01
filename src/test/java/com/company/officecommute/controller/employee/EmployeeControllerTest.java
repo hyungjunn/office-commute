@@ -1,5 +1,6 @@
 package com.company.officecommute.controller.employee;
 
+import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.service.employee.EmployeeService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -8,6 +9,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
@@ -43,6 +45,8 @@ class EmployeeControllerTest {
         assertThat(mockMvcTester
                 .post()
                 .uri("/employee")
+                .sessionAttr("employeeId", 1L)
+                .sessionAttr("employeeRole", Role.MANAGER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(invalidRequest))
                 .hasStatus(HttpStatus.BAD_REQUEST)
@@ -77,6 +81,8 @@ class EmployeeControllerTest {
         assertThat(mockMvcTester
                 .post()
                 .uri("/employee")
+                .sessionAttr("employeeId", 1L)
+                .sessionAttr("employeeRole", Role.MANAGER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(invalidEnumRequest))
                 .hasStatus(HttpStatus.BAD_REQUEST)
@@ -96,6 +102,8 @@ class EmployeeControllerTest {
                 .when(employeeService).updateEmployeeTeamName(any());
 
         assertThat(mockMvcTester.put().uri("/employee")
+                .sessionAttr("employeeId", 1L)
+                .sessionAttr("employeeRole", Role.MANAGER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {

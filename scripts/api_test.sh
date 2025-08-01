@@ -54,12 +54,24 @@ past_date2=$(get_date "-29 days")
 # 서버 URL
 base_url="http://localhost:8080"
 
-# API 함수 정의
+# ===API 함수 정의===
+login_admin() {
+  admin_code="ADMIN001"
+  password="admin123!"
+  if http -v --session=mysession POST "$base_url/login" \
+      employeeCode="$admin_code" \
+      password="$password"; then
+      echo "✅ 관리자 로그인 성공: $admin_code"
+      return 0
+    else
+      echo "❌ 관리자 로그인 실패: $admin_code"
+      return 1
+    fi
+}
+
 create_team() {
   team_name=$1
-  if ! http -v POST "$base_url/team" teamName="$team_name"; then
-    return 1
-  fi
+  http -v --session=mysession POST "$base_url/team" teamName="$team_name";
 }
 
 create_employee() {
@@ -69,13 +81,13 @@ create_employee() {
   work_start_date=$4
   employee_code=$5
   password=$6
-  http -v POST "$base_url/employee" name="$name" role="$role" birthday="$birthday" workStartDate="$work_start_date" employeeCode="$employee_code" password="$password"
+  http -v --session=mysession POST "$base_url/employee" name="$name" role="$role" birthday="$birthday" workStartDate="$work_start_date" employeeCode="$employee_code" password="$password"
 }
 
 assign_employee_to_team() {
   employee_id=$1
   team_name=$2
-  http -v PUT "$base_url/employee" employeeId="$employee_id" teamName="$team_name"
+  http -v --session=mysession PUT "$base_url/employee" employeeId="$employee_id" teamName="$team_name"
 }
 
 # 로그인을 먼저 요청한 후 work_start_time과 work_end_time을 등록합니다.
@@ -116,18 +128,20 @@ get_work_duration_per_date() {
 }
 
 # API 테스트 실행
+do_test_step "관리자 로그인" login_admin
+
 do_test_step "팀 생성" create_team "백엔드"
 
 do_test_step "임형준 사원 생성" create_employee "임형준" "MANAGER" "1995-05-15" "$today" "EMP001" "password123!"
 do_test_step "고슬링 사원 생성" create_employee "고슬링" "MEMBER" "1950-05-15" "$today" "EMP002" "password123!"
 do_test_step "존카맥 사원 생성" create_employee "존카맥" "MEMBER" "1960-05-15" "$today" "EMP003" "password123!"
 
-do_test_step "팀 배정" assign_employee_to_team 1 "백엔드"
+do_test_step "팀 배정" assign_employee_to_team 2 "백엔드"
 
 do_test_step "로그인" login_employee "EMP001" "password123!"
 
-do_test_step "출근 등록" register_work_start_time 1
-do_test_step "퇴근 등록" register_work_end_time 1
+do_test_step "출근 등록" register_work_start_time
+do_test_step "퇴근 등록" register_work_end_time
 
 do_test_step "미래 연차 신청" request_annual_leave "[\"$future_date1\", \"$future_date2\", \"$future_date3\"]"
 do_test_step "과거 연차 신청" request_annual_leave "[\"$past_date1\", \"$past_date2\"]"

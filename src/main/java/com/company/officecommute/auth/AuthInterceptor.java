@@ -12,9 +12,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class AuthInterceptor implements HandlerInterceptor {
 
     @Override
-    public boolean preHandle(HttpServletRequest request,
-                             HttpServletResponse response,
-                             Object handler) {
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("employeeId") == null) {
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
@@ -22,8 +20,8 @@ public class AuthInterceptor implements HandlerInterceptor {
         }
         Long employeeId = (Long) session.getAttribute("employeeId");
         Role employeeRole = (Role) session.getAttribute("employeeRole");
-        request.setAttribute("employeeId", employeeId);
-        request.setAttribute("employeeRole", employeeRole);
+        request.setAttribute("currentEmployeeId", employeeId);
+        request.setAttribute("currentRole", employeeRole);
         return true;
     }
 }

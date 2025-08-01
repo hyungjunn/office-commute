@@ -1,5 +1,6 @@
 package com.company.officecommute.controller.team;
 
+import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.service.team.TeamService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,8 @@ class TeamControllerTest {
         assertThat(mockMvcTest
                 .post()
                 .uri("/team")
+                .sessionAttr("employeeId", 1L)
+                .sessionAttr("employeeRole", Role.MANAGER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
                 .hasStatus(HttpStatus.BAD_REQUEST)

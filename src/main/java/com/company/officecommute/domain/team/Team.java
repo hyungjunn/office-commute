@@ -4,6 +4,7 @@ import com.company.officecommute.domain.annual_leave.AnnualLeave;
 import com.company.officecommute.domain.annual_leave.AnnualLeaves;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 
 import java.util.List;
@@ -12,7 +13,7 @@ import java.util.List;
 public class Team {
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long teamId;
 
     private String name;

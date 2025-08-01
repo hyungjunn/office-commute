@@ -17,8 +17,9 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(authInterceptor)
-                .addPathPatterns("/commute/**", "/annual-leave/**", "/overtime/**")
+                .addPathPatterns("/commute/**", "/annual-leave/**", "/overtime/**", "/team/**", "/employee/**")
+                // .addPathPatterns("/**")
                 // TODO: /employee/** 추후 세밀 조정
-                .excludePathPatterns("/login", "/logout", "/team/**", "/h2-console/**", "/employee");
+                .excludePathPatterns("/login", "/logout", "/h2-console/**", "/");
     }
 }

@@ -26,13 +26,13 @@ public class AnnualLeaveController {
             HttpServletRequest request,
             @RequestBody AnnualLeaveEnrollRequest enrollRequest
     ) {
-        Long employeeId = (Long) request.getAttribute("employeeId");
+        Long employeeId = (Long) request.getAttribute("currentEmployeeId");
         return employeeService.enrollAnnualLeave(employeeId, enrollRequest.wantedDates());
     }
 
     @GetMapping("/annual-leave")
     public AnnualLeaveGetRemainingResponse getRemainingAnnualLeaves(HttpServletRequest request) {
-        Long employeeId = (Long) request.getAttribute("employeeId");
+        Long employeeId = (Long) request.getAttribute("currentEmployeeId");
         return employeeService.getRemainingAnnualLeaves(employeeId);
     }
 

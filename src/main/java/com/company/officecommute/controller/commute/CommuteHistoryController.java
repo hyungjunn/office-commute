@@ -26,13 +26,13 @@ public class CommuteHistoryController {
 
     @PostMapping("/commute")
     public void registerWorkStartTime(HttpServletRequest request) {
-        Long employeeId = (Long) request.getAttribute("employeeId");
+        Long employeeId = (Long) request.getAttribute("currentEmployeeId");
         commuteHistoryService.registerWorkStartTime(employeeId);
     }
 
     @PutMapping("/commute")
     public void registerWorkEndTime(HttpServletRequest request) {
-        Long employeeId = (Long) request.getAttribute("employeeId");
+        Long employeeId = (Long) request.getAttribute("currentEmployeeId");
         commuteHistoryService.registerWorkEndTime(employeeId, ZonedDateTime.now());
     }
 
@@ -40,7 +40,7 @@ public class CommuteHistoryController {
     public WorkDurationPerDateResponse getWorkDurationPerDate(
             HttpServletRequest request,
             WorkDurationPerDateRequest dateRequest) {
-        Long employeeId = (Long) request.getAttribute("employeeId");
+        Long employeeId = (Long) request.getAttribute("currentEmployeeId");
         return commuteHistoryService.getWorkDurationPerDate(employeeId, dateRequest.yearMonth());
     }
 }
