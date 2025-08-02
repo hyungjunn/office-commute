@@ -96,12 +96,18 @@ public class EmployeeService {
 
     @Transactional
     public List<AnnualLeaveEnrollmentResponse> enrollAnnualLeave(Long employeeId, List<LocalDate> wantedDates) {
-        // TODO: 추후 리팩터링 고려
+        System.out.println("=== 연차 신청 시작 ===");
         List<AnnualLeave> wantedLeaves = wantedDates.stream()
                 .map(wantedDate -> new AnnualLeave(employeeId, wantedDate))
                 .toList();
+
+        // TODO: 세 개의 쿼리를 한 번에 처리할 수 있도록 개선
+        // Query 1: SELECT * FROM employee WHERE employee_id = ?
         Employee employee = employeeDomainService.findEmployeeById(employeeId);
+        // Query 2: SELECT * FROM team WHERE name = ?
+        // ❌ employee.getTeamName()으로 얻은 문자열로 또 조회!
         Team team = teamDomainService.findTeamByName(employee.getTeamName());
+        // Query 3: SELECT * FROM annual_leave WHERE employee_id = ?
         List<AnnualLeave> existingAnnualLeaves = annualLeaveRepository.findByEmployeeId(employeeId);
 
         AnnualLeaveEnrollment enrollment = new AnnualLeaveEnrollment(employeeId, team, existingAnnualLeaves);
@@ -111,9 +117,11 @@ public class EmployeeService {
         List<AnnualLeave> enrolledLeaves = annualLeaveRepository.saveAll(annualLeaves.getAnnualLeaves());
 
         // 연차에 대응되는 근무이력 객체로 변환
+        // TODO: insert 쿼리 반복 실행 => saveAll로 한 번에 처리
         enrolledLeaves.stream()
                 .map(annualLeave -> new CommuteHistory(employeeId))
                 .forEach(commuteHistoryRepository::save);
+        System.out.println("=== 연차 신청 완료 ===");
 
         return new AnnualLeaves(enrolledLeaves).toAnnualLeaveEnrollmentResponse();
     }
