@@ -2,11 +2,13 @@ package com.company.officecommute.service.employee;
 
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.Role;
+import com.company.officecommute.domain.team.Team;
 
 import java.time.LocalDate;
 
 public class EmployeeBuilder {
     private Long id;
+    private Team team;
     private String name;
     private String teamName;
     private Role role;
@@ -17,6 +19,11 @@ public class EmployeeBuilder {
 
     public EmployeeBuilder withId(Long id) {
         this.id = id;
+        return this;
+    }
+
+    public EmployeeBuilder withTeam(Team team) {
+        this.team = team;
         return this;
     }
 
@@ -56,6 +63,6 @@ public class EmployeeBuilder {
     }
 
     public Employee build() {
-        return new Employee(id, name, teamName, role, birthday, workStartDate, employeeCode, password);
+        return new Employee(id, team, name, teamName, role, birthday, workStartDate, employeeCode, password);
     }
 }

@@ -17,4 +17,12 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     Optional<Employee> findByEmployeeCode(String employeeCode);
 
     boolean existsByEmployeeCode(String employeeCode);
+
+    @Query("""
+            SELECT e
+            FROM Employee e
+            JOIN FETCH e.team
+            WHERE e.employeeId = :employeeId
+            """)
+    Optional<Employee> findByIdWithTeam(Long employeeId);
 }

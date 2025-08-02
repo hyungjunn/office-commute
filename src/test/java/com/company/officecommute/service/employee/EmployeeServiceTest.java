@@ -60,8 +60,10 @@ class EmployeeServiceTest {
     @BeforeEach
     void setUp() {
         employeeId = 1L;
+        team = new Team("백엔드팀");
         employee = new EmployeeBuilder()
                 .withId(employeeId)
+                .withTeam(team)
                 .withName("임형준")
                 .withRole(MEMBER)
                 .withBirthday(LocalDate.of(1998, 8, 18))
@@ -71,7 +73,6 @@ class EmployeeServiceTest {
                 .withTeamName("백엔드팀")
                 .build();
 
-        team = new Team("백엔드팀");
     }
 
     @Test
@@ -212,10 +213,12 @@ class EmployeeServiceTest {
                 LocalDate.now().plusDays(10),
                 LocalDate.now().plusDays(11)
         );
-        BDDMockito.given(employeeDomainService.findEmployeeById(1L))
-                .willReturn(employee);
-        BDDMockito.given(teamDomainService.findTeamByName("백엔드팀"))
-                .willReturn(team);
+        // BDDMockito.given(employeeDomainService.findEmployeeById(1L))
+        //         .willReturn(employee);
+        // BDDMockito.given(teamDomainService.findTeamByName("백엔드팀"))
+        //         .willReturn(team);
+        BDDMockito.given(employeeRepository.findByIdWithTeam(1L))
+                .willReturn(Optional.of(employee));
         BDDMockito.given(annualLeaveRepository.findByEmployeeId(employeeId))
                 .willReturn(List.of());
 

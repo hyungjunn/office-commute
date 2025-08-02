@@ -102,11 +102,10 @@ public class EmployeeService {
                 .toList();
 
         // TODO: 세 개의 쿼리를 한 번에 처리할 수 있도록 개선
-        // Query 1: SELECT * FROM employee WHERE employee_id = ?
-        Employee employee = employeeDomainService.findEmployeeById(employeeId);
-        // Query 2: SELECT * FROM team WHERE name = ?
-        // ❌ employee.getTeamName()으로 얻은 문자열로 또 조회!
-        Team team = teamDomainService.findTeamByName(employee.getTeamName());
+        Employee employee = employeeRepository.findByIdWithTeam(employeeId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다."));
+        Team team = employee.getTeam();
+
         // Query 3: SELECT * FROM annual_leave WHERE employee_id = ?
         List<AnnualLeave> existingAnnualLeaves = annualLeaveRepository.findByEmployeeId(employeeId);
 

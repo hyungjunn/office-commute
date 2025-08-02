@@ -2,13 +2,17 @@ package com.company.officecommute.domain.employee;
 
 import com.company.officecommute.domain.annual_leave.AnnualLeave;
 import com.company.officecommute.domain.annual_leave.AnnualLeaves;
+import com.company.officecommute.domain.team.Team;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -20,6 +24,10 @@ public class Employee {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long employeeId;
+
+    @ManyToOne(fetch = FetchType.LAZY) // 왜? LAZY?
+    @JoinColumn(name= "team_id")
+    private Team team;
 
     private String name;
 
@@ -47,7 +55,7 @@ public class Employee {
             LocalDate birthday,
             LocalDate workStartDate
     ) {
-        this(null, name, null, role, birthday, workStartDate, null, null);
+        this(null, null, name, null, role, birthday, workStartDate, null, null);
     }
 
     public Employee(
@@ -58,7 +66,7 @@ public class Employee {
             LocalDate birthday,
             LocalDate workStartDate
     ) {
-        this(employeeId, name, teamName, role, birthday, workStartDate, null, null);
+        this(employeeId, null, name, teamName, role, birthday, workStartDate, null, null);
     }
 
     public Employee(
@@ -69,11 +77,12 @@ public class Employee {
             String employeeCode,
             String password
     ) {
-        this(null, name, null, role, birthday, workStartDate, employeeCode, password);
+        this(null, null, name, null, role, birthday, workStartDate, employeeCode, password);
     }
 
     public Employee(
             Long employeeId,
+            Team team,
             String name,
             String teamName,
             Role role,
@@ -83,6 +92,7 @@ public class Employee {
             String password
     ) {
         this.employeeId = employeeId;
+        this.team = team;
         this.name = validateName(name);
         this.teamName = teamName;
         this.role = Objects.requireNonNull(role, "role은 null일 수 없습니다");
@@ -118,6 +128,10 @@ public class Employee {
 
     public Long getEmployeeId() {
         return employeeId;
+    }
+
+    public Team getTeam() {
+        return team;
     }
 
     public String getName() {
