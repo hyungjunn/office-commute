@@ -70,6 +70,12 @@ public class Team {
         this.memberCount++;
     }
 
+    public void decreaseMemberCount() {
+        if (memberCount > 0) {
+            this.memberCount--;
+        }
+    }
+
     public boolean isNotEnoughCriteria(List<AnnualLeave> wantedLeaves) {
         return isNotEnoughCriteria(new AnnualLeaves(wantedLeaves));
     }

@@ -1,7 +1,6 @@
 package com.company.officecommute.service.employee;
 
 import com.company.officecommute.domain.annual_leave.AnnualLeave;
-import com.company.officecommute.domain.annual_leave.AnnualLeaveEnrollment;
 import com.company.officecommute.domain.annual_leave.AnnualLeaves;
 import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.domain.employee.Employee;
@@ -15,17 +14,19 @@ import com.company.officecommute.repository.annual_leave.AnnualLeaveRepository;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.service.team.TeamDomainService;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class EmployeeService {
+
+    private static final Logger log = LoggerFactory.getLogger(EmployeeService.class);
 
     private final EmployeeRepository employeeRepository;
     private final EmployeeDomainService employeeDomainService;
@@ -81,8 +82,7 @@ public class EmployeeService {
         String wantedTeamName = request.teamName();
         Team team = teamDomainService.findTeamByName(wantedTeamName);
 
-        employee.changeTeam(wantedTeamName);
-        team.increaseMemberCount();
+        employee.changeTeam(team);
     }
 
     public Employee authenticate(String employeeCode, String password) {
@@ -96,26 +96,22 @@ public class EmployeeService {
 
     @Transactional
     public List<AnnualLeaveEnrollmentResponse> enrollAnnualLeave(Long employeeId, List<LocalDate> wantedDates) {
-        // TODO: 추후 리팩터링 고려
-        List<AnnualLeave> wantedLeaves = wantedDates.stream()
-                .map(wantedDate -> new AnnualLeave(employeeId, wantedDate))
-                .toList();
-        Employee employee = employeeDomainService.findEmployeeById(employeeId);
-        Team team = teamDomainService.findTeamByName(employee.getTeamName());
+        log.info("연차 신청 시작 - employeeId: {}", employeeId);
+        Employee employee = employeeRepository.findByEmployeeIdWithTeam(employeeId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다."));
         List<AnnualLeave> existingAnnualLeaves = annualLeaveRepository.findByEmployeeId(employeeId);
+        List<AnnualLeave> enrolledLeaves = employee.enrollAnnualLeave(wantedDates, existingAnnualLeaves);
 
-        AnnualLeaveEnrollment enrollment = new AnnualLeaveEnrollment(employeeId, team, existingAnnualLeaves);
-        AnnualLeaves annualLeaves = new AnnualLeaves(wantedLeaves);
-        enrollment.enroll(annualLeaves);
-
-        List<AnnualLeave> enrolledLeaves = annualLeaveRepository.saveAll(annualLeaves.getAnnualLeaves());
+        List<AnnualLeave> savedLeaves = annualLeaveRepository.saveAll(enrolledLeaves);
 
         // 연차에 대응되는 근무이력 객체로 변환
-        enrolledLeaves.stream()
+        List<CommuteHistory> commuteHistories = savedLeaves.stream()
                 .map(annualLeave -> new CommuteHistory(employeeId))
-                .forEach(commuteHistoryRepository::save);
+                .toList();
+        commuteHistoryRepository.saveAll(commuteHistories);
 
-        return new AnnualLeaves(enrolledLeaves).toAnnualLeaveEnrollmentResponse();
+        log.info("연차 신청 완료 - employeeId: {}, 신청한 연차 수: {}", employeeId, savedLeaves.size());
+        return new AnnualLeaves(savedLeaves).toAnnualLeaveEnrollmentResponse();
     }
 
     @Transactional(readOnly = true)

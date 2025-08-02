@@ -60,18 +60,18 @@ class EmployeeServiceTest {
     @BeforeEach
     void setUp() {
         employeeId = 1L;
+        team = new Team("백엔드팀");
         employee = new EmployeeBuilder()
                 .withId(employeeId)
+                .withTeam(team)
                 .withName("임형준")
                 .withRole(MEMBER)
                 .withBirthday(LocalDate.of(1998, 8, 18))
                 .withStartDate(LocalDate.of(2024, 1, 1))
                 .withEmployeeCode("EMP001")
                 .withPassword("password123!")
-                .withTeamName("백엔드팀")
                 .build();
 
-        team = new Team("백엔드팀");
     }
 
     @Test
@@ -212,10 +212,8 @@ class EmployeeServiceTest {
                 LocalDate.now().plusDays(10),
                 LocalDate.now().plusDays(11)
         );
-        BDDMockito.given(employeeDomainService.findEmployeeById(1L))
-                .willReturn(employee);
-        BDDMockito.given(teamDomainService.findTeamByName("백엔드팀"))
-                .willReturn(team);
+        BDDMockito.given(employeeRepository.findByEmployeeIdWithTeam(1L))
+                .willReturn(Optional.of(employee));
         BDDMockito.given(annualLeaveRepository.findByEmployeeId(employeeId))
                 .willReturn(List.of());
 
@@ -225,15 +223,18 @@ class EmployeeServiceTest {
         );
         BDDMockito.given(annualLeaveRepository.saveAll(any()))
                 .willReturn(savedLeaves);
-        BDDMockito.given(commuteHistoryRepository.save(any(CommuteHistory.class)))
-                .willReturn(new CommuteHistory(employeeId));
+        BDDMockito.given(commuteHistoryRepository.saveAll(any()))
+                .willReturn(List.of(
+                        new CommuteHistory(employeeId),
+                        new CommuteHistory(employeeId)
+                ));
 
         List<AnnualLeaveEnrollmentResponse> responses = employeeService.enrollAnnualLeave(employeeId, wantedDates);
 
         assertThat(responses).hasSize(2);
         assertThat(responses.get(0).annualLeaveId()).isEqualTo(1L);
         assertThat(responses.get(0).enrolledDate()).isEqualTo(wantedDates.get(0));
-        verify(commuteHistoryRepository, times(2)).save(any(CommuteHistory.class));
+        verify(commuteHistoryRepository, times(1)).saveAll(any());
     }
 
     @Test

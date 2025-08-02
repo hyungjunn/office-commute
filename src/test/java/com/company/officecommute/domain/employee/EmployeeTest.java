@@ -1,14 +1,15 @@
 package com.company.officecommute.domain.employee;
 
+import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.service.employee.EmployeeBuilder;
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 
 import java.time.LocalDate;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class EmployeeTest {
 
@@ -35,7 +36,7 @@ class EmployeeTest {
                 .withPassword("password123!")
                 .build();
 
-        employee.changeTeam("A");
+        employee.changeTeam(new Team("A"));
         assertThat(employee.getTeamName()).isEqualTo("A");
     }
 }
