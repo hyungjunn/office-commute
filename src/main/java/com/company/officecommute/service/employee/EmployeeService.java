@@ -14,6 +14,8 @@ import com.company.officecommute.repository.annual_leave.AnnualLeaveRepository;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.service.team.TeamDomainService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,8 @@ import java.util.List;
 
 @Service
 public class EmployeeService {
+
+    private static final Logger log = LoggerFactory.getLogger(EmployeeService.class);
 
     private final EmployeeRepository employeeRepository;
     private final EmployeeDomainService employeeDomainService;
@@ -92,7 +96,7 @@ public class EmployeeService {
 
     @Transactional
     public List<AnnualLeaveEnrollmentResponse> enrollAnnualLeave(Long employeeId, List<LocalDate> wantedDates) {
-        System.out.println("=== 연차 신청 시작 ===");
+        log.info("연차 신청 시작 - employeeId: {}", employeeId);
         Employee employee = employeeRepository.findByEmployeeIdWithTeam(employeeId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다."));
         List<AnnualLeave> existingAnnualLeaves = annualLeaveRepository.findByEmployeeId(employeeId);
@@ -101,12 +105,12 @@ public class EmployeeService {
         List<AnnualLeave> savedLeaves = annualLeaveRepository.saveAll(enrolledLeaves);
 
         // 연차에 대응되는 근무이력 객체로 변환
-        // TODO: insert 쿼리 반복 실행 => saveAll로 한 번에 처리
-        savedLeaves.stream()
+        List<CommuteHistory> commuteHistories = savedLeaves.stream()
                 .map(annualLeave -> new CommuteHistory(employeeId))
-                .forEach(commuteHistoryRepository::save);
-        System.out.println("=== 연차 신청 완료 ===");
+                .toList();
+        commuteHistoryRepository.saveAll(commuteHistories);
 
+        log.info("연차 신청 완료 - employeeId: {}, 신청한 연차 수: {}", employeeId, savedLeaves.size());
         return new AnnualLeaves(savedLeaves).toAnnualLeaveEnrollmentResponse();
     }
 

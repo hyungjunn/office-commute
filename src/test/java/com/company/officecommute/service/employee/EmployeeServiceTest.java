@@ -216,21 +216,25 @@ class EmployeeServiceTest {
                 .willReturn(Optional.of(employee));
         BDDMockito.given(annualLeaveRepository.findByEmployeeId(employeeId))
                 .willReturn(List.of());
+
         List<AnnualLeave> savedLeaves = List.of(
                 new AnnualLeave(1L, employeeId, wantedDates.get(0)),
                 new AnnualLeave(2L, employeeId, wantedDates.get(1))
         );
         BDDMockito.given(annualLeaveRepository.saveAll(any()))
                 .willReturn(savedLeaves);
-        BDDMockito.given(commuteHistoryRepository.save(any(CommuteHistory.class)))
-                .willReturn(new CommuteHistory(employeeId));
+        BDDMockito.given(commuteHistoryRepository.saveAll(any()))
+                .willReturn(List.of(
+                        new CommuteHistory(employeeId),
+                        new CommuteHistory(employeeId)
+                ));
 
         List<AnnualLeaveEnrollmentResponse> responses = employeeService.enrollAnnualLeave(employeeId, wantedDates);
 
         assertThat(responses).hasSize(2);
         assertThat(responses.get(0).annualLeaveId()).isEqualTo(1L);
         assertThat(responses.get(0).enrolledDate()).isEqualTo(wantedDates.get(0));
-        verify(commuteHistoryRepository, times(2)).save(any(CommuteHistory.class));
+        verify(commuteHistoryRepository, times(1)).saveAll(any());
     }
 
     @Test
