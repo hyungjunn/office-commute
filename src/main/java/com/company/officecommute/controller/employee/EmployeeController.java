@@ -1,9 +1,7 @@
 package com.company.officecommute.controller.employee;
 
 import com.company.officecommute.auth.AuthUtils;
-import com.company.officecommute.auth.RequireRole;
 import com.company.officecommute.domain.employee.Employee;
-import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.dto.auth.LoginRequest;
 import com.company.officecommute.dto.employee.request.EmployeeSaveRequest;
 import com.company.officecommute.dto.employee.request.EmployeeUpdateTeamNameRequest;
@@ -45,7 +43,6 @@ public class EmployeeController {
         return ResponseEntity.ok("로그아웃 성공");
     }
 
-    @RequireRole({Role.MANAGER})
     @PostMapping("/employee")
     public void saveEmployee(@Valid @RequestBody EmployeeSaveRequest request,
                              HttpServletRequest httpRequest) {
@@ -53,14 +50,12 @@ public class EmployeeController {
         employeeService.registerEmployee(request);
     }
 
-    @RequireRole({Role.MANAGER})
     @GetMapping("/employee")
     public List<EmployeeFindResponse> findAllEmployee(HttpServletRequest httpRequest) {
         AuthUtils.requireManagerRole(httpRequest);
         return employeeService.findAllEmployee();
     }
 
-    @RequireRole({Role.MANAGER})
     @PutMapping("/employee")
     public void updateEmployeeTeamName(@RequestBody EmployeeUpdateTeamNameRequest request,
                                        HttpServletRequest httpRequest) {

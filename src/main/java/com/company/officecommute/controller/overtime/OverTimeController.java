@@ -1,8 +1,6 @@
 package com.company.officecommute.controller.overtime;
 
 import com.company.officecommute.auth.AuthUtils;
-import com.company.officecommute.auth.RequireRole;
-import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.service.overtime.OverTimeService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,12 +20,10 @@ public class OverTimeController {
         this.overTimeService = overTimeService;
     }
 
-    @RequireRole({Role.MANAGER})
     @GetMapping("/overtime")
     public List<OverTimeCalculateResponse> calculateOverTime(@RequestParam YearMonth yearMonth,
                                                              HttpServletRequest request) {
         AuthUtils.requireManagerRole(request);
         return overTimeService.calculateOverTime(yearMonth);
     }
-
 }

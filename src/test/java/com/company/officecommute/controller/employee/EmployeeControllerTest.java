@@ -3,13 +3,13 @@ package com.company.officecommute.controller.employee;
 import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.service.employee.EmployeeService;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
@@ -27,10 +27,71 @@ class EmployeeControllerTest {
     @MockitoBean
     private EmployeeService employeeService;
 
+    @Nested
+    @DisplayName("권한 테스트")
+    class AuthorizationTests {
+
+        @Test
+        @DisplayName("MANAGER 권한이 없는 경우 직원 등록 요청 시 예외 발생")
+        void testUnauthorizedAccess() {
+            // 통제변인: role = "MEMBER"
+            String requestBody = """
+                        {
+                            "name": "John",
+                            "role": "MEMBER",
+                            "birthday": "1990-01-01",
+                            "workStartDate": "2020-01-01",
+                            "employeeCode": "E00001",
+                            "password": "password123!"
+                        }
+                    """;
+
+            assertThat(mockMvcTester
+                    .post()
+                    .uri("/employee")
+                    .sessionAttr("employeeId", 1L)
+                    .sessionAttr("employeeRole", Role.MEMBER)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(requestBody))
+                    .hasStatus(HttpStatus.FORBIDDEN)
+                    .bodyJson()
+                    .isLenientlyEqualTo("""
+                                {
+                                    "code": "FORBIDDEN",
+                                    "message": "관리자만 접근이 가능합니다"
+                                }
+                            """);
+        }
+
+        @Test
+        @DisplayName("MANAGER 권한이 있는 경우 직원 등록 요청 성공")
+        void testAuthorizedAccess() {
+            // 통제변인: role = "MANAGER"
+            String requestBody = """
+                        {
+                            "name": "John",
+                            "role": "MEMBER",
+                            "birthday": "1990-01-01",
+                            "workStartDate": "2020-01-01",
+                            "employeeCode": "E00001",
+                            "password": "password123!"
+                        }
+                    """;
+
+            assertThat(mockMvcTester
+                    .post()
+                    .uri("/employee")
+                    .sessionAttr("employeeId", 1L)
+                    .sessionAttr("employeeRole", Role.MANAGER)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(requestBody))
+                    .hasStatus(HttpStatus.OK);
+        }
+    }
+
     @Test
     @DisplayName("유효하지 않은 값들로 직원 등록 요청 시 예외 발생")
     void testValidInputFailsValidation() {
-        // 통제변인: role = "MEMBER", employeeCode = "E00001", password = "password123!" (정상)
         String invalidRequest = """
                     {
                         "name": "",
@@ -40,7 +101,7 @@ class EmployeeControllerTest {
                         "employeeCode": "E00001",
                         "password": "password123!"
                     }
-                """;
+            """;
 
         assertThat(mockMvcTester
                 .post()

@@ -35,5 +35,4 @@ public class AnnualLeaveController {
         Long employeeId = (Long) request.getAttribute("currentEmployeeId");
         return employeeService.getRemainingAnnualLeaves(employeeId);
     }
-
 }

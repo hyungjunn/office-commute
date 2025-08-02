@@ -1,8 +1,6 @@
 package com.company.officecommute.controller.team;
 
 import com.company.officecommute.auth.AuthUtils;
-import com.company.officecommute.auth.RequireRole;
-import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.dto.team.request.TeamRegisterRequest;
 import com.company.officecommute.dto.team.response.TeamFindResponse;
 import com.company.officecommute.service.team.TeamService;
@@ -24,7 +22,6 @@ public class TeamController {
         this.teamService = teamService;
     }
 
-    @RequireRole({Role.MANAGER})
     @PostMapping("/team")
     public Long registerTeam(@Valid @RequestBody TeamRegisterRequest request,
                              HttpServletRequest httpRequest) {
@@ -36,5 +33,4 @@ public class TeamController {
     public List<TeamFindResponse> findAllTeam() {
         return teamService.findTeam();
     }
-
 }
