@@ -70,7 +70,6 @@ class EmployeeServiceTest {
                 .withStartDate(LocalDate.of(2024, 1, 1))
                 .withEmployeeCode("EMP001")
                 .withPassword("password123!")
-                .withTeamName("백엔드팀")
                 .build();
 
     }
@@ -213,15 +212,10 @@ class EmployeeServiceTest {
                 LocalDate.now().plusDays(10),
                 LocalDate.now().plusDays(11)
         );
-        // BDDMockito.given(employeeDomainService.findEmployeeById(1L))
-        //         .willReturn(employee);
-        // BDDMockito.given(teamDomainService.findTeamByName("백엔드팀"))
-        //         .willReturn(team);
-        BDDMockito.given(employeeRepository.findByIdWithTeam(1L))
+        BDDMockito.given(employeeRepository.findByEmployeeIdWithTeam(1L))
                 .willReturn(Optional.of(employee));
         BDDMockito.given(annualLeaveRepository.findByEmployeeId(employeeId))
                 .willReturn(List.of());
-
         List<AnnualLeave> savedLeaves = List.of(
                 new AnnualLeave(1L, employeeId, wantedDates.get(0)),
                 new AnnualLeave(2L, employeeId, wantedDates.get(1))

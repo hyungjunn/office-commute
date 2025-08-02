@@ -1,6 +1,7 @@
 package com.company.officecommute.domain.employee;
 
 import com.company.officecommute.domain.annual_leave.AnnualLeave;
+import com.company.officecommute.domain.annual_leave.AnnualLeaveEnrollment;
 import com.company.officecommute.domain.annual_leave.AnnualLeaves;
 import com.company.officecommute.domain.team.Team;
 import jakarta.persistence.Column;
@@ -116,14 +117,31 @@ public class Employee {
         return name.trim();
     }
 
-    public void changeTeam(String wantedTeamName) {
-        this.teamName = wantedTeamName;
+    public void changeTeam(Team newTeam) {
+        Team oldTeam = this.team;
+        this.team = newTeam;
+        if (oldTeam != null) {
+            oldTeam.decreaseMemberCount();
+        }
+        if (newTeam != null) {
+            newTeam.increaseMemberCount();
+        }
     }
 
-    public AnnualLeaves enroll(List<AnnualLeave> wantedLeaves, List<AnnualLeave> existingLeaves) {
-        AnnualLeaves annualLeaves = new AnnualLeaves(existingLeaves);
-        annualLeaves.enroll(wantedLeaves);
-        return annualLeaves;
+    public List<AnnualLeave> enrollAnnualLeave(List<LocalDate> wantedDates, List<AnnualLeave> existingAnnualLeaves) {
+        if (team == null) {
+            throw new IllegalStateException("팀이 배정되지 않은 직원은 연차를 신청할 수 없습니다.");
+        }
+        List<AnnualLeave> wantedLeaves = wantedDates.stream()
+                .map(wantedDate -> new AnnualLeave(employeeId, wantedDate))
+                .toList();
+        if (team.isNotEnoughCriteria(wantedLeaves)) {
+            throw new IllegalArgumentException("팀의 연차 등록 기준을 충족하지 못합니다.");
+        }
+        AnnualLeaveEnrollment enrollment = new AnnualLeaveEnrollment(employeeId, team, existingAnnualLeaves);
+        AnnualLeaves annualLeaves = new AnnualLeaves(wantedLeaves);
+        enrollment.enroll(annualLeaves);
+        return annualLeaves.getAnnualLeaves();
     }
 
     public Long getEmployeeId() {
@@ -139,7 +157,7 @@ public class Employee {
     }
 
     public String getTeamName() {
-        return teamName;
+        return team != null ? team.getName() : null;
     }
 
     public Role getRole() {
