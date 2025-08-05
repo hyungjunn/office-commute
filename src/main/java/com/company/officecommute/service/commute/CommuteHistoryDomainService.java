@@ -9,8 +9,6 @@ import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 @Service
 public class CommuteHistoryDomainService {
@@ -37,18 +35,14 @@ public class CommuteHistoryDomainService {
         return yearMonth.atDay(1).atStartOfDay(ZoneId.systemDefault());
     }
 
-    public void distinguishItIsPossibleToWork(Long employeeId) {
-        findFirstByEmployeeIdOrderByWorkStartTimeDesc(employeeId)
+    public void validatePreviousWorkCompleted(Long employeeId) {
+        commuteHistoryRepository.findFirstByEmployeeIdOrderByWorkStartTimeDesc(employeeId)
                 .ifPresent(lastCommute -> {
                     if (lastCommute.endTimeIsNull()) {
                         throw new IllegalArgumentException(String.format("직원 id(%d)는 퇴근하지 않고 다시 출근할 수 없습니다.", employeeId));
                     }
                 });
 
-    }
-
-    private Optional<CommuteHistory> findFirstByEmployeeIdOrderByWorkStartTimeDesc(Long employeeId) {
-        return commuteHistoryRepository.findFirstByEmployeeIdOrderByWorkStartTimeDesc(employeeId);
     }
 
     public CommuteHistory findFirstByDomainService(Long employeeId) {

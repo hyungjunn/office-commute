@@ -2,6 +2,7 @@ package com.company.officecommute.domain.commute;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
@@ -46,7 +47,7 @@ public class CommuteHistoryTest {
 
     @Test
     void testEndTimeIsNull() {
-        CommuteHistory commuteHistory = new CommuteHistory(1L, 1L, null, null, 0);
+        CommuteHistory commuteHistory = new CommuteHistory(1L, 1L, ZonedDateTime.now(),null, 0);
 
         assertThat(commuteHistory.endTimeIsNull()).isTrue();
     }

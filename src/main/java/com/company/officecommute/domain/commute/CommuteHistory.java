@@ -1,15 +1,21 @@
 package com.company.officecommute.domain.commute;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 
 @Entity
+@Table(uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"employee_id", "work_date"})
+})
 public class CommuteHistory {
 
     @Id
@@ -25,6 +31,9 @@ public class CommuteHistory {
     private long workingMinutes;
 
     private boolean usingDayOff;
+
+    @Column(name = "work_date", nullable = false)
+    private LocalDate workDate;
 
     private static final int ANNUAL_LEAVE_TIME = 0;
 
@@ -62,6 +71,9 @@ public class CommuteHistory {
         this.workEndTime = workEndTime;
         this.workingMinutes = workingMinutes;
         this.usingDayOff = usingDayOff;
+        this.workDate = (workStartTime != null)
+                ? workStartTime.toLocalDate()
+                : LocalDate.now();
     }
 
     public CommuteHistory endWork(ZonedDateTime workEndTime) {

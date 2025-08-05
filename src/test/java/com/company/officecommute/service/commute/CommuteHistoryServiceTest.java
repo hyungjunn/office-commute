@@ -51,7 +51,7 @@ class CommuteHistoryServiceTest {
         BDDMockito.given(employeeDomainService.findEmployeeById(1L))
                 .willReturn(employee);
         BDDMockito.doNothing().when(commuteHistoryDomainService)
-                .distinguishItIsPossibleToWork(1L);
+                .validatePreviousWorkCompleted(1L);
 
         commuteHistoryService.registerWorkStartTime(1L);
 

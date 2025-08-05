@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface CommuteHistoryRepository extends JpaRepository<CommuteHistory, Long> {
+
     Optional<CommuteHistory> findFirstByEmployeeIdOrderByWorkStartTimeDesc(Long employeeId);
 
     List<CommuteHistory> findByEmployeeIdAndWorkStartTimeBetween(Long id, ZonedDateTime startOfMonth, ZonedDateTime endOfMonth);
@@ -24,4 +25,6 @@ public interface CommuteHistoryRepository extends JpaRepository<CommuteHistory, 
             GROUP BY ch.employeeId, e.name
             """)
     List<TotalWorkingMinutes> findWithEmployeeIdByDateRange(ZonedDateTime startOfMonth, ZonedDateTime endOfMonth);
+
+    List<CommuteHistory> findAllByEmployeeId(Long employeeId);
 }
