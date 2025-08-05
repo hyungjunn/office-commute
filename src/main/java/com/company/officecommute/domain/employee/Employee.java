@@ -56,7 +56,7 @@ public class Employee {
             LocalDate birthday,
             LocalDate workStartDate
     ) {
-        this(null, null, name, null, role, birthday, workStartDate, null, null);
+        this(null, null, name, null, role, birthday, workStartDate, "TEST001", "password123!");
     }
 
     public Employee(
@@ -67,7 +67,7 @@ public class Employee {
             LocalDate birthday,
             LocalDate workStartDate
     ) {
-        this(employeeId, null, name, teamName, role, birthday, workStartDate, null, null);
+        this(employeeId, null, name, teamName, role, birthday, workStartDate, "TEST001", "password123!");
     }
 
     public Employee(

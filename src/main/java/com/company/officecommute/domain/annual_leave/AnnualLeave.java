@@ -4,10 +4,15 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import java.time.LocalDate;
 
 @Entity
+@Table(uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"employee_id", "wanted_date"})
+})
 public class AnnualLeave {
 
     @Id
