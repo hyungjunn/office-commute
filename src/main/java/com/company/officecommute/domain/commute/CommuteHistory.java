@@ -57,6 +57,12 @@ public class CommuteHistory {
         this(commuteHistoryId, employeeId, workStartTime, workEndTime, workingMinutes, false);
     }
 
+    // 연차용 생성자
+    public CommuteHistory(Long employeeId, LocalDate annualLeaveDate) {
+        this(null, employeeId, null, null, 0, true);
+        this.workDate = annualLeaveDate;
+    }
+
     public CommuteHistory(
             Long commuteHistoryId,
             Long employeeId,

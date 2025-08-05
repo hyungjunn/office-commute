@@ -3,6 +3,7 @@ package com.company.officecommute.global.exception;
 import com.company.officecommute.auth.ForbiddenException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -53,5 +54,19 @@ public class GlobalExceptionHandler {
     public ErrorResult forbiddenExceptionHandler(ForbiddenException e) {
         log.error("ForbiddenException", e);
         return new ErrorResult("FORBIDDEN", e.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ErrorResult dataIntegrityExHandler(DataIntegrityViolationException e) {
+        log.warn("DataIntegrityViolationException", e);
+
+        // Unique Constraint 위반 메시지 확인
+        String message = e.getRootCause().getMessage().toLowerCase();
+        if (message.contains("employee_id") && message.contains("work_date")) {
+            return new ErrorResult("DUPLICATE_WORK", "이미 오늘 출근 등록을 했습니다");
+        }
+
+        return new ErrorResult("DATA_INTEGRITY_ERROR", "데이터 제약조건을 위반했습니다");
     }
 }

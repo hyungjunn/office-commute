@@ -106,7 +106,7 @@ public class EmployeeService {
 
         // 연차에 대응되는 근무이력 객체로 변환
         List<CommuteHistory> commuteHistories = savedLeaves.stream()
-                .map(annualLeave -> new CommuteHistory(employeeId))
+                .map(annualLeave -> new CommuteHistory(employeeId, annualLeave.getWantedDate()))
                 .toList();
         commuteHistoryRepository.saveAll(commuteHistories);
 

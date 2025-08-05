@@ -52,4 +52,7 @@ public class AnnualLeave {
         return employeeId;
     }
 
+    public LocalDate getWantedDate() {
+        return wantedDate;
+    }
 }
