@@ -6,7 +6,7 @@ import com.company.officecommute.dto.employee.request.EmployeeSaveRequest;
 import com.company.officecommute.dto.employee.request.EmployeeUpdateTeamNameRequest;
 import com.company.officecommute.dto.employee.response.EmployeeFindResponse;
 import com.company.officecommute.repository.employee.EmployeeRepository;
-import com.company.officecommute.service.team.TeamDomainService;
+import com.company.officecommute.repository.team.TeamRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,9 +36,7 @@ class EmployeeServiceTest {
     @Mock
     private EmployeeRepository employeeRepository;
     @Mock
-    private EmployeeDomainService employeeDomainService;
-    @Mock
-    private TeamDomainService teamDomainService;
+    private TeamRepository teamRepository;
     @Mock
     private PasswordEncoder passwordEncoder;
 
@@ -181,11 +179,11 @@ class EmployeeServiceTest {
     @Test
     void testUpdateEmployeeTeamName() {
         EmployeeUpdateTeamNameRequest request = new EmployeeUpdateTeamNameRequest(1L, "백엔드팀");
-        BDDMockito.given(employeeDomainService.findEmployeeById(1L))
-                .willReturn(employee);
+        BDDMockito.given(employeeRepository.findById(1L))
+                .willReturn(Optional.of(employee));
 
-        BDDMockito.given(teamDomainService.findTeamByName(anyString()))
-                .willReturn(team);
+        BDDMockito.given(teamRepository.findByName(anyString()))
+                .willReturn(Optional.of(team));
 
         employeeService.updateEmployeeTeamName(request);
 

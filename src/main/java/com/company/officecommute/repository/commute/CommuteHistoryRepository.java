@@ -13,7 +13,7 @@ public interface CommuteHistoryRepository extends JpaRepository<CommuteHistory, 
 
     Optional<CommuteHistory> findFirstByEmployeeIdOrderByWorkStartTimeDesc(Long employeeId);
 
-    List<CommuteHistory> findByEmployeeIdAndWorkStartTimeBetween(Long id, ZonedDateTime startOfMonth, ZonedDateTime endOfMonth);
+    List<CommuteHistory> findAllByEmployeeIdAndWorkStartTimeBetween(Long id, ZonedDateTime startOfMonth, ZonedDateTime endOfMonth);
 
     @Query("""
             SELECT new com.company.officecommute.service.overtime.TotalWorkingMinutes(

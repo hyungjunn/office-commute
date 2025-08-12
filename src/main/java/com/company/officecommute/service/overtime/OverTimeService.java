@@ -1,29 +1,32 @@
 package com.company.officecommute.service.overtime;
 
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
-import com.company.officecommute.service.commute.CommuteHistoryDomainService;
+import com.company.officecommute.repository.commute.CommuteHistoryRepository;
 import com.company.officecommute.web.ApiConvertor;
 import org.springframework.stereotype.Service;
 
 import java.time.YearMonth;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 @Service
 public class OverTimeService {
 
-    private final CommuteHistoryDomainService commuteHistoryDomainService;
+    private final CommuteHistoryRepository commuteHistoryRepository;
     private final ApiConvertor apiConvertor;
 
     public OverTimeService(
-            CommuteHistoryDomainService commuteHistoryDomainService,
+            CommuteHistoryRepository commuteHistoryRepository,
             ApiConvertor apiConvertor
     ) {
-        this.commuteHistoryDomainService = commuteHistoryDomainService;
+        this.commuteHistoryRepository = commuteHistoryRepository;
         this.apiConvertor = apiConvertor;
     }
 
     public List<OverTimeCalculateResponse> calculateOverTime(YearMonth yearMonth) {
-        List<TotalWorkingMinutes> totalWorkingMinutes = commuteHistoryDomainService.findWorkingMinutesTimeByMonth(yearMonth);
+        ZonedDateTime startOfMonth = yearMonth.atDay(1).atStartOfDay(ZonedDateTime.now().getZone());
+        ZonedDateTime endOfMonth = yearMonth.atEndOfMonth().atTime(23, 59, 59).atZone(ZonedDateTime.now().getZone());
+        List<TotalWorkingMinutes> totalWorkingMinutes = commuteHistoryRepository.findWithEmployeeIdByDateRange(startOfMonth, endOfMonth);
         long numberOfStandardWorkingDays = apiConvertor.countNumberOfStandardWorkingDays(yearMonth);
         long standardWorkingMinutes = apiConvertor.calculateStandardWorkingMinutes(numberOfStandardWorkingDays);
         return totalWorkingMinutes.stream()

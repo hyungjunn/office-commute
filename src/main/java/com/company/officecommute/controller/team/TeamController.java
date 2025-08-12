@@ -24,12 +24,12 @@ public class TeamController {
     }
 
     @PostMapping("/team")
-    public Long registerTeam(@Valid @RequestBody TeamRegisterRequest request,
+    public void registerTeam(@Valid @RequestBody TeamRegisterRequest request,
                              @SessionAttribute("employeeRole") Role role) {
         if (role != Role.MANAGER) {
             throw new ForbiddenException("관리자만 접근 가능");
         }
-        return teamService.registerTeam(request.teamName());
+        teamService.registerTeam(request);
     }
 
     @GetMapping("/team")

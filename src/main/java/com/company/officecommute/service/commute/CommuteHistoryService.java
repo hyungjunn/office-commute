@@ -4,7 +4,7 @@ import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.dto.commute.response.WorkDurationPerDateResponse;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
-import com.company.officecommute.service.employee.EmployeeDomainService;
+import com.company.officecommute.repository.employee.EmployeeRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,41 +16,63 @@ import java.util.List;
 public class CommuteHistoryService {
 
     private final CommuteHistoryRepository commuteHistoryRepository;
-    private final EmployeeDomainService employeeDomainService;
-    private final CommuteHistoryDomainService commuteHistoryDomainService;
+    private final EmployeeRepository employeeRepository;
 
     public CommuteHistoryService(
             CommuteHistoryRepository commuteHistoryRepository,
-            EmployeeDomainService employeeDomainService,
-            CommuteHistoryDomainService commuteHistoryDomainService
+            EmployeeRepository employeeRepository
     ) {
         this.commuteHistoryRepository = commuteHistoryRepository;
-        this.employeeDomainService = employeeDomainService;
-        this.commuteHistoryDomainService = commuteHistoryDomainService;
+        this.employeeRepository = employeeRepository;
     }
 
     @Transactional
     public void registerWorkStartTime(Long employeeId) {
-        Employee employee = employeeDomainService.findEmployeeById(employeeId);
-        commuteHistoryDomainService.validatePreviousWorkCompleted(employee.getEmployeeId());
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다."));
+        validatePreviousWorkCompleted(employee.getEmployeeId());
         CommuteHistory newWork = new CommuteHistory(null, employee.getEmployeeId(), ZonedDateTime.now(), null, 0);
         commuteHistoryRepository.save(newWork);
     }
 
     @Transactional
     public void registerWorkEndTime(Long employeeId, ZonedDateTime workEndTime) {
-        Employee employee = employeeDomainService.findEmployeeById(employeeId);
-        CommuteHistory lastCommute = commuteHistoryDomainService.findFirstByDomainService(employee.getEmployeeId());
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다."));
+        CommuteHistory lastCommute = findFirstByEmployeeId(employee.getEmployeeId());
         CommuteHistory commuteHistory = lastCommute.endWork(workEndTime);
         commuteHistoryRepository.save(commuteHistory);
     }
 
     @Transactional(readOnly = true)
     public WorkDurationPerDateResponse getWorkDurationPerDate(Long employeeId, YearMonth yearMonth) {
-        Employee employee = employeeDomainService.findEmployeeById(employeeId);
-        List<CommuteHistory> histories = commuteHistoryDomainService.findCommuteHistoriesByEmployeeIdAndMonth(
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다."));
+        List<CommuteHistory> histories = findCommuteHistoriesByEmployeeIdAndMonth(
                 employee.getEmployeeId(), yearMonth);
         return new CommuteHistories(histories).toWorkDurationPerDateResponse();
     }
 
+    private void validatePreviousWorkCompleted(Long employeeId) {
+        commuteHistoryRepository.findFirstByEmployeeIdOrderByWorkStartTimeDesc(employeeId)
+                .ifPresent(commuteHistory -> {
+                    if (commuteHistory.getWorkEndTime() == null) {
+                        throw new IllegalStateException("이전 근무가 아직 종료되지 않았습니다.");
+                    }
+                });
+    }
+
+    private CommuteHistory findFirstByEmployeeId(Long employeeId) {
+        return commuteHistoryRepository.findFirstByEmployeeIdOrderByWorkStartTimeDesc(employeeId)
+                .orElseThrow(() -> new IllegalArgumentException("출근 기록이 없습니다."));
+    }
+
+    private List<CommuteHistory> findCommuteHistoriesByEmployeeIdAndMonth(Long employeeId, YearMonth yearMonth) {
+        ZonedDateTime startOfMonth = yearMonth.atDay(1).atStartOfDay(ZonedDateTime.now().getZone());
+        ZonedDateTime endOfMonth = yearMonth.atEndOfMonth()
+                .atTime(23, 59, 59)
+                .atZone(ZonedDateTime.now().getZone());
+        return commuteHistoryRepository.findAllByEmployeeIdAndWorkStartTimeBetween(
+                employeeId, startOfMonth, endOfMonth);
+    }
 }

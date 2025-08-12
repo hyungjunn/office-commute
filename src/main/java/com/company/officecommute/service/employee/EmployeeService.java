@@ -6,9 +6,7 @@ import com.company.officecommute.dto.employee.request.EmployeeSaveRequest;
 import com.company.officecommute.dto.employee.request.EmployeeUpdateTeamNameRequest;
 import com.company.officecommute.dto.employee.response.EmployeeFindResponse;
 import com.company.officecommute.repository.employee.EmployeeRepository;
-import com.company.officecommute.service.team.TeamDomainService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.company.officecommute.repository.team.TeamRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,21 +16,16 @@ import java.util.List;
 @Service
 public class EmployeeService {
 
-    private static final Logger log = LoggerFactory.getLogger(EmployeeService.class);
-
     private final EmployeeRepository employeeRepository;
-    private final EmployeeDomainService employeeDomainService;
-    private final TeamDomainService teamDomainService;
+    private final TeamRepository teamRepository;
     private final PasswordEncoder passwordEncoder;
 
     public EmployeeService(
             EmployeeRepository employeeRepository,
-            EmployeeDomainService employeeDomainService,
-            TeamDomainService teamDomainService,
+            TeamRepository teamRepository,
             PasswordEncoder passwordEncoder) {
         this.employeeRepository = employeeRepository;
-        this.employeeDomainService = employeeDomainService;
-        this.teamDomainService = teamDomainService;
+        this.teamRepository = teamRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -63,11 +56,11 @@ public class EmployeeService {
 
     @Transactional
     public void updateEmployeeTeamName(EmployeeUpdateTeamNameRequest request) {
-        Employee employee = employeeDomainService.findEmployeeById(request.employeeId());
-
+        Employee employee = employeeRepository.findById(request.employeeId())
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다."));
         String wantedTeamName = request.teamName();
-        Team team = teamDomainService.findTeamByName(wantedTeamName);
-
+        Team team = teamRepository.findByName(wantedTeamName)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 팀입니다."));
         employee.changeTeam(team);
     }
 

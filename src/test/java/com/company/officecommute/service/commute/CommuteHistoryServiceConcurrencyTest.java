@@ -74,8 +74,8 @@ public class CommuteHistoryServiceConcurrencyTest {
         commuteHistoryService.registerWorkStartTime(1L);
 
         assertThatThrownBy(() -> commuteHistoryService.registerWorkStartTime(1L))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("직원 id(1)는 퇴근하지 않고 다시 출근할 수 없습니다.");
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("이전 근무가 아직 종료되지 않았습니다.");
     }
 
     @Test
