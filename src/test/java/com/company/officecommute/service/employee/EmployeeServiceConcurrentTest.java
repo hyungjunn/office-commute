@@ -8,6 +8,7 @@ import com.company.officecommute.dto.employee.request.EmployeeUpdateTeamNameRequ
 import com.company.officecommute.repository.annual_leave.AnnualLeaveRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.repository.team.TeamRepository;
+import com.company.officecommute.service.annual_leave.AnnualLeaveService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,9 @@ class EmployeeServiceConcurrentTest {
 
     @Autowired
     private EmployeeService employeeService;
+
+    @Autowired
+    private AnnualLeaveService annualLeaveService;
 
     @Autowired
     private EmployeeRepository employeeRepository;
@@ -69,7 +73,7 @@ class EmployeeServiceConcurrentTest {
         for (int i = 0; i < threadCount; i++) {
             executor.execute(() -> {
                 try {
-                    employeeService.enrollAnnualLeave(employeeId, List.of(targetDate));
+                    annualLeaveService.enrollAnnualLeave(employeeId, List.of(targetDate));
                     successCount.incrementAndGet();
                 } catch (DataIntegrityViolationException e) {
                     failCount.incrementAndGet();
