@@ -1,13 +1,13 @@
 package com.company.officecommute.controller.employee;
 
-import com.company.officecommute.auth.AuthUtils;
+import com.company.officecommute.auth.ForbiddenException;
 import com.company.officecommute.domain.employee.Employee;
+import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.dto.auth.LoginRequest;
 import com.company.officecommute.dto.employee.request.EmployeeSaveRequest;
 import com.company.officecommute.dto.employee.request.EmployeeUpdateTeamNameRequest;
 import com.company.officecommute.dto.employee.response.EmployeeFindResponse;
 import com.company.officecommute.service.employee.EmployeeService;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.SessionAttribute;
 
 import java.util.List;
 
@@ -45,21 +46,27 @@ public class EmployeeController {
 
     @PostMapping("/employee")
     public void saveEmployee(@Valid @RequestBody EmployeeSaveRequest request,
-                             HttpServletRequest httpRequest) {
-        AuthUtils.requireManagerRole(httpRequest);
+                             @SessionAttribute("employeeRole") Role role) {
+        if (role != Role.MANAGER) {
+            throw new ForbiddenException("관리자만 접근 가능");
+        }
         employeeService.registerEmployee(request);
     }
 
     @GetMapping("/employee")
-    public List<EmployeeFindResponse> findAllEmployee(HttpServletRequest httpRequest) {
-        AuthUtils.requireManagerRole(httpRequest);
+    public List<EmployeeFindResponse> findAllEmployee(@SessionAttribute("employeeRole") Role role) {
+        if (role != Role.MANAGER) {
+            throw new ForbiddenException("관리자만 접근 가능");
+        }
         return employeeService.findAllEmployee();
     }
 
     @PutMapping("/employee")
     public void updateEmployeeTeamName(@RequestBody EmployeeUpdateTeamNameRequest request,
-                                       HttpServletRequest httpRequest) {
-        AuthUtils.requireManagerRole(httpRequest);
+                                       @SessionAttribute("employeeRole") Role role) {
+        if (role != Role.MANAGER) {
+            throw new ForbiddenException("관리자만 접근 가능");
+        }
         employeeService.updateEmployeeTeamName(request);
     }
 }

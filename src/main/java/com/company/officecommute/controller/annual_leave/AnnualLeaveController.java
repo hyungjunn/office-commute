@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.SessionAttribute;
 
 import java.util.List;
 
@@ -23,16 +24,14 @@ public class AnnualLeaveController {
 
     @PostMapping("/annual-leave")
     public List<AnnualLeaveEnrollmentResponse> enrollAnnualLeave(
-            HttpServletRequest request,
+            @SessionAttribute("employeeId") Long employeeId,
             @RequestBody AnnualLeaveEnrollRequest enrollRequest
     ) {
-        Long employeeId = (Long) request.getAttribute("currentEmployeeId");
         return employeeService.enrollAnnualLeave(employeeId, enrollRequest.wantedDates());
     }
 
     @GetMapping("/annual-leave")
-    public AnnualLeaveGetRemainingResponse getRemainingAnnualLeaves(HttpServletRequest request) {
-        Long employeeId = (Long) request.getAttribute("currentEmployeeId");
+    public AnnualLeaveGetRemainingResponse getRemainingAnnualLeaves(@SessionAttribute("employeeId") Long employeeId) {
         return employeeService.getRemainingAnnualLeaves(employeeId);
     }
 }

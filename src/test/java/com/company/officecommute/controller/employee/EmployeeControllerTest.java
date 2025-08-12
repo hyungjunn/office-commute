@@ -58,7 +58,7 @@ class EmployeeControllerTest {
                     .isLenientlyEqualTo("""
                                 {
                                     "code": "FORBIDDEN",
-                                    "message": "관리자만 접근이 가능합니다"
+                                    "message": "관리자만 접근 가능"
                                 }
                             """);
         }
