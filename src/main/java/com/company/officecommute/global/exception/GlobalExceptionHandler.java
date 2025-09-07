@@ -7,9 +7,11 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.List;
 import java.util.Objects;
@@ -69,5 +71,19 @@ public class GlobalExceptionHandler {
         }
 
         return new ErrorResult("DATA_INTEGRITY_ERROR", "데이터 제약조건을 위반했습니다");
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ErrorResult handleMissingParameter(MissingServletRequestParameterException e) {
+        log.warn("Missing required parameter: {}", e.getMessage());
+        return new ErrorResult("MISSING_PARAMETER", "필수 파라미터가 누락되었습니다: " + e.getParameterName());
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ErrorResult handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+        log.warn("Parameter type mismatch: {}", e.getMessage());
+        return new ErrorResult("INVALID_PARAMETER", "파라미터 형식이 올바르지 않습니다: " + e.getName());
     }
 }

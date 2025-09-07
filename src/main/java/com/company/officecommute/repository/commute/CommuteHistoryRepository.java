@@ -25,6 +25,4 @@ public interface CommuteHistoryRepository extends JpaRepository<CommuteHistory, 
             GROUP BY ch.employeeId, e.name
             """)
     List<TotalWorkingMinutes> findWithEmployeeIdByDateRange(ZonedDateTime startOfMonth, ZonedDateTime endOfMonth);
-
-    List<CommuteHistory> findAllByEmployeeId(Long employeeId);
 }
