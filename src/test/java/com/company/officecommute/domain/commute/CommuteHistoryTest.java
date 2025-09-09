@@ -2,7 +2,6 @@ package com.company.officecommute.domain.commute;
 
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
