@@ -28,8 +28,7 @@ public class CommuteHistoryService {
 
     @Transactional
     public void registerWorkStartTime(Long employeeId) {
-        Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다."));
+        Employee employee = getEmployee(employeeId);
         validatePreviousWorkCompleted(employee.getEmployeeId());
         CommuteHistory newWork = new CommuteHistory(null, employee.getEmployeeId(), ZonedDateTime.now(), null, 0);
         commuteHistoryRepository.save(newWork);
@@ -37,8 +36,7 @@ public class CommuteHistoryService {
 
     @Transactional
     public void registerWorkEndTime(Long employeeId, ZonedDateTime workEndTime) {
-        Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다."));
+        Employee employee = getEmployee(employeeId);
         CommuteHistory lastCommute = findFirstByEmployeeId(employee.getEmployeeId());
         CommuteHistory commuteHistory = lastCommute.endWork(workEndTime);
         commuteHistoryRepository.save(commuteHistory);
@@ -46,11 +44,15 @@ public class CommuteHistoryService {
 
     @Transactional(readOnly = true)
     public WorkDurationPerDateResponse getWorkDurationPerDate(Long employeeId, YearMonth yearMonth) {
-        Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다."));
+        Employee employee = getEmployee(employeeId);
         List<CommuteHistory> histories = findCommuteHistoriesByEmployeeIdAndMonth(
                 employee.getEmployeeId(), yearMonth);
         return new CommuteHistories(histories).toWorkDurationPerDateResponse();
+    }
+
+    private Employee getEmployee(Long employeeId) {
+        return employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다."));
     }
 
     private void validatePreviousWorkCompleted(Long employeeId) {
