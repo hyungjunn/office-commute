@@ -48,6 +48,11 @@ src/main/resources/static/docs/
 ### Ignore .DS_Store ###
 **/.DS_Store
 
-### application*.yml ###
-src/main/resources/*.yml
+# Environment files
+.env
+
+# 로컬에서 테스트하는 application.yml
 src/test/resources/*.yml
+
+# Log files
+logs/

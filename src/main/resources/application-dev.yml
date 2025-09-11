@@ -1,0 +1,54 @@
+# 개발 환경 설정
+spring:
+  # H2 메모리 데이터베이스 사용 (빠르고 초기화 쉬움)
+  datasource:
+    url: jdbc:h2:mem:testdb
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+  
+  # 개발용 H2 콘솔 활성화
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  
+  # JPA 개발 설정
+  jpa:
+    hibernate:
+      ddl-auto: create-drop  # 시작할 때 생성, 종료할 때 삭제
+    properties:
+      hibernate:
+        show_sql: true  # SQL 쿼리 출력
+        use_sql_comments: true
+  
+  # SQL 초기화
+  sql:
+    init:
+      mode: always  # 항상 data.sql 실행
+
+# P6Spy - SQL 로깅 라이브러리
+decorator:
+  datasource:
+    p6spy:
+      enable-logging: true
+      multiline: true
+      logging: slf4j
+      log-format: "Hibernate: %(sql)"
+
+# 개발용 로깅 설정 (상세하게)
+logging:
+  level:
+    org.hibernate.SQL: debug
+    org.hibernate.type: trace
+    org.springframework.security: debug
+    p6spy: info
+    com.company.officecommute: debug
+    root: info
+
+# 개발용 API 설정 (환경변수 사용)
+public:
+  data:
+    api:
+      serviceKey: ${PUBLIC_API_SERVICE_KEY}
+      url: ${PUBLIC_API_URL:http://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo}
