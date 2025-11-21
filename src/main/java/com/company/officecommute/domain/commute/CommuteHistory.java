@@ -91,9 +91,14 @@ public class CommuteHistory {
         if (this.workEndTime != null) {
             throw new IllegalArgumentException("이미 퇴근을 했습니다.");
         }
-        Duration duration = Duration.between(this.workStartTime, workEndTime);
-        long workingMinutes = duration.toMinutes();
-        return new CommuteHistory(this.commuteHistoryId, this.employeeId, this.workStartTime, workEndTime, workingMinutes);
+        if (workEndTime.isBefore(this.workStartTime)) {
+            throw new IllegalArgumentException("퇴근 시간이 출근 시간보다 이릅니다.");
+        }
+        long workingMinutes = Duration.between(this.workStartTime, workEndTime).toMinutes();
+        WorkingMinutes validatedWorkingMinutes = new WorkingMinutes(workingMinutes);
+        this.workingMinutes = validatedWorkingMinutes.getWorkingMinutes();
+        this.workEndTime = workEndTime;
+        return this;
     }
 
     public Detail toDetail() {

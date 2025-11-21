@@ -52,6 +52,28 @@ public class CommuteHistoryTest {
     }
 
     @Test
+    void testEndWorkBeforeStartThrows() {
+        ZonedDateTime workStartTime = ZonedDateTime.of(2024, 1, 1, 8, 0, 0, 0, ZoneId.of(KOREA));
+        ZonedDateTime earlierThanStart = ZonedDateTime.of(2024, 1, 1, 7, 30, 0, 0, ZoneId.of(KOREA));
+        CommuteHistory commuteHistory = new CommuteHistory(1L, 1L, workStartTime, null, 0);
+
+        assertThatThrownBy(() -> commuteHistory.endWork(earlierThanStart))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("퇴근 시간이 출근 시간보다 이릅니다.");
+    }
+
+    @Test
+    void testEndWorkKeepsUsingDayOffFlag() {
+        ZonedDateTime workStartTime = ZonedDateTime.of(2024, 1, 1, 8, 0, 0, 0, ZoneId.of(KOREA));
+        ZonedDateTime workEndTime = ZonedDateTime.of(2024, 1, 1, 18, 0, 0, 0, ZoneId.of(KOREA));
+        CommuteHistory commuteHistory = new CommuteHistory(1L, 1L, workStartTime, null, 0, true);
+
+        Detail detail = commuteHistory.endWork(workEndTime).toDetail();
+
+        assertThat(detail.isUsingDayOff()).isTrue();
+    }
+
+    @Test
     void toDetail_workingDate() {
         ZonedDateTime workStartTime = ZonedDateTime.of(2024, 1, 1, 8, 0, 0, 0, ZoneId.of(KOREA));
         ZonedDateTime workEndTime = ZonedDateTime.of(2024, 1, 1, 18, 0, 0, 0, ZoneId.of(KOREA));
