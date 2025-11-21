@@ -1,17 +1,11 @@
 # 개발 환경 설정
 spring:
-  # H2 메모리 데이터베이스 사용 (빠르고 초기화 쉬움)
+  # H2 메모리 데이터베이스 사용
   datasource:
-    url: jdbc:h2:mem:testdb
+    url: jdbc:h2:tcp://localhost/~/test
     username: sa
     password: 
     driver-class-name: org.h2.Driver
-  
-  # 개발용 H2 콘솔 활성화
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
   
   # JPA 개발 설정
   jpa:
