@@ -10,6 +10,7 @@ import jakarta.persistence.UniqueConstraint;
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
 @Entity
@@ -17,6 +18,7 @@ import java.time.ZonedDateTime;
         @UniqueConstraint(columnNames = {"employee_id", "work_date"})
 })
 public class CommuteHistory {
+    private static final ZoneId DEFAULT_ZONE = ZoneId.of("Asia/Seoul");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -59,7 +61,7 @@ public class CommuteHistory {
 
     // 연차용 생성자
     public CommuteHistory(Long employeeId, LocalDate annualLeaveDate) {
-        this(null, employeeId, null, null, 0, true);
+        this(null, employeeId, annualLeaveDate.atStartOfDay(DEFAULT_ZONE), annualLeaveDate.atStartOfDay(DEFAULT_ZONE), 0, true);
         this.workDate = annualLeaveDate;
     }
 
@@ -102,7 +104,7 @@ public class CommuteHistory {
     }
 
     private boolean isAnnualLeaveDate() {
-        return this.workStartTime == this.workEndTime;
+        return this.usingDayOff;
     }
 
     public LocalDate workStartTimeToLocalDate() {
