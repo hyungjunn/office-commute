@@ -1,6 +1,5 @@
 package com.company.officecommute.service.overtime;
 
-import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.dto.overtime.response.OverTimeReportData;
 import com.company.officecommute.repository.employee.EmployeeRepository;
@@ -113,19 +112,13 @@ public class OverTimeReportService {
     }
 
     private OverTimeReportData convertToReportData(OverTimeCalculateResponse response) {
-        // Employee 정보 조회 (팀명 가져오기 위해)
-        Employee employee = employeeRepository.findById(response.id())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다."));
-
-        String teamName = employee.getTeam() != null ? employee.getTeam().getName() : "미배정";
-
         // 초과근무 수당 계산 (분 단위 → 시간 단위 변환)
         long overTimeHours = response.overTimeMinutes() / 60;
         long overTimePay = overTimeHours * HOURLY_OVERTIME_PAY;
 
         return new OverTimeReportData(
                 response.name(),
-                teamName,
+                response.teamName(),
                 response.overTimeMinutes(),
                 overTimePay
         );

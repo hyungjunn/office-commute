@@ -64,8 +64,8 @@ class OverTimeControllerTest {
         void calculateOverTime_authorized() {
             YearMonth yearMonth = YearMonth.of(2024, 8);
             List<OverTimeCalculateResponse> mockData = Arrays.asList(
-                    new OverTimeCalculateResponse(1L, "임형준", 300L),
-                    new OverTimeCalculateResponse(2L, "김개발", 120L)
+                    new OverTimeCalculateResponse(1L, "임형준", "팀A", 300L),
+                    new OverTimeCalculateResponse(2L, "김개발", "팀B", 120L)
             );
             
             given(overTimeService.calculateOverTime(yearMonth))

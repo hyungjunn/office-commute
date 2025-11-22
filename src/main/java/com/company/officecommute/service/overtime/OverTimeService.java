@@ -26,13 +26,20 @@ public class OverTimeService {
     public List<OverTimeCalculateResponse> calculateOverTime(YearMonth yearMonth) {
         ZonedDateTime startOfMonth = yearMonth.atDay(1).atStartOfDay(ZonedDateTime.now().getZone());
         ZonedDateTime endOfMonth = yearMonth.atEndOfMonth().atTime(23, 59, 59).atZone(ZonedDateTime.now().getZone());
+
         List<TotalWorkingMinutes> totalWorkingMinutes = commuteHistoryRepository.findWithEmployeeIdByDateRange(startOfMonth, endOfMonth);
+
         long numberOfStandardWorkingDays = apiConvertor.countNumberOfStandardWorkingDays(yearMonth);
         long standardWorkingMinutes = apiConvertor.calculateStandardWorkingMinutes(numberOfStandardWorkingDays);
+
         return totalWorkingMinutes.stream()
                 .map(totalWorkingMinute -> {
                     long overTime = totalWorkingMinute.calculateOverTime(standardWorkingMinutes);
-                    return new OverTimeCalculateResponse(totalWorkingMinute.getEmployeeId(), totalWorkingMinute.getEmployeeName(), overTime);
+                    return new OverTimeCalculateResponse(
+                            totalWorkingMinute.getEmployeeId(),
+                            totalWorkingMinute.getEmployeeName(),
+                            totalWorkingMinute.getTeamName(),
+                            overTime);
                 })
                 .toList();
     }

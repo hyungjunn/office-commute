@@ -15,14 +15,22 @@ public interface CommuteHistoryRepository extends JpaRepository<CommuteHistory, 
 
     List<CommuteHistory> findAllByEmployeeIdAndWorkStartTimeBetween(Long id, ZonedDateTime startOfMonth, ZonedDateTime endOfMonth);
 
+    /**
+     * Aggregates total working minutes per employee within the given date range.
+     * <p>
+     * - Uses LEFT JOIN on team so employees without a team are included.<br>
+     * - COALESCE(t.name, "미배정") ensures the team name is never null (unassigned → "미배정").<br>
+     * - GROUP BY includes team name to align with the select list and avoid SQL grouping errors.
+     */
     @Query("""
             SELECT new com.company.officecommute.service.overtime.TotalWorkingMinutes(
-                        ch.employeeId, e.name, SUM(ch.workingMinutes)
+                        ch.employeeId, e.name, COALESCE(t.name, '미배정') , SUM(ch.workingMinutes)
                     )
             FROM CommuteHistory ch
             JOIN Employee e ON ch.employeeId = e.employeeId
+            LEFT JOIN e.team t
             WHERE ch.workStartTime BETWEEN :startOfMonth AND :endOfMonth
-            GROUP BY ch.employeeId, e.name
+            GROUP BY ch.employeeId, e.name, t.name
             """)
     List<TotalWorkingMinutes> findWithEmployeeIdByDateRange(ZonedDateTime startOfMonth, ZonedDateTime endOfMonth);
 }
