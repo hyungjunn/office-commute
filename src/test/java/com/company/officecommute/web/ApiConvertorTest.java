@@ -1,8 +1,8 @@
 package com.company.officecommute.web;
 
 import com.company.officecommute.domain.overtime.HolidayResponse;
+import com.company.officecommute.repository.overtime.HolidayRepository;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.web.client.RestTemplate;
@@ -17,16 +17,11 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @WebMvcTest(ApiConvertor.class)
-class ApiConvertor1Test {
+class ApiConvertorTest {
 
-    @MockitoBean
-    private RestTemplate restTemplate;
-
-    @MockitoBean
-    private ApiProperties apiProperties;
-
-    @Autowired
-    private ApiConvertor apiConvertor;
+    @MockitoBean private RestTemplate restTemplate;
+    @MockitoBean private ApiProperties apiProperties;
+    @MockitoBean private HolidayRepository holidayRepository;
 
     @Test
     void _2024년_5월의_기준_근로_시간을_구하는_메서드를_검증하라() {
@@ -51,7 +46,7 @@ class ApiConvertor1Test {
         when(restTemplate.getForObject(any(URI.class), eq(HolidayResponse.class)))
                 .thenReturn(fakeResponse);
 
-        ApiConvertor apiConvertor = new ApiConvertor(restTemplate, fakeApiProperties);
+        ApiConvertor apiConvertor = new ApiConvertor(restTemplate, fakeApiProperties, holidayRepository);
         long numberOfStandardWorkingDays = apiConvertor.countNumberOfStandardWorkingDays(YearMonth.of(2024, 5));
 
         assertThat(numberOfStandardWorkingDays).isEqualTo(21L);

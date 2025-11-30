@@ -2,6 +2,7 @@ package com.company.officecommute.service.overtime;
 
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.dto.overtime.response.OverTimeReportData;
+import com.company.officecommute.web.ApiConvertor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,16 +21,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(MockitoExtension.class)
 class OverTimeReportServiceTest {
 
-    @InjectMocks
-    private OverTimeReportService overTimeReportService;
-    
-    @Mock
-    private OverTimeService overTimeService;
+    @InjectMocks private OverTimeReportService overTimeReportService;
+
+    @Mock private OverTimeService overTimeService;
+    @Mock private ApiConvertor apiConvertor;
 
     @Test
     @DisplayName("초과근무 보고서 데이터를 정상적으로 생성한다")
     void generateOverTimeReportData_success() {
-        // given
         YearMonth yearMonth = YearMonth.of(2024, 8);
         List<OverTimeCalculateResponse> mockOverTimeData = Arrays.asList(
                 new OverTimeCalculateResponse(1L, "임형준", "백엔드팀", 300L), // 5시간 초과근무
@@ -39,10 +38,8 @@ class OverTimeReportServiceTest {
         BDDMockito.given(overTimeService.calculateOverTime(yearMonth))
                 .willReturn(mockOverTimeData);
 
-        // when
         List<OverTimeReportData> result = overTimeReportService.generateOverTimeReportData(yearMonth);
 
-        // then
         assertThat(result).hasSize(2);
         
         OverTimeReportData reportData1 = result.get(0);
@@ -61,7 +58,6 @@ class OverTimeReportServiceTest {
     @Test
     @DisplayName("엑셀 파일이 정상적으로 생성된다")
     void generateExcelReport_success() throws IOException {
-        // given
         YearMonth yearMonth = YearMonth.of(2024, 8);
         List<OverTimeCalculateResponse> mockOverTimeData = Arrays.asList(
                 new OverTimeCalculateResponse(1L, "임형준", "백엔드팀", 300L),
@@ -71,10 +67,8 @@ class OverTimeReportServiceTest {
         BDDMockito.given(overTimeService.calculateOverTime(yearMonth))
                 .willReturn(mockOverTimeData);
 
-        // when
         byte[] excelData = overTimeReportService.generateExcelReport(yearMonth);
 
-        // then
         assertThat(excelData).isNotNull();
         assertThat(excelData.length).isGreaterThan(0);
     }
@@ -82,7 +76,6 @@ class OverTimeReportServiceTest {
     @Test
     @DisplayName("초과근무 시간이 0분인 경우 수당도 0원이다")
     void generateOverTimeReportData_zeroOvertime() {
-        // given
         YearMonth yearMonth = YearMonth.of(2024, 8);
         List<OverTimeCalculateResponse> mockOverTimeData = List.of(
                 new OverTimeCalculateResponse(1L, "임형준", "백엔드팀", 0L)
@@ -91,10 +84,8 @@ class OverTimeReportServiceTest {
         BDDMockito.given(overTimeService.calculateOverTime(yearMonth))
                 .willReturn(mockOverTimeData);
 
-        // when
         List<OverTimeReportData> result = overTimeReportService.generateOverTimeReportData(yearMonth);
 
-        // then
         assertThat(result).hasSize(1);
         OverTimeReportData reportData = result.getFirst();
         assertThat(reportData.overTimeMinutes()).isEqualTo(0L);
@@ -104,7 +95,6 @@ class OverTimeReportServiceTest {
     @Test
     @DisplayName("59분 초과근무는 0시간으로 계산되어 수당이 0원이다")
     void generateOverTimeReportData_lessThanOneHour() {
-        // given
         YearMonth yearMonth = YearMonth.of(2024, 8);
         List<OverTimeCalculateResponse> mockOverTimeData = List.of(
                 new OverTimeCalculateResponse(1L, "임형준", "백엔드팀",59L) // 59분
@@ -113,10 +103,8 @@ class OverTimeReportServiceTest {
         BDDMockito.given(overTimeService.calculateOverTime(yearMonth))
                 .willReturn(mockOverTimeData);
 
-        // when
         List<OverTimeReportData> result = overTimeReportService.generateOverTimeReportData(yearMonth);
 
-        // then
         assertThat(result).hasSize(1);
         OverTimeReportData reportData = result.getFirst();
         assertThat(reportData.overTimeMinutes()).isEqualTo(59L);

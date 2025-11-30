@@ -3,6 +3,7 @@ package com.company.officecommute.service.overtime;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.dto.overtime.response.OverTimeReportData;
 import com.company.officecommute.repository.employee.EmployeeRepository;
+import com.company.officecommute.web.ApiConvertor;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.DataFormat;
@@ -25,12 +26,18 @@ public class OverTimeReportService {
 
     private final OverTimeService overTimeService;
     private final EmployeeRepository employeeRepository;
-    
+    private final ApiConvertor apiConvertor;
+
     private static final long HOURLY_OVERTIME_PAY = 15000; // 시간당 초과근무 수당 (임시)
 
-    public OverTimeReportService(OverTimeService overTimeService, EmployeeRepository employeeRepository) {
+    public OverTimeReportService(
+            OverTimeService overTimeService,
+            EmployeeRepository employeeRepository,
+            ApiConvertor apiConvertor
+    ) {
         this.overTimeService = overTimeService;
         this.employeeRepository = employeeRepository;
+        this.apiConvertor = apiConvertor;
     }
 
     public byte[] generateExcelReport(YearMonth yearMonth) throws IOException {
@@ -99,7 +106,12 @@ public class OverTimeReportService {
             }
 
             workbook.write(outputStream);
-            return outputStream.toByteArray();
+            byte[] excelData = outputStream.toByteArray();
+
+            // Excel 생성 성공 후 다음 달 공휴일 미리 저장
+            apiConvertor.prefetchNextMonthHolidays(yearMonth);
+
+            return excelData;
         }
     }
 
