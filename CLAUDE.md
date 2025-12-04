@@ -1,0 +1,77 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Build & Test Commands
+
+```bash
+# Build
+./gradlew build
+
+# Run tests
+./gradlew test
+
+# Run single test class
+./gradlew test --tests "com.company.officecommute.service.employee.EmployeeServiceTest"
+
+# Run single test method
+./gradlew test --tests "com.company.officecommute.service.employee.EmployeeServiceTest.testMethodName"
+
+# Run application (dev profile with H2)
+./gradlew bootRun
+
+# Clean build
+./gradlew clean build
+```
+
+## Development Environment
+
+- **Language**: Java 21
+- **Framework**: Spring Boot 3.5.5
+- **Database**: H2 (dev), MySQL 8.0 (prod)
+- **Dev profile** uses H2 TCP connection (`jdbc:h2:tcp://localhost/~/test`)
+- External API requires `PUBLIC_API_SERVICE_KEY` environment variable (공공데이터포털 특일정보 API)
+
+## Architecture Overview
+
+사내 출퇴근 관리 시스템 - 직원의 출퇴근, 연차, 초과근무를 관리하는 시스템
+
+### Layered Architecture
+```
+Controller → Service → Repository → Database
+                ↓
+           Domain (비즈니스 로직)
+```
+
+### Key Domain Concepts
+
+1. **CommuteHistory**: 출퇴근 기록 엔티티
+   - `employee_id + work_date` 복합 유니크 제약
+   - `endWork()` 메서드로 퇴근 처리 및 근무시간(분) 계산
+   - `usingDayOff` 플래그로 연차 사용일 구분
+
+2. **AnnualLeaveEnrollment**: 연차 등록 도메인 객체
+   - 팀별 연차 신청 기준일(`annualLeaveCriteria`) 검증
+   - 기존 연차와 중복 검증 로직 포함
+
+3. **ApiConvertor**: 외부 공휴일 API 연동 + DB 폴백
+   - 공공데이터포털 API로 공휴일 조회
+   - API 실패 시 DB 캐시에서 조회
+   - `prefetchNextMonthHolidays()`: 다음 달 공휴일 선제 저장
+
+4. **OverTimeService**: 초과근무 계산
+   - 법정 근무일수 = 월 일수 - 주말 - 공휴일(주말 제외)
+   - 법정 근무시간 = 법정 근무일수 × 8시간 × 60분
+
+### Authentication
+
+- `AuthInterceptor`: 세션 기반 인증
+- 세션에 `employeeId`, `employeeRole` 저장
+- `Role` enum: MANAGER, MEMBER
+
+### Test Patterns
+
+- Service 테스트: `@SpringBootTest` + H2 인메모리
+- Controller 테스트: `@WebMvcTest` + MockMvc
+- 동시성 테스트: `*ConcurrentTest`, `*ConcurrencyTest` 클래스
+- 테스트 픽스처: `EmployeeBuilder`, `Employees`, `Teams` 유틸리티 클래스
