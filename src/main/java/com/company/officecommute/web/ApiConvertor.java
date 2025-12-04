@@ -50,6 +50,24 @@ public class ApiConvertor {
         return numberOfWeekDays - numberOfHolidays;
     }
 
+    /**
+     * 다음 달 공휴일을 미리 DB에 저장합니다.
+     * 월말에 초과근무 계산 후 호출하여 다음 달 API 실패에 대비합니다.
+     */
+    @Transactional
+    public void prefetchNextMonthHolidays(YearMonth currentMonth) {
+        YearMonth nextMonth = currentMonth.plusMonths(1);
+        try {
+            List<HolidayResponse.Item> items = fetchHolidaysFromApi(nextMonth);
+            Set<LocalDate> holidays = convertToLocalDate(items);
+            saveHolidaysToDatabase(nextMonth, holidays);
+            log.info("다음 달 공휴일 선제적 저장 성공: {}-{}", nextMonth.getYear(), nextMonth.getMonthValue());
+        } catch (Exception e) {
+            log.warn("다음 달 공휴일 선제적 저장 실패. 다음 달에 재시도합니다. 오류: {}", e.getMessage());
+            // 실패해도 예외를 던지지 않음 (다음 달에 다시 시도할 수 있음)
+        }
+    }
+
     private Set<LocalDate> getHolidays(YearMonth yearMonth) {
         try {
             List<HolidayResponse.Item> items = fetchHolidaysFromApi(yearMonth);
@@ -65,7 +83,7 @@ public class ApiConvertor {
             );
 
             if (cachedHolidays.isEmpty()) {
-                log.warn("DB에도 공휴일 데이터가 없습니다: {}-{}", yearMonth.getYear(), yearMonth.getMonthValue());
+                throw new IllegalStateException("공휴일 데이터를 가져올 수 없습니다. API 호출 실패 및 DB 캐시 없음: " + yearMonth);
             }
 
             return Set.copyOf(cachedHolidays);
@@ -100,8 +118,7 @@ public class ApiConvertor {
 
         HolidayResponse holidayResponse = restTemplate.getForObject(uri, HolidayResponse.class);
         if (holidayResponse == null || holidayResponse.getBody() == null) {
-            log.warn("공휴일 API 응답이 비어있음. yearMonth={}", yearMonth);
-            return List.of();
+            throw new IllegalStateException("공휴일 API 응답이 비정상입니다. yearMonth=" + yearMonth);
         }
         return holidayResponse.getBody().getItems();
     }
@@ -121,24 +138,6 @@ public class ApiConvertor {
 
     public long calculateStandardWorkingMinutes(long numberOfStandardWorkingDays) {
         return numberOfStandardWorkingDays * 8 * 60;
-    }
-
-    /**
-     * 다음 달 공휴일을 미리 DB에 저장합니다.
-     * 월말에 초과근무 계산 후 호출하여 다음 달 API 실패에 대비합니다.
-     */
-    @Transactional
-    public void prefetchNextMonthHolidays(YearMonth currentMonth) {
-        YearMonth nextMonth = currentMonth.plusMonths(1);
-        try {
-            List<HolidayResponse.Item> items = fetchHolidaysFromApi(nextMonth);
-            Set<LocalDate> holidays = convertToLocalDate(items);
-            saveHolidaysToDatabase(nextMonth, holidays);
-            log.info("다음 달 공휴일 선제적 저장 성공: {}-{}", nextMonth.getYear(), nextMonth.getMonthValue());
-        } catch (Exception e) {
-            log.warn("다음 달 공휴일 선제적 저장 실패. 다음 달에 재시도합니다. 오류: {}", e.getMessage());
-            // 실패해도 예외를 던지지 않음 (다음 달에 다시 시도할 수 있음)
-        }
     }
 
 }

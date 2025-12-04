@@ -18,6 +18,7 @@ import java.time.YearMonth;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -73,21 +74,16 @@ class ApiConvertorFallbackTest {
     }
 
     @Test
-    @DisplayName("API 호출 실패하고 DB에도 데이터가 없으면 공휴일 0개로 계산한다")
-    void countStandardWorkingDays_usesEmptyHolidays_whenApiFailsAndNoDatabaseData() {
+    @DisplayName("API 호출 실패하고 DB에도 데이터가 없으면 예외를 던진다")
+    void countStandardWorkingDays_throwsException_whenApiFailsAndNoDatabaseData() {
         YearMonth yearMonth = YearMonth.of(2026, 1);
 
         // API 호출 실패 시뮬레이션
         mockFailedApiResponse();
 
-        long workingDays = apiConvertor.countNumberOfStandardWorkingDays(yearMonth);
-
-        // 2026년 1월: 31일
-        // 주말: 9일 (토 5개 + 일 4개)
-        // 평일: 22일
-        // 공휴일: 0일 (DB에 없음)
-        // 근무일: 22일
-        assertThat(workingDays).isEqualTo(22L);
+        assertThatThrownBy(() -> apiConvertor.countNumberOfStandardWorkingDays(yearMonth))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("공휴일 데이터를 가져올 수 없습니다");
     }
 
     @Test
