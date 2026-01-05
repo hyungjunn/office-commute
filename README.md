@@ -1,5 +1,25 @@
 # office-commute
 
+## API 문서 확인하기
+
+테스트 기반으로 생성된 API 문서를 확인할 수 있습니다.
+
+```bash
+# 문서 생성 (테스트 실행 후 HTML 생성)
+./gradlew asciidoctor
+
+# 브라우저에서 열기 (macOS)
+open build/docs/asciidoc/index.html
+
+# 또는 직접 파일 경로로 접근
+# build/docs/asciidoc/index.html
+```
+
+> Spring REST Docs를 사용하여 테스트 코드 기반으로 API 문서를 생성합니다.
+> 테스트가 통과해야만 문서가 생성되므로, 문서와 실제 API의 일치가 보장됩니다.
+
+---
+
 ## 개요
 Spring Boot와 JPA 학습 후, 시간, 날짜, 돈과 관련된 데이터를 다루는 실무적인 문제 해결 경험을 목표로 `사내 출퇴근 관리 시스템`을 개발했습니다. 
 
