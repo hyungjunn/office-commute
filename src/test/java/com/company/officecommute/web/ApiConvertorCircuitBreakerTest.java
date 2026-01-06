@@ -57,11 +57,9 @@ class ApiConvertorCircuitBreakerTest {
     void circuitBreakerFallback_whenApiFails_shouldQueryDatabase() {
         YearMonth yearMonth = YearMonth.of(2025, 12);
 
-        // DB에 캐시 데이터 저장
         Holiday holiday = new Holiday(2025, 12, LocalDate.of(2025, 12, 25));
         holidayRepository.save(holiday);
 
-        // API 호출 실패 시뮬레이션
         when(restTemplate.getForObject(any(URI.class), eq(HolidayResponse.class)))
                 .thenThrow(HttpServerErrorException.InternalServerError.create(
                         "Internal Server Error",
@@ -70,7 +68,6 @@ class ApiConvertorCircuitBreakerTest {
                         null, null, null
                 ));
 
-        // Circuit Breaker fallback이 실행되어 DB에서 조회
         long workingDays = apiConvertor.countNumberOfStandardWorkingDays(yearMonth);
 
         assertThat(workingDays).isGreaterThan(0);
@@ -80,12 +77,9 @@ class ApiConvertorCircuitBreakerTest {
     @DisplayName("연속 실패 시 Circuit이 Open 상태로 전환된다")
     void circuitOpens_afterConsecutiveFailures() {
         YearMonth yearMonth = YearMonth.of(2025, 11);
-
-        // DB에 캐시 데이터 저장 (fallback용)
         // Holiday holiday = new Holiday(2025, 11, LocalDate.of(2025, 11, 3));
         // holidayRepository.save(holiday);
 
-        // API 호출 실패 시뮬레이션
         when(restTemplate.getForObject(any(URI.class), eq(HolidayResponse.class)))
                 .thenThrow(HttpServerErrorException.InternalServerError.create(
                         "Internal Server Error",
@@ -94,11 +88,8 @@ class ApiConvertorCircuitBreakerTest {
                         null, null, null
                 ));
 
-        // 초기 상태는 CLOSED
         assertThat(circuitBreaker.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
 
-        // 여러 번 호출하여 실패율을 높임 (sliding-window-size=10, minimum-number-of-calls=10)
-        // 11번째 호출에서 실패율이 계산되어 Circuit이 Open됨
         for (int i = 0; i < 11; i++) {
             try {
                 apiConvertor.countNumberOfStandardWorkingDays(yearMonth);
@@ -106,7 +97,6 @@ class ApiConvertorCircuitBreakerTest {
             }
         }
 
-        // 연속 실패 후 Circuit이 OPEN 상태로 전환됨
         assertThat(circuitBreaker.getState()).isEqualTo(CircuitBreaker.State.OPEN);
         assertThat(circuitBreaker.getMetrics().getFailureRate()).isEqualTo(100.0f);
     }
