@@ -51,8 +51,9 @@ src/main/resources/static/docs/
 # Environment files
 .env
 
-# 로컬에서 테스트하는 application.yml
+# 로컬에서 테스트하는 application.yml (application.yml 제외)
 src/test/resources/*.yml
+!src/test/resources/application.yml
 
 # Log files
 logs/

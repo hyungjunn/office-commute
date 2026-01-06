@@ -2,6 +2,8 @@ package com.company.officecommute.web;
 
 import com.company.officecommute.domain.overtime.HolidayResponse;
 import com.company.officecommute.repository.overtime.HolidayRepository;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,9 +29,15 @@ class ApiConvertorPrefetchTest {
 
     @Autowired private ApiConvertor apiConvertor;
     @Autowired private HolidayRepository holidayRepository;
+    @Autowired private CircuitBreakerRegistry circuitBreakerRegistry;
 
     @MockitoBean private RestTemplate restTemplate;
     @MockitoBean private ApiProperties apiProperties;
+
+    @BeforeEach
+    void setUp() {
+        circuitBreakerRegistry.circuitBreaker("holidayApi").reset();
+    }
 
     @Test
     @DisplayName("다음 달 공휴일 선제적 저장 성공 시 DB에 저장된다")

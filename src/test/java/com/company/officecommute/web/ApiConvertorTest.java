@@ -1,10 +1,13 @@
 package com.company.officecommute.web;
 
 import com.company.officecommute.domain.overtime.HolidayResponse;
-import com.company.officecommute.repository.overtime.HolidayRepository;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
@@ -16,25 +19,39 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
-@WebMvcTest(ApiConvertor.class)
+@SpringBootTest
+@Transactional
 class ApiConvertorTest {
 
-    @MockitoBean private RestTemplate restTemplate;
-    @MockitoBean private ApiProperties apiProperties;
-    @MockitoBean private HolidayRepository holidayRepository;
+    @Autowired
+    private ApiConvertor apiConvertor;
+
+    @Autowired
+    private CircuitBreakerRegistry circuitBreakerRegistry;
+
+    @MockitoBean
+    private RestTemplate restTemplate;
+
+    @MockitoBean
+    private ApiProperties apiProperties;
+
+    @BeforeEach
+    void setUp() {
+        circuitBreakerRegistry.circuitBreaker("holidayApi").reset();
+    }
 
     @Test
     void _2024년_5월의_기준_근로_시간을_구하는_메서드를_검증하라() {
-        ApiProperties fakeApiProperties = new TestApi();
+        when(apiProperties.combineURL(any(), any()))
+                .thenReturn("http://fake-api.com");
+
         HolidayResponse fakeResponse = new HolidayResponse();
-        // fakeItems에 필요한 가짜 데이터 추가
         HolidayResponse.Body body = new HolidayResponse.Body();
 
         HolidayResponse.Item date_2024_05_05 = new HolidayResponse.Item();
         HolidayResponse.Item date_2024_05_06 = new HolidayResponse.Item();
         HolidayResponse.Item date_2024_05_15 = new HolidayResponse.Item();
 
-        // 실제의 값들을 지정해줌으로써 언제든지 테스트가 성공하도록 한다
         date_2024_05_05.setLocDate("20240505");
         date_2024_05_06.setLocDate("20240506");
         date_2024_05_15.setLocDate("20240515");
@@ -46,7 +63,6 @@ class ApiConvertorTest {
         when(restTemplate.getForObject(any(URI.class), eq(HolidayResponse.class)))
                 .thenReturn(fakeResponse);
 
-        ApiConvertor apiConvertor = new ApiConvertor(restTemplate, fakeApiProperties, holidayRepository);
         long numberOfStandardWorkingDays = apiConvertor.countNumberOfStandardWorkingDays(YearMonth.of(2024, 5));
 
         assertThat(numberOfStandardWorkingDays).isEqualTo(21L);

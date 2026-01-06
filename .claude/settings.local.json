@@ -3,7 +3,9 @@
     "allow": [
       "Bash(./gradlew test:*)",
       "Bash(./gradlew clean:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh auth:*)"
     ],
     "deny": [],
     "ask": []

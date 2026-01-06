@@ -3,8 +3,10 @@ package com.company.officecommute.web;
 import com.company.officecommute.domain.overtime.Holiday;
 import com.company.officecommute.domain.overtime.HolidayResponse;
 import com.company.officecommute.repository.overtime.HolidayRepository;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -28,20 +30,24 @@ public class ApiConvertor {
     private final RestTemplate restTemplate;
     private final ApiProperties apiProperties;
     private final HolidayRepository holidayRepository;
+    private final ObjectProvider<ApiConvertor> selfProvider;
 
     public ApiConvertor(
             RestTemplate restTemplate,
             ApiProperties apiProperties,
-            HolidayRepository holidayRepository
+            HolidayRepository holidayRepository,
+            ObjectProvider<ApiConvertor> selfProvider
     ) {
         this.restTemplate = restTemplate;
         this.apiProperties = apiProperties;
         this.holidayRepository = holidayRepository;
+        this.selfProvider = selfProvider;
     }
 
     @Transactional
     public long countNumberOfStandardWorkingDays(YearMonth yearMonth) {
-        Set<LocalDate> holidays = getHolidays(yearMonth);
+        // ObjectProvider를 통해 프록시 인스턴스 획득 → AOP(CircuitBreaker) 적용됨
+        Set<LocalDate> holidays = selfProvider.getObject().getHolidays(yearMonth);
         int lengthOfMonth = yearMonth.lengthOfMonth();
         long numberOfWeekends = WeekendCalculator.countNumberOfWeekends(yearMonth);
         long numberOfWeekDays = lengthOfMonth - numberOfWeekends;
@@ -68,26 +74,27 @@ public class ApiConvertor {
         }
     }
 
-    private Set<LocalDate> getHolidays(YearMonth yearMonth) {
-        try {
-            List<HolidayResponse.Item> items = fetchHolidaysFromApi(yearMonth);
-            Set<LocalDate> holidays = convertToLocalDate(items);
-            saveHolidaysToDatabase(yearMonth, holidays);
-            log.info("공휴일 API 호출 성공: {}-{}", yearMonth.getYear(), yearMonth.getMonthValue());
-            return holidays;
-        } catch (Exception e) {
-            log.warn("공휴일 API 호출 실패. DB에서 조회합니다. 오류: {}", e.getMessage());
-            List<LocalDate> cachedHolidays = holidayRepository.findHolidayDatesByYearAndMonth(
-                    yearMonth.getYear(),
-                    yearMonth.getMonthValue()
-            );
+    @CircuitBreaker(name = "holidayApi", fallbackMethod = "getHolidaysFallback")
+    public Set<LocalDate> getHolidays(YearMonth yearMonth) {
+        List<HolidayResponse.Item> items = fetchHolidaysFromApi(yearMonth);
+        Set<LocalDate> holidays = convertToLocalDate(items);
+        saveHolidaysToDatabase(yearMonth, holidays);
+        log.info("공휴일 API 호출 성공: {}-{}", yearMonth.getYear(), yearMonth.getMonthValue());
+        return holidays;
+    }
 
-            if (cachedHolidays.isEmpty()) {
-                throw new IllegalStateException("공휴일 데이터를 가져올 수 없습니다. API 호출 실패 및 DB 캐시 없음: " + yearMonth);
-            }
+    public Set<LocalDate> getHolidaysFallback(YearMonth yearMonth, Exception e) {
+        log.warn("Circuit Breaker fallback 실행. 원인: {}, DB에서 공휴일 조회합니다.", e.getMessage());
+        List<LocalDate> cachedHolidays = holidayRepository.findHolidayDatesByYearAndMonth(
+                yearMonth.getYear(),
+                yearMonth.getMonthValue()
+        );
 
-            return Set.copyOf(cachedHolidays);
+        if (cachedHolidays.isEmpty()) {
+            throw new IllegalStateException("공휴일 데이터를 가져올 수 없습니다. API 호출 실패 및 DB 캐시 없음: " + yearMonth);
         }
+
+        return Set.copyOf(cachedHolidays);
     }
 
     private void saveHolidaysToDatabase(YearMonth yearMonth, Set<LocalDate> holidays) {
