@@ -1,8 +1,6 @@
 package com.company.officecommute.web;
 
 import com.company.officecommute.domain.overtime.HolidayResponse;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -26,19 +24,11 @@ class ApiConvertorTest {
     @Autowired
     private ApiConvertor apiConvertor;
 
-    @Autowired
-    private CircuitBreakerRegistry circuitBreakerRegistry;
-
     @MockitoBean
     private RestTemplate restTemplate;
 
     @MockitoBean
     private ApiProperties apiProperties;
-
-    @BeforeEach
-    void setUp() {
-        circuitBreakerRegistry.circuitBreaker("holidayApi").reset();
-    }
 
     @Test
     void _2024년_5월의_기준_근로_시간을_구하는_메서드를_검증하라() {
