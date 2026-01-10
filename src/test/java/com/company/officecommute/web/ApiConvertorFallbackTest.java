@@ -3,8 +3,6 @@ package com.company.officecommute.web;
 import com.company.officecommute.domain.overtime.Holiday;
 import com.company.officecommute.domain.overtime.HolidayResponse;
 import com.company.officecommute.repository.overtime.HolidayRepository;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,16 +29,9 @@ class ApiConvertorFallbackTest {
 
     @Autowired private ApiConvertor apiConvertor;
     @Autowired private HolidayRepository holidayRepository;
-    @Autowired private CircuitBreakerRegistry circuitBreakerRegistry;
 
     @MockitoBean private RestTemplate restTemplate;
     @MockitoBean private ApiProperties apiProperties;
-
-    @BeforeEach
-    void setUp() {
-        // 테스트 간 Circuit Breaker 상태 공유 방지
-        circuitBreakerRegistry.circuitBreaker("holidayApi").reset();
-    }
 
     @Test
     @DisplayName("API 호출 성공 시 공휴일을 DB에 저장하고 근무일수를 계산한다")
@@ -61,8 +52,8 @@ class ApiConvertorFallbackTest {
     }
 
     @Test
-    @DisplayName("API 호출 실패 시 DB에서 공휴일을 조회하여 근무일수를 계산한다 (Fallback)")
-    void countStandardWorkingDays_usesDatabase_whenApiFails() {
+    @DisplayName("API 호출 실패 시 DB 데이터가 있어도 계산을 중단한다")
+    void countStandardWorkingDays_throwsException_whenApiFailsEvenWithDatabaseData() {
         YearMonth yearMonth = YearMonth.of(2025, 12);
 
         Holiday holiday1 = new Holiday(2025, 12, LocalDate.of(2025, 12, 25));
@@ -72,14 +63,8 @@ class ApiConvertorFallbackTest {
         // API 호출 실패 시뮬레이션 (403 Forbidden)
         mockFailedApiResponse();
 
-        long workingDays = apiConvertor.countNumberOfStandardWorkingDays(yearMonth);
-
-        // 2025년 12월: 31일
-        // 주말: 8일 (토요일 4개 + 일요일 4개)
-        // 평일: 23일
-        // 공휴일 중 평일: 2일 (25일 목요일, 31일 수요일)
-        // 근무일: 23 - 2 = 21일
-        assertThat(workingDays).isEqualTo(21L);
+        assertThatThrownBy(() -> apiConvertor.countNumberOfStandardWorkingDays(yearMonth))
+                .isInstanceOf(HttpClientErrorException.class);
     }
 
     @Test
@@ -91,8 +76,7 @@ class ApiConvertorFallbackTest {
         mockFailedApiResponse();
 
         assertThatThrownBy(() -> apiConvertor.countNumberOfStandardWorkingDays(yearMonth))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("공휴일 데이터를 가져올 수 없습니다");
+                .isInstanceOf(HttpClientErrorException.class);
     }
 
     @Test

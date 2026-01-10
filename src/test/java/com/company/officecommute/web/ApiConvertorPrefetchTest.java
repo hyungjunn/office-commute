@@ -2,8 +2,6 @@ package com.company.officecommute.web;
 
 import com.company.officecommute.domain.overtime.HolidayResponse;
 import com.company.officecommute.repository.overtime.HolidayRepository;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +17,7 @@ import java.time.YearMonth;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -29,15 +28,9 @@ class ApiConvertorPrefetchTest {
 
     @Autowired private ApiConvertor apiConvertor;
     @Autowired private HolidayRepository holidayRepository;
-    @Autowired private CircuitBreakerRegistry circuitBreakerRegistry;
 
     @MockitoBean private RestTemplate restTemplate;
     @MockitoBean private ApiProperties apiProperties;
-
-    @BeforeEach
-    void setUp() {
-        circuitBreakerRegistry.circuitBreaker("holidayApi").reset();
-    }
 
     @Test
     @DisplayName("다음 달 공휴일 선제적 저장 성공 시 DB에 저장된다")
@@ -76,8 +69,8 @@ class ApiConvertorPrefetchTest {
     }
 
     @Test
-    @DisplayName("선제적 저장으로 다음 달 API 실패 시에도 근무일수 계산 가능")
-    void countStandardWorkingDays_usesPreFetchedData_whenCurrentMonthApiFails() {
+    @DisplayName("선제적 저장이 있어도 API 실패 시 근무일수 계산을 중단한다")
+    void countStandardWorkingDays_throwsException_whenCurrentMonthApiFails() {
         // given
         YearMonth mayMonth = YearMonth.of(2025, 5);
         YearMonth juneMonth = YearMonth.of(2025, 6);
@@ -89,16 +82,9 @@ class ApiConvertorPrefetchTest {
         // 2단계: 6월에 API 실패 시뮬레이션
         mockFailedApiResponse();
 
-        // when: 6월에 근무일수 계산 (API는 실패하지만 DB에 데이터가 있음)
-        long workingDays = apiConvertor.countNumberOfStandardWorkingDays(juneMonth);
-
-        // then
-        // 2025년 6월: 30일
-        // 주말: 9일 (토 4개 + 일 5개)
-        // 평일: 21일
-        // 공휴일 중 평일: 1일 (6일 금요일)
-        // 근무일: 21 - 1 = 20일
-        assertThat(workingDays).isEqualTo(20L);
+        // when & then: 6월에 근무일수 계산 (API 실패 시 계산 중단)
+        assertThatThrownBy(() -> apiConvertor.countNumberOfStandardWorkingDays(juneMonth))
+                .isInstanceOf(HttpClientErrorException.class);
     }
 
     private void mockSuccessfulApiResponseForJune() {
