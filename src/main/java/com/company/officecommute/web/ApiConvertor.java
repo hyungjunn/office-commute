@@ -45,7 +45,7 @@ public class ApiConvertor {
         int lengthOfMonth = yearMonth.lengthOfMonth();
         long numberOfWeekends = WeekendCalculator.countNumberOfWeekends(yearMonth);
         long numberOfWeekDays = lengthOfMonth - numberOfWeekends;
-        long numberOfHolidays = minusDuplicateHolidays(holidays.size(), holidays);
+        long numberOfHolidays = countWeekdayHolidays(holidays);
 
         return numberOfWeekDays - numberOfHolidays;
     }
@@ -118,10 +118,7 @@ public class ApiConvertor {
 
     private List<HolidayResponse.Item> fetchHolidaysFromApi(YearMonth yearMonth) {
         String solYear = String.valueOf(yearMonth.getYear());
-
-        int month = yearMonth.getMonthValue();
-        String solMonth = (month < 10) ? "0" + month : String.valueOf(month);
-
+        String solMonth = String.format("%02d", yearMonth.getMonthValue());
         String stringURL = apiProperties.combineURL(solYear, solMonth);
         URI uri;
         try {
@@ -137,11 +134,10 @@ public class ApiConvertor {
         return holidayResponse.getBody().getItems();
     }
 
-    private long minusDuplicateHolidays(long numberOfHolidays, Set<LocalDate> holidays) {
-        numberOfHolidays -= holidays.stream()
-                .filter(WeekendCalculator::isWeekend)
+    private long countWeekdayHolidays(Set<LocalDate> holidays) {
+        return holidays.stream()
+                .filter(date -> !WeekendCalculator.isWeekend(date))
                 .count();
-        return numberOfHolidays;
     }
 
     private Set<LocalDate> convertToLocalDate(List<HolidayResponse.Item> items) {
