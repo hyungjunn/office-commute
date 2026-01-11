@@ -17,7 +17,6 @@ import java.time.YearMonth;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -69,8 +68,8 @@ class ApiConvertorPrefetchTest {
     }
 
     @Test
-    @DisplayName("선제적 저장이 있어도 API 실패 시 근무일수 계산을 중단한다")
-    void countStandardWorkingDays_throwsException_whenCurrentMonthApiFails() {
+    @DisplayName("선제적 저장이 있으면 API 실패 시 캐시 데이터로 근무일수를 계산한다")
+    void countStandardWorkingDays_usesCachedData_whenApiFailsButPrefetchExists() {
         // given
         YearMonth mayMonth = YearMonth.of(2025, 5);
         YearMonth juneMonth = YearMonth.of(2025, 6);
@@ -82,9 +81,11 @@ class ApiConvertorPrefetchTest {
         // 2단계: 6월에 API 실패 시뮬레이션
         mockFailedApiResponse();
 
-        // when & then: 6월에 근무일수 계산 (API 실패 시 계산 중단)
-        assertThatThrownBy(() -> apiConvertor.countNumberOfStandardWorkingDays(juneMonth))
-                .isInstanceOf(HttpClientErrorException.class);
+        // when: 6월에 근무일수 계산 (API 실패 → DB 캐시 사용)
+        long workingDays = apiConvertor.countNumberOfStandardWorkingDays(juneMonth);
+
+        // then: 2025년 6월: 30일 - 9일(주말) - 1일(현충일, 금요일) = 20일
+        assertThat(workingDays).isEqualTo(20);
     }
 
     private void mockSuccessfulApiResponseForJune() {

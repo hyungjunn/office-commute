@@ -18,7 +18,6 @@ import java.time.YearMonth;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -52,10 +51,11 @@ class ApiConvertorFallbackTest {
     }
 
     @Test
-    @DisplayName("API 호출 실패 시 DB 데이터가 있어도 계산을 중단한다")
-    void countStandardWorkingDays_throwsException_whenApiFailsEvenWithDatabaseData() {
+    @DisplayName("API 호출 실패 시 DB 캐시 데이터로 계산한다")
+    void countStandardWorkingDays_usesDatabaseCache_whenApiFails() {
         YearMonth yearMonth = YearMonth.of(2025, 12);
 
+        // DB에 캐시 데이터 저장 (12/25 크리스마스는 목요일, 12/31 제외는 수요일)
         Holiday holiday1 = new Holiday(2025, 12, LocalDate.of(2025, 12, 25));
         Holiday holiday2 = new Holiday(2025, 12, LocalDate.of(2025, 12, 31));
         holidayRepository.saveAll(List.of(holiday1, holiday2));
@@ -63,20 +63,26 @@ class ApiConvertorFallbackTest {
         // API 호출 실패 시뮬레이션 (403 Forbidden)
         mockFailedApiResponse();
 
-        assertThatThrownBy(() -> apiConvertor.countNumberOfStandardWorkingDays(yearMonth))
-                .isInstanceOf(HttpClientErrorException.class);
+        // 예외 없이 계산 성공 (DB 캐시 사용)
+        long workingDays = apiConvertor.countNumberOfStandardWorkingDays(yearMonth);
+
+        // 2025년 12월: 31일 - 8일(주말) - 2일(공휴일) = 21일
+        assertThat(workingDays).isEqualTo(21);
     }
 
     @Test
-    @DisplayName("API 호출 실패하고 DB에도 데이터가 없으면 예외를 던진다")
-    void countStandardWorkingDays_throwsException_whenApiFailsAndNoDatabaseData() {
+    @DisplayName("API 호출 실패하고 DB에도 데이터가 없으면 공휴일 0개로 계산한다")
+    void countStandardWorkingDays_calculatesWithZeroHolidays_whenApiFailsAndNoDatabaseData() {
         YearMonth yearMonth = YearMonth.of(2026, 1);
 
         // API 호출 실패 시뮬레이션
         mockFailedApiResponse();
 
-        assertThatThrownBy(() -> apiConvertor.countNumberOfStandardWorkingDays(yearMonth))
-                .isInstanceOf(HttpClientErrorException.class);
+        // 예외 없이 계산 (공휴일 0개로 처리)
+        long workingDays = apiConvertor.countNumberOfStandardWorkingDays(yearMonth);
+
+        // 2026년 1월: 31일 - 9일(주말) = 22일 (공휴일 없음)
+        assertThat(workingDays).isEqualTo(22);
     }
 
     @Test

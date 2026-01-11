@@ -41,7 +41,7 @@ public class ApiConvertor {
 
     @Transactional
     public long countNumberOfStandardWorkingDays(YearMonth yearMonth) {
-        Set<LocalDate> holidays = fetchAndCacheHolidays(yearMonth);
+        Set<LocalDate> holidays = getHolidays(yearMonth);
         int lengthOfMonth = yearMonth.lengthOfMonth();
         long numberOfWeekends = WeekendCalculator.countNumberOfWeekends(yearMonth);
         long numberOfWeekDays = lengthOfMonth - numberOfWeekends;
@@ -57,21 +57,51 @@ public class ApiConvertor {
     @Transactional
     public void prefetchNextMonthHolidays(YearMonth currentMonth) {
         YearMonth nextMonth = currentMonth.plusMonths(1);
+        refreshHolidays(nextMonth);
+    }
+
+    /**
+     * 공휴일 데이터를 API에서 가져와 DB에 저장합니다.
+     * 스케줄러에서 주기적으로 호출하여 캐시를 갱신합니다.
+     */
+    @Transactional
+    public void refreshHolidays(YearMonth yearMonth) {
         try {
-            fetchAndCacheHolidays(nextMonth);
-            log.info("다음 달 공휴일 선제적 저장 성공: {}-{}", nextMonth.getYear(), nextMonth.getMonthValue());
+            List<HolidayResponse.Item> items = fetchHolidaysFromApi(yearMonth);
+            Set<LocalDate> holidays = convertToLocalDate(items);
+            saveHolidaysToDatabase(yearMonth, holidays);
+            log.info("공휴일 갱신 성공: {}-{}", yearMonth.getYear(), yearMonth.getMonthValue());
         } catch (Exception e) {
-            log.warn("다음 달 공휴일 선제적 저장 실패. 다음 달에 재시도합니다. 오류: {}", e.getMessage());
-            // 실패해도 예외를 던지지 않음 (다음 달에 다시 시도할 수 있음)
+            log.warn("공휴일 갱신 실패. 기존 캐시 유지: {}-{}, 오류: {}",
+                    yearMonth.getYear(), yearMonth.getMonthValue(), e.getMessage());
         }
     }
 
-    private Set<LocalDate> fetchAndCacheHolidays(YearMonth yearMonth) {
-        List<HolidayResponse.Item> items = fetchHolidaysFromApi(yearMonth);
-        Set<LocalDate> holidays = convertToLocalDate(items);
-        saveHolidaysToDatabase(yearMonth, holidays);
-        log.info("공휴일 API 호출 성공: {}-{}", yearMonth.getYear(), yearMonth.getMonthValue());
-        return holidays;
+    private Set<LocalDate> getHolidays(YearMonth yearMonth) {
+        try {
+            List<HolidayResponse.Item> items = fetchHolidaysFromApi(yearMonth);
+            Set<LocalDate> holidays = convertToLocalDate(items);
+            saveHolidaysToDatabase(yearMonth, holidays);
+            log.info("공휴일 API 호출 성공: {}-{}", yearMonth.getYear(), yearMonth.getMonthValue());
+            return holidays;
+        } catch (Exception e) {
+            log.error("공휴일 API 호출 실패. DB 캐시 사용: {}-{}, 오류: {}",
+                    yearMonth.getYear(), yearMonth.getMonthValue(), e.getMessage());
+            return fetchHolidaysFromDatabase(yearMonth);
+        }
+    }
+
+    private Set<LocalDate> fetchHolidaysFromDatabase(YearMonth yearMonth) {
+        List<LocalDate> cachedHolidays = holidayRepository.findHolidayDatesByYearAndMonth(
+                yearMonth.getYear(),
+                yearMonth.getMonthValue()
+        );
+
+        if (cachedHolidays.isEmpty()) {
+            log.warn("DB에도 공휴일 데이터가 없습니다: {}-{}", yearMonth.getYear(), yearMonth.getMonthValue());
+        }
+
+        return Set.copyOf(cachedHolidays);
     }
 
     private void saveHolidaysToDatabase(YearMonth yearMonth, Set<LocalDate> holidays) {
