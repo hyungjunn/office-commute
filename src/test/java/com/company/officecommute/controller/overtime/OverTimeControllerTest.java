@@ -49,13 +49,20 @@ class OverTimeControllerTest {
     class CalculateOverTimeTests {
 
         @Test
-        @DisplayName("MANAGER 권한이 없는 경우 초과근무 조회 요청 시 예외 발생")
+        @DisplayName("MEMBER가 초과근무를 조회하면 403 에러 봉투 반환")
         void calculateOverTime_unauthorized() {
             assertThat(mockMvcTester
                     .get()
                     .uri("/overtime?yearMonth=2024-08")
                     .session(memberSession()))
-                    .hasStatus(HttpStatus.FORBIDDEN);
+                    .hasStatus(HttpStatus.FORBIDDEN)
+                    .bodyJson()
+                    .isLenientlyEqualTo("""
+                            {
+                                "code": "FORBIDDEN",
+                                "message": "접근 권한이 없습니다."
+                            }
+                            """);
         }
 
         @Test
@@ -235,12 +242,19 @@ class OverTimeControllerTest {
     class SessionAuthTests {
 
         @Test
-        @DisplayName("세션이 없는 경우 401 응답")
+        @DisplayName("세션이 없는 경우 401 에러 봉투 반환")
         void noSession() {
             assertThat(mockMvcTester
                     .get()
                     .uri("/overtime?yearMonth=2024-08"))
-                    .hasStatus(HttpStatus.UNAUTHORIZED);
+                    .hasStatus(HttpStatus.UNAUTHORIZED)
+                    .bodyJson()
+                    .isLenientlyEqualTo("""
+                            {
+                                "code": "UNAUTHORIZED",
+                                "message": "로그인이 필요합니다."
+                            }
+                            """);
         }
     }
 
