@@ -4,6 +4,7 @@ import com.company.officecommute.dto.annual_leave.request.AnnualLeaveEnrollReque
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveEnrollmentResponse;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveGetRemainingResponse;
 import com.company.officecommute.service.annual_leave.AnnualLeaveService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
@@ -24,7 +25,7 @@ public class AnnualLeaveController {
     @PostMapping("/annual-leave")
     public List<AnnualLeaveEnrollmentResponse> enrollAnnualLeave(
             @RequestAttribute("currentEmployeeId") Long employeeId,
-            @RequestBody AnnualLeaveEnrollRequest enrollRequest
+            @Valid @RequestBody AnnualLeaveEnrollRequest enrollRequest
     ) {
         return annualLeaveService.enrollAnnualLeave(employeeId, enrollRequest.wantedDates());
     }

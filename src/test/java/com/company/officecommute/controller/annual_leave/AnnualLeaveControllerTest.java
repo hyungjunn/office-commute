@@ -1,0 +1,149 @@
+package com.company.officecommute.controller.annual_leave;
+
+import com.company.officecommute.domain.employee.Role;
+import com.company.officecommute.dto.annual_leave.response.AnnualLeaveEnrollmentResponse;
+import com.company.officecommute.service.annual_leave.AnnualLeaveService;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpSession;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.assertj.MockMvcTester;
+
+import java.time.LocalDate;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+class AnnualLeaveControllerTest {
+
+    @Autowired
+    private MockMvcTester mockMvcTester;
+
+    @MockitoBean
+    private AnnualLeaveService annualLeaveService;
+
+    @Nested
+    @DisplayName("POST /annual-leave")
+    class EnrollAnnualLeave {
+
+        private static final String VALID_BODY = """
+                {
+                    "wantedDates": ["2099-01-05", "2099-01-06"]
+                }
+                """;
+
+        @Test
+        @DisplayName("정상 신청이면 200과 등록된 연차 목록을 반환한다")
+        void enrollReturns200() {
+            // given
+            given(annualLeaveService.enrollAnnualLeave(eq(2L), eq(List.of(
+                    LocalDate.of(2099, 1, 5), LocalDate.of(2099, 1, 6)))))
+                    .willReturn(List.of(
+                            new AnnualLeaveEnrollmentResponse(1L, LocalDate.of(2099, 1, 5)),
+                            new AnnualLeaveEnrollmentResponse(2L, LocalDate.of(2099, 1, 6))
+                    ));
+
+            // when / then
+            assertThat(mockMvcTester.post().uri("/annual-leave")
+                    .session(memberSession())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(VALID_BODY))
+                    .hasStatus(HttpStatus.OK)
+                    .bodyJson()
+                    .isLenientlyEqualTo("""
+                            [
+                                { "annualLeaveId": 1, "enrolledDate": "2099-01-05" },
+                                { "annualLeaveId": 2, "enrolledDate": "2099-01-06" }
+                            ]
+                            """);
+        }
+
+        @Test
+        @DisplayName("wantedDates가 없으면 400 VALIDATION_ERROR")
+        void missingWantedDatesReturns400() {
+            // when / then
+            assertThat(mockMvcTester.post().uri("/annual-leave")
+                    .session(memberSession())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{}"))
+                    .hasStatus(HttpStatus.BAD_REQUEST)
+                    .bodyJson()
+                    .isLenientlyEqualTo("""
+                            {
+                                "code": "VALIDATION_ERROR",
+                                "fieldErrorResults": [
+                                    { "field": "wantedDates", "message": "신청할 연차 일자는 필수입니다." }
+                                ]
+                            }
+                            """);
+
+            then(annualLeaveService).shouldHaveNoInteractions();
+        }
+
+        @Test
+        @DisplayName("wantedDates가 빈 배열이면 400 VALIDATION_ERROR")
+        void emptyWantedDatesReturns400() {
+            // when / then
+            assertThat(mockMvcTester.post().uri("/annual-leave")
+                    .session(memberSession())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""
+                            { "wantedDates": [] }
+                            """))
+                    .hasStatus(HttpStatus.BAD_REQUEST)
+                    .bodyJson()
+                    .isLenientlyEqualTo("""
+                            {
+                                "code": "VALIDATION_ERROR",
+                                "fieldErrorResults": [
+                                    { "field": "wantedDates", "message": "신청할 연차 일자는 필수입니다." }
+                                ]
+                            }
+                            """);
+
+            then(annualLeaveService).shouldHaveNoInteractions();
+        }
+
+        @Test
+        @DisplayName("wantedDates 원소가 null이면 400 VALIDATION_ERROR")
+        void nullElementReturns400() {
+            // when / then
+            assertThat(mockMvcTester.post().uri("/annual-leave")
+                    .session(memberSession())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""
+                            { "wantedDates": [null] }
+                            """))
+                    .hasStatus(HttpStatus.BAD_REQUEST)
+                    .bodyJson()
+                    .isLenientlyEqualTo("""
+                            {
+                                "code": "VALIDATION_ERROR",
+                                "fieldErrorResults": [
+                                    { "field": "wantedDates[0]", "message": "연차 일자는 null일 수 없습니다." }
+                                ]
+                            }
+                            """);
+
+            then(annualLeaveService).shouldHaveNoInteractions();
+        }
+    }
+
+    private MockHttpSession memberSession() {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("currentEmployeeId", 2L);
+        session.setAttribute("currentRole", Role.MEMBER);
+        return session;
+    }
+}
