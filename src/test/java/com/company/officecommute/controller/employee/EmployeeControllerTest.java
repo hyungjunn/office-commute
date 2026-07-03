@@ -201,7 +201,27 @@ class EmployeeControllerTest {
                     .hasStatus(HttpStatus.BAD_REQUEST)
                     .bodyJson()
                     .isLenientlyEqualTo("""
-                            { "code": "INVALID_JSON", "message": "역할 값이 올바르지 않습니다." }
+                            { "code": "INVALID_JSON", "message": "필드 role의 값이 올바르지 않습니다." }
+                            """);
+        }
+
+        @Test
+        @DisplayName("잘린 JSON은 범용 INVALID_JSON 메시지를 반환한다")
+        void truncatedJson() {
+            String invalid = """
+                    {
+                        "name": "John",
+                        "role": "MEMBER"
+                    """;
+
+            assertThat(mockMvcTester.post().uri("/employee")
+                    .session(managerSession())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(invalid))
+                    .hasStatus(HttpStatus.BAD_REQUEST)
+                    .bodyJson()
+                    .isLenientlyEqualTo("""
+                            { "code": "INVALID_JSON", "message": "요청 본문을 해석할 수 없습니다." }
                             """);
         }
 
