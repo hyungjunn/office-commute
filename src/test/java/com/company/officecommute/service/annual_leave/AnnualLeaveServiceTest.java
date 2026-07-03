@@ -109,6 +109,21 @@ class AnnualLeaveServiceTest {
     }
 
     @Test
+    @DisplayName("MySQL이 테이블명과 함께 보고한 중복 제약도 AnnualLeaveDuplicateException으로 변환한다")
+    void translatesMySqlDuplicateConstraintViolation() {
+        DataIntegrityViolationException violation = constraintViolation(
+                "annual_leave.uk_annual_leave_employee_date");
+        givenEmployeeWithoutAnnualLeaves();
+        BDDMockito.given(annualLeaveRepository.saveAllAndFlush(any()))
+                .willThrow(violation);
+
+        assertThatThrownBy(() -> annualLeaveService.enrollAnnualLeave(
+                employeeId, List.of(LocalDate.of(2099, 7, 13))))
+                .isInstanceOf(AnnualLeaveDuplicateException.class)
+                .hasCause(violation);
+    }
+
+    @Test
     @DisplayName("연차 저장 중 다른 제약 위반은 원본 예외를 그대로 던진다")
     void rethrowsUnrelatedConstraintViolation() {
         DataIntegrityViolationException violation = constraintViolation("uk_other_constraint");
