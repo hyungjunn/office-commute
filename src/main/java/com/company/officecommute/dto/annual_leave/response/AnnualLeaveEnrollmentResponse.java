@@ -16,6 +16,6 @@ public record AnnualLeaveEnrollmentResponse(
     }
 
     public static AnnualLeaveEnrollmentResponse from(AnnualLeave annualLeave) {
-        return new AnnualLeaveEnrollmentResponse(annualLeave.getId(), annualLeave.getDate());
+        return new AnnualLeaveEnrollmentResponse(annualLeave.getId(), annualLeave.getWantedDate());
     }
 }

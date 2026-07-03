@@ -50,10 +50,6 @@ public class AnnualLeave {
         return id;
     }
 
-    public LocalDate getDate() {
-        return wantedDate;
-    }
-
     public Long getEmployeeId() {
         return employeeId;
     }
