@@ -12,7 +12,9 @@ import java.util.Objects;
 
 @Entity
 @Table(uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"employee_id", "wanted_date"})
+        @UniqueConstraint(
+                name = "uk_annual_leave_employee_date",
+                columnNames = {"employee_id", "wanted_date"})
 })
 public class AnnualLeave {
 

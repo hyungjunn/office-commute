@@ -4,4 +4,8 @@ public class AnnualLeaveDuplicateException extends RuntimeException {
     public AnnualLeaveDuplicateException() {
         super("이미 등록된 휴가입니다.");
     }
+
+    public AnnualLeaveDuplicateException(Throwable cause) {
+        super("이미 등록된 휴가입니다.", cause);
+    }
 }

@@ -9,9 +9,9 @@ import com.company.officecommute.domain.commute.PreviousCommuteNotEndedException
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.EmployeeNotFoundException;
 import com.company.officecommute.dto.commute.response.WorkDurationPerDateResponse;
+import com.company.officecommute.global.persistence.DatabaseConstraintMatcher;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
-import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -81,7 +81,7 @@ public class CommuteHistoryService {
         try {
             commuteHistoryRepository.saveAndFlush(commuteHistory);
         } catch (DataIntegrityViolationException e) {
-            if (isDuplicateWorkConstraint(e)) {
+            if (DatabaseConstraintMatcher.matches(e, UK_COMMUTE_HISTORY_EMPLOYEE_DATE)) {
                 throw new DuplicateWorkOnDateException(commuteHistory.getWorkDate(), e);
             }
             throw e;
@@ -129,37 +129,6 @@ public class CommuteHistoryService {
         savedLeaves.stream()
                 .map(annualLeave -> CommuteHistory.registerAnnualLeave(employeeId, annualLeave.getWantedDate(), zoneId))
                 .forEach(this::saveCommuteHistory);
-    }
-
-    private boolean isDuplicateWorkConstraint(Throwable e) {
-        Throwable current = e;
-        while (current != null) {
-            if (current instanceof ConstraintViolationException constraintViolationException) {
-                return isCommuteHistoryEmployeeDateConstraint(
-                        constraintViolationException.getConstraintName());
-            }
-            current = current.getCause();
-        }
-        return false;
-    }
-
-    private boolean isCommuteHistoryEmployeeDateConstraint(String constraintName) {
-        return normalizeConstraintName(constraintName).equalsIgnoreCase(UK_COMMUTE_HISTORY_EMPLOYEE_DATE);
-    }
-
-    private String normalizeConstraintName(String constraintName) {
-        if (constraintName == null) {
-            return "";
-        }
-        String normalized = constraintName;
-        int schemaSeparator = normalized.lastIndexOf('.');
-        if (schemaSeparator >= 0) {
-            normalized = normalized.substring(schemaSeparator + 1);
-        }
-        if (normalized.endsWith("_INDEX_C")) {
-            normalized = normalized.substring(0, normalized.length() - "_INDEX_C".length());
-        }
-        return normalized;
     }
 
     private Employee getEmployee(Long employeeId) {
