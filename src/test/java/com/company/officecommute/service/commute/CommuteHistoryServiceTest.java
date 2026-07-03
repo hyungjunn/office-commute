@@ -1,5 +1,6 @@
 package com.company.officecommute.service.commute;
 
+import com.company.officecommute.domain.annual_leave.AnnualLeave;
 import com.company.officecommute.domain.commute.CommuteAlreadyEndedException;
 import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.domain.commute.CommuteHistoryFixture;
@@ -23,6 +24,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static com.company.officecommute.domain.employee.Role.MEMBER;
@@ -33,6 +35,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -351,6 +354,68 @@ class CommuteHistoryServiceTest {
 
         // when / then
         assertThatThrownBy(() -> commuteHistoryService.registerWorkStartTime(1L))
+                .isInstanceOf(DuplicateWorkOnDateException.class)
+                .hasCauseInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("registerDayOffs — 신청 일자마다 연차 기록을 저장한다")
+    void registerDayOffs_savesDayOffPerDate() {
+        // given
+        ZoneId zone = ZoneId.of("Asia/Seoul");
+        List<AnnualLeave> savedLeaves = List.of(
+                new AnnualLeave(1L, 1L, LocalDate.now().plusDays(10)),
+                new AnnualLeave(2L, 1L, LocalDate.now().plusDays(11))
+        );
+        BDDMockito.given(commuteHistoryRepository.existsByEmployeeIdAndWorkDate(eq(1L), any(LocalDate.class)))
+                .willReturn(false);
+
+        // when
+        commuteHistoryService.registerDayOffs(1L, savedLeaves, zone);
+
+        // then
+        ArgumentCaptor<CommuteHistory> captor = ArgumentCaptor.forClass(CommuteHistory.class);
+        verify(commuteHistoryRepository, times(2)).saveAndFlush(captor.capture());
+        assertThat(captor.getAllValues())
+                .extracting(CommuteHistory::getWorkDate)
+                .containsExactly(LocalDate.now().plusDays(10), LocalDate.now().plusDays(11));
+    }
+
+    @Test
+    @DisplayName("registerDayOffs — 신청 일자에 이미 출근 기록이 있으면 DuplicateWorkOnDateException")
+    void registerDayOffs_throwsDuplicate_whenWorkRecordExistsOnDate() {
+        // given
+        ZoneId zone = ZoneId.of("Asia/Seoul");
+        LocalDate conflictDate = LocalDate.now().plusDays(10);
+        List<AnnualLeave> savedLeaves = List.of(new AnnualLeave(1L, 1L, conflictDate));
+        BDDMockito.given(commuteHistoryRepository.existsByEmployeeIdAndWorkDate(1L, conflictDate))
+                .willReturn(true);
+
+        // when / then
+        assertThatThrownBy(() -> commuteHistoryService.registerDayOffs(1L, savedLeaves, zone))
+                .isInstanceOf(DuplicateWorkOnDateException.class)
+                .hasMessageContaining(conflictDate.toString());
+
+        then(commuteHistoryRepository).should(never()).saveAndFlush(any(CommuteHistory.class));
+    }
+
+    @Test
+    @DisplayName("registerDayOffs — existsBy 통과 후 race로 중복 제약에 걸리면 Duplicate로 재던진다")
+    void registerDayOffs_translatesDataIntegrityViolationRace() {
+        // given
+        ZoneId zone = ZoneId.of("Asia/Seoul");
+        List<AnnualLeave> savedLeaves = List.of(new AnnualLeave(1L, 1L, LocalDate.now().plusDays(10)));
+        DataIntegrityViolationException violation = new DataIntegrityViolationException(
+                "unique constraint",
+                new ConstraintViolationException("unique constraint", null, "uk_commute_history_employee_date")
+        );
+        BDDMockito.given(commuteHistoryRepository.existsByEmployeeIdAndWorkDate(eq(1L), any(LocalDate.class)))
+                .willReturn(false);
+        BDDMockito.given(commuteHistoryRepository.saveAndFlush(any(CommuteHistory.class)))
+                .willThrow(violation);
+
+        // when / then
+        assertThatThrownBy(() -> commuteHistoryService.registerDayOffs(1L, savedLeaves, zone))
                 .isInstanceOf(DuplicateWorkOnDateException.class)
                 .hasCauseInstanceOf(DataIntegrityViolationException.class);
     }

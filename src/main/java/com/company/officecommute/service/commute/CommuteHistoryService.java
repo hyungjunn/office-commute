@@ -125,10 +125,10 @@ public class CommuteHistoryService {
     }
 
     public void registerDayOffs(Long employeeId, List<AnnualLeave> savedLeaves, ZoneId zoneId) {
-        List<CommuteHistory> commuteHistories = savedLeaves.stream()
+        savedLeaves.forEach(annualLeave -> validateNoWorkOnDate(employeeId, annualLeave.getWantedDate()));
+        savedLeaves.stream()
                 .map(annualLeave -> CommuteHistory.registerAnnualLeave(employeeId, annualLeave.getWantedDate(), zoneId))
-                .toList();
-        commuteHistoryRepository.saveAll(commuteHistories);
+                .forEach(this::saveCommuteHistory);
     }
 
     private boolean isDuplicateWorkConstraint(Throwable e) {

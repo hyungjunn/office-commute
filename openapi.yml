@@ -298,6 +298,7 @@ paths:
             상태/중복 충돌.
             - ANNUAL_LEAVE_DUPLICATE: 동일 일자 중복 신청
             - EMPLOYEE_WITHOUT_TEAM: 팀 미배정 직원의 신청
+            - DUPLICATE_WORK: 신청 일자에 이미 출근 기록 존재
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResult' }
