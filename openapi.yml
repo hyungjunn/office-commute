@@ -259,6 +259,14 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/WorkDurationPerDateResponse' }
+        '400':
+          description: |
+            요청 파라미터 오류.
+            - MISSING_PARAMETER: yearMonth 누락
+            - INVALID_PARAMETER: yearMonth 형식 오류 (yyyy-MM 아님)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResult' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
   /annual-leave:
