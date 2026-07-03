@@ -67,8 +67,10 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ErrorResult handleInvalidJson(HttpMessageNotReadableException e) {
-        log.warn("Invalid JSON request: {}", e.getMessage());
-        return new ErrorResult("INVALID_JSON", invalidJsonMessage(e));
+        String message = invalidJsonMessage(e);
+        String causeType = e.getCause() == null ? "none" : e.getCause().getClass().getSimpleName();
+        log.warn("Invalid JSON request: {} (cause: {})", message, causeType);
+        return new ErrorResult("INVALID_JSON", message);
     }
 
     private String invalidJsonMessage(HttpMessageNotReadableException e) {
