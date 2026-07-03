@@ -6,6 +6,7 @@ import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.EmployeeNotFoundException;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveEnrollmentResponse;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveGetRemainingResponse;
+import com.company.officecommute.dto.annual_leave.response.AnnualLeaveGetRemainingResponse.RemainingLeave;
 import com.company.officecommute.global.persistence.DatabaseConstraintMatcher;
 import com.company.officecommute.repository.annual_leave.AnnualLeaveRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
@@ -66,9 +67,10 @@ public class AnnualLeaveService {
 
     @Transactional(readOnly = true)
     public AnnualLeaveGetRemainingResponse getRemainingAnnualLeaves(Long employeeId) {
-        List<AnnualLeave> remainingLeaves = annualLeaveRepository.findByEmployeeId(employeeId)
+        List<RemainingLeave> remainingLeaves = annualLeaveRepository.findByEmployeeId(employeeId)
                 .stream()
                 .filter(AnnualLeave::isRemain)
+                .map(RemainingLeave::from)
                 .toList();
 
         return new AnnualLeaveGetRemainingResponse(employeeId, remainingLeaves);

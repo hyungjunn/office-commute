@@ -2,6 +2,8 @@ package com.company.officecommute.controller.annual_leave;
 
 import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveEnrollmentResponse;
+import com.company.officecommute.dto.annual_leave.response.AnnualLeaveGetRemainingResponse;
+import com.company.officecommute.dto.annual_leave.response.AnnualLeaveGetRemainingResponse.RemainingLeave;
 import com.company.officecommute.service.annual_leave.AnnualLeaveService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -158,6 +160,39 @@ class AnnualLeaveControllerTest {
                             """);
 
             then(annualLeaveService).shouldHaveNoInteractions();
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /annual-leave")
+    class GetRemainingAnnualLeaves {
+
+        @Test
+        @DisplayName("남은 연차를 스펙에 정의된 필드만 포함해 반환한다")
+        void getRemainingAnnualLeavesReturns200() {
+            // given
+            given(annualLeaveService.getRemainingAnnualLeaves(2L))
+                    .willReturn(new AnnualLeaveGetRemainingResponse(2L, List.of(
+                            new RemainingLeave(1L, 2L, LocalDate.of(2099, 1, 5))
+                    )));
+
+            // when / then
+            assertThat(mockMvcTester.get().uri("/annual-leave")
+                    .session(memberSession()))
+                    .hasStatus(HttpStatus.OK)
+                    .bodyJson()
+                    .isEqualTo("""
+                            {
+                                "employeeId": 2,
+                                "remainingLeaves": [
+                                    {
+                                        "id": 1,
+                                        "employeeId": 2,
+                                        "wantedDate": "2099-01-05"
+                                    }
+                                ]
+                            }
+                            """);
         }
     }
 
