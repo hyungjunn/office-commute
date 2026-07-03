@@ -138,6 +138,27 @@ class AnnualLeaveControllerTest {
 
             then(annualLeaveService).shouldHaveNoInteractions();
         }
+
+        @Test
+        @DisplayName("잘못된 날짜 형식은 해당 필드를 안내하는 INVALID_JSON을 반환한다")
+        void invalidDateReturns400() {
+            assertThat(mockMvcTester.post().uri("/annual-leave")
+                    .session(memberSession())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""
+                            { "wantedDates": ["2026-13-99"] }
+                            """))
+                    .hasStatus(HttpStatus.BAD_REQUEST)
+                    .bodyJson()
+                    .isLenientlyEqualTo("""
+                            {
+                                "code": "INVALID_JSON",
+                                "message": "필드 wantedDates[0]의 값이 올바르지 않습니다."
+                            }
+                            """);
+
+            then(annualLeaveService).shouldHaveNoInteractions();
+        }
     }
 
     private MockHttpSession memberSession() {

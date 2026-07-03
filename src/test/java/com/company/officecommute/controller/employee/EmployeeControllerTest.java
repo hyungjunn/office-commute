@@ -10,10 +10,13 @@ import com.company.officecommute.service.employee.EmployeeService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.BDDMockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
@@ -29,6 +32,7 @@ import static org.mockito.ArgumentMatchers.eq;
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@ExtendWith(OutputCaptureExtension.class)
 class EmployeeControllerTest {
 
     @Autowired
@@ -184,7 +188,7 @@ class EmployeeControllerTest {
 
         @Test
         @DisplayName("존재하지 않는 Role 값은 INVALID_JSON")
-        void invalidEnum() {
+        void invalidEnum(CapturedOutput output) {
             String invalid = """
                     {
                         "name": "John",
@@ -201,7 +205,30 @@ class EmployeeControllerTest {
                     .hasStatus(HttpStatus.BAD_REQUEST)
                     .bodyJson()
                     .isLenientlyEqualTo("""
-                            { "code": "INVALID_JSON", "message": "역할 값이 올바르지 않습니다." }
+                            { "code": "INVALID_JSON", "message": "필드 role의 값이 올바르지 않습니다." }
+                            """);
+
+            assertThat(output).contains("Invalid JSON request: 필드 role의 값이 올바르지 않습니다. (cause: InvalidFormatException)")
+                    .doesNotContain("CEO");
+        }
+
+        @Test
+        @DisplayName("잘린 JSON은 범용 INVALID_JSON 메시지를 반환한다")
+        void truncatedJson() {
+            String invalid = """
+                    {
+                        "name": "John",
+                        "role": "MEMBER"
+                    """;
+
+            assertThat(mockMvcTester.post().uri("/employee")
+                    .session(managerSession())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(invalid))
+                    .hasStatus(HttpStatus.BAD_REQUEST)
+                    .bodyJson()
+                    .isLenientlyEqualTo("""
+                            { "code": "INVALID_JSON", "message": "요청 본문을 해석할 수 없습니다." }
                             """);
         }
 

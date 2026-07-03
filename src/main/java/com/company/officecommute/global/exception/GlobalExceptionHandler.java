@@ -15,6 +15,8 @@ import com.company.officecommute.domain.employee.EmployeeAlreadyExistsException;
 import com.company.officecommute.domain.employee.EmployeeNotFoundException;
 import com.company.officecommute.domain.team.TeamAlreadyExistsException;
 import com.company.officecommute.domain.team.TeamNotFoundException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -65,8 +67,37 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ErrorResult handleInvalidJson(HttpMessageNotReadableException e) {
-        log.warn("Invalid JSON request: {}", e.getMessage());
-        return new ErrorResult("INVALID_JSON", "역할 값이 올바르지 않습니다.");
+        String message = invalidJsonMessage(e);
+        String causeType = e.getCause() == null ? "none" : e.getCause().getClass().getSimpleName();
+        log.warn("Invalid JSON request: {} (cause: {})", message, causeType);
+        return new ErrorResult("INVALID_JSON", message);
+    }
+
+    private String invalidJsonMessage(HttpMessageNotReadableException e) {
+        if (!(e.getCause() instanceof InvalidFormatException invalidFormatException)) {
+            return "요청 본문을 해석할 수 없습니다.";
+        }
+
+        String fieldPath = fieldPath(invalidFormatException);
+        if (fieldPath.isBlank()) {
+            return "요청 본문을 해석할 수 없습니다.";
+        }
+        return "필드 %s의 값이 올바르지 않습니다.".formatted(fieldPath);
+    }
+
+    private String fieldPath(InvalidFormatException e) {
+        StringBuilder path = new StringBuilder();
+        for (JsonMappingException.Reference reference : e.getPath()) {
+            if (reference.getFieldName() != null) {
+                if (!path.isEmpty()) {
+                    path.append('.');
+                }
+                path.append(reference.getFieldName());
+            } else if (reference.getIndex() >= 0) {
+                path.append('[').append(reference.getIndex()).append(']');
+            }
+        }
+        return path.toString();
     }
 
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
