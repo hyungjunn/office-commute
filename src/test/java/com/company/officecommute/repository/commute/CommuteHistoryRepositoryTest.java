@@ -13,6 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -20,6 +21,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DataJpaTest
 class CommuteHistoryRepositoryTest {
@@ -210,6 +212,40 @@ class CommuteHistoryRepositoryTest {
         CommuteHistory found = commuteHistoryRepository.findById(ended.getCommuteHistoryId()).orElseThrow();
         assertThat(found.getWorkEndTime().toInstant()).isEqualTo(firstEnd.toInstant());
         assertThat(found.getWorkingMinutes()).isEqualTo(540);
+    }
+
+    @Test
+    @DisplayName("같은 직원이 같은 work_date로 두 번째 저장하면 uk_commute_history_employee_date 위반이 발생한다")
+    void savingSecondHistoryOnSameEmployeeAndDateViolatesUniqueConstraint() {
+        // given — 같은 날, 다른 시각: 제약이 timestamp가 아니라 work_date에 걸려 있음을 함께 검증한다.
+        ZoneId zone = ZoneId.of("Asia/Seoul");
+        Long employeeId = 1L;
+        commuteHistoryRepository.save(CommuteHistoryFixture.ended(null, employeeId,
+                ZonedDateTime.of(2026, 6, 1, 9, 0, 0, 0, zone),
+                ZonedDateTime.of(2026, 6, 1, 12, 0, 0, 0, zone), zone));
+
+        CommuteHistory sameDayAgain = CommuteHistoryFixture.open(null, employeeId,
+                ZonedDateTime.of(2026, 6, 1, 14, 0, 0, 0, zone), zone);
+
+        // when & then
+        assertThatThrownBy(() -> commuteHistoryRepository.saveAndFlush(sameDayAgain))
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .hasMessageContaining("UK_COMMUTE_HISTORY_EMPLOYEE_DATE");
+    }
+
+    @Test
+    @DisplayName("다른 직원은 같은 work_date에 저장할 수 있다 — 제약은 (employee_id, work_date) 복합키다")
+    void differentEmployeesMayShareSameWorkDate() {
+        // given
+        ZoneId zone = ZoneId.of("Asia/Seoul");
+        ZonedDateTime start = ZonedDateTime.of(2026, 6, 1, 9, 0, 0, 0, zone);
+        commuteHistoryRepository.save(CommuteHistoryFixture.open(null, 1L, start, zone));
+
+        // when
+        commuteHistoryRepository.saveAndFlush(CommuteHistoryFixture.open(null, 2L, start, zone));
+
+        // then
+        assertThat(commuteHistoryRepository.findAll()).hasSize(2);
     }
 
     @Test
