@@ -285,6 +285,77 @@ class CommuteHistoryServiceTest {
     }
 
     @Test
+    @DisplayName("registerWorkStartTime — cause 체인에 ConstraintViolationException이 없으면 그대로 재던진다")
+    void registerWorkStartTime_rethrowsViolationWithoutConstraintViolationCause() {
+        // given
+        DataIntegrityViolationException violation = new DataIntegrityViolationException(
+                "not null violation",
+                new RuntimeException("boom")
+        );
+        BDDMockito.given(employeeRepository.findById(1L))
+                .willReturn(Optional.of(employee));
+        BDDMockito.given(commuteHistoryRepository.existsByEmployeeIdAndWorkDate(eq(1L), any(LocalDate.class)))
+                .willReturn(false);
+        BDDMockito.given(commuteHistoryRepository
+                        .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
+                .willReturn(Optional.empty());
+        BDDMockito.given(commuteHistoryRepository.saveAndFlush(any(CommuteHistory.class)))
+                .willThrow(violation);
+
+        // when / then
+        assertThatThrownBy(() -> commuteHistoryService.registerWorkStartTime(1L))
+                .isSameAs(violation);
+    }
+
+    @Test
+    @DisplayName("registerWorkStartTime — 제약명이 null인 ConstraintViolation은 그대로 재던진다")
+    void registerWorkStartTime_rethrowsViolationWithNullConstraintName() {
+        // given
+        DataIntegrityViolationException violation = new DataIntegrityViolationException(
+                "unique constraint",
+                new ConstraintViolationException("unique constraint", null, (String) null)
+        );
+        BDDMockito.given(employeeRepository.findById(1L))
+                .willReturn(Optional.of(employee));
+        BDDMockito.given(commuteHistoryRepository.existsByEmployeeIdAndWorkDate(eq(1L), any(LocalDate.class)))
+                .willReturn(false);
+        BDDMockito.given(commuteHistoryRepository
+                        .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
+                .willReturn(Optional.empty());
+        BDDMockito.given(commuteHistoryRepository.saveAndFlush(any(CommuteHistory.class)))
+                .willThrow(violation);
+
+        // when / then
+        assertThatThrownBy(() -> commuteHistoryService.registerWorkStartTime(1L))
+                .isSameAs(violation);
+    }
+
+    @Test
+    @DisplayName("registerWorkStartTime — cause 체인 깊숙이 중첩된 중복 제약도 Duplicate로 재던진다")
+    void registerWorkStartTime_translatesDeeplyNestedConstraintViolation() {
+        // given — DataIntegrityViolation → RuntimeException → ConstraintViolation (depth 2)
+        DataIntegrityViolationException violation = new DataIntegrityViolationException(
+                "unique constraint",
+                new RuntimeException("wrapper",
+                        new ConstraintViolationException("unique constraint", null, "uk_commute_history_employee_date"))
+        );
+        BDDMockito.given(employeeRepository.findById(1L))
+                .willReturn(Optional.of(employee));
+        BDDMockito.given(commuteHistoryRepository.existsByEmployeeIdAndWorkDate(eq(1L), any(LocalDate.class)))
+                .willReturn(false);
+        BDDMockito.given(commuteHistoryRepository
+                        .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
+                .willReturn(Optional.empty());
+        BDDMockito.given(commuteHistoryRepository.saveAndFlush(any(CommuteHistory.class)))
+                .willThrow(violation);
+
+        // when / then
+        assertThatThrownBy(() -> commuteHistoryService.registerWorkStartTime(1L))
+                .isInstanceOf(DuplicateWorkOnDateException.class)
+                .hasCauseInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
     @DisplayName("registerWorkStartTime — 중복이 아닌 DataIntegrityViolation은 Duplicate로 오분류하지 않는다")
     void registerWorkStartTime_doesNotTranslateNonDuplicateDataIntegrityViolation() {
         // given
