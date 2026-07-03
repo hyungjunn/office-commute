@@ -1,9 +1,6 @@
 package com.company.officecommute.service.commute;
 
-import com.company.officecommute.domain.commute.CommuteAlreadyEndedException;
-import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.domain.commute.CommuteHistoryFixture;
-import com.company.officecommute.domain.commute.CommuteNotStartedException;
 import com.company.officecommute.domain.commute.DuplicateWorkOnDateException;
 import com.company.officecommute.domain.commute.PreviousCommuteNotEndedException;
 import com.company.officecommute.domain.employee.Employee;
@@ -22,19 +19,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
-import java.util.List;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
-public class CommuteHistoryServiceConcurrencyTest {
+class CommuteHistoryServiceIntegrationTest {
 
     @Autowired private CommuteHistoryService commuteHistoryService;
     @Autowired private CommuteHistoryRepository commuteHistoryRepository;
@@ -71,87 +61,6 @@ public class CommuteHistoryServiceConcurrencyTest {
         commuteHistoryRepository.deleteAll();
         employeeRepository.deleteAll();
         teamRepository.deleteAll();
-    }
-
-    @Test
-    @DisplayName("동시 출근 등록 테스트 - H2 DB")
-    void testConcurrentRegisterWorkStartTime_H2DB() throws InterruptedException {
-        Long employeeId = testEmployeeId;
-        int threadCount = 100;
-        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
-        CountDownLatch latch = new CountDownLatch(threadCount);
-
-        AtomicInteger successCount = new AtomicInteger(0);
-        AtomicInteger failCount = new AtomicInteger(0);
-        Queue<Throwable> failures = new ConcurrentLinkedQueue<>();
-
-        for (int i = 0; i < threadCount; i++) {
-            executor.execute(() -> {
-                try {
-                    commuteHistoryService.registerWorkStartTime(employeeId);
-                    successCount.incrementAndGet();
-                } catch (Exception e) {
-                    failures.add(e);
-                    failCount.incrementAndGet();
-                } finally {
-                    latch.countDown();
-                }
-            });
-        }
-
-        latch.await();
-
-        List<CommuteHistory> histories = commuteHistoryRepository.findAll();
-        assertThat(histories).hasSize(1);
-        assertThat(successCount.get()).isEqualTo(1);
-        assertThat(failCount.get()).isEqualTo(threadCount - 1);
-        // 같은 날 race: existsBy 또는 race-net (validateNoOpenCommute) 어디서 잡히든 모두 DuplicateWorkOnDate로 분류된다.
-        assertThat(failures)
-                .hasSize(threadCount - 1)
-                .allSatisfy(failure -> assertThat(failure).isInstanceOf(DuplicateWorkOnDateException.class));
-    }
-
-    @Test
-    @DisplayName("동시 퇴근 등록 테스트 - 조건부 update로 정확히 1건만 성공한다")
-    void testConcurrentRegisterWorkEndTime_H2DB() throws InterruptedException {
-        Long employeeId = testEmployeeId;
-        commuteHistoryService.registerWorkStartTime(employeeId);
-
-        int threadCount = 20;
-        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
-        CountDownLatch latch = new CountDownLatch(threadCount);
-
-        AtomicInteger successCount = new AtomicInteger(0);
-        AtomicInteger failCount = new AtomicInteger(0);
-        Queue<Throwable> failures = new ConcurrentLinkedQueue<>();
-
-        for (int i = 0; i < threadCount; i++) {
-            executor.execute(() -> {
-                try {
-                    commuteHistoryService.registerWorkEndTime(employeeId);
-                    successCount.incrementAndGet();
-                } catch (Exception e) {
-                    failures.add(e);
-                    failCount.incrementAndGet();
-                } finally {
-                    latch.countDown();
-                }
-            });
-        }
-
-        latch.await();
-
-        List<CommuteHistory> histories = commuteHistoryRepository.findAll();
-        assertThat(histories).hasSize(1);
-        assertThat(histories.getFirst().getWorkEndTime()).isNotNull();
-        assertThat(successCount.get()).isEqualTo(1);
-        assertThat(failCount.get()).isEqualTo(threadCount - 1);
-        // 승자 commit 전에 open commute를 읽은 thread는 조건부 update 0건 → AlreadyEnded,
-        // commit 후에 조회한 thread는 open commute가 없어 NotStarted.
-        assertThat(failures)
-                .hasSize(threadCount - 1)
-                .allSatisfy(failure -> assertThat(failure)
-                        .isInstanceOfAny(CommuteAlreadyEndedException.class, CommuteNotStartedException.class));
     }
 
     @Test
