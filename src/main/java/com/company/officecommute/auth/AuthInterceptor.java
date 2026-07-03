@@ -13,14 +13,14 @@ public class AuthInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         HttpSession session = request.getSession(false);
         if (session == null) {
-            throw new AuthenticationFailedException("로그인이 필요합니다.");
+            throw new AuthenticationFailedException();
         }
 
         Long employeeId = (Long) session.getAttribute("currentEmployeeId");
         Role role = (Role) session.getAttribute("currentRole");
 
         if (employeeId == null || role == null) {
-            throw new AuthenticationFailedException("로그인이 필요합니다.");
+            throw new AuthenticationFailedException();
         }
 
         request.setAttribute("currentEmployeeId", employeeId);
@@ -29,7 +29,7 @@ public class AuthInterceptor implements HandlerInterceptor {
         if (handler instanceof HandlerMethod handlerMethod) {
             ManagerOnly managerOnly = handlerMethod.getMethodAnnotation(ManagerOnly.class);
             if (managerOnly != null && role != Role.MANAGER) {
-                throw new ForbiddenException("접근 권한이 없습니다.");
+                throw new ForbiddenException();
             }
         }
 

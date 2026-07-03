@@ -41,11 +41,11 @@ public class AuthController {
     public CurrentUserResponse me(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null) {
-            throw new AuthenticationFailedException("로그인이 필요합니다.");
+            throw new AuthenticationFailedException();
         }
         Long employeeId = (Long) session.getAttribute("currentEmployeeId");
         if (employeeId == null) {
-            throw new AuthenticationFailedException("로그인이 필요합니다.");
+            throw new AuthenticationFailedException();
         }
         return employeeService.getCurrentUser(employeeId);
     }
