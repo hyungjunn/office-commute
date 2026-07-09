@@ -13,15 +13,16 @@ Spring Boot 근태관리 API 위에 올리는 사내 HR 백오피스 웹앱. 저
 ## 요구사항
 
 - Node.js 18+ (권장 20+)
+- pnpm (패키지 매니저 — `pnpm-lock.yaml` 이 커밋되어 있으므로 npm/yarn 을 쓰지 않는다)
 - 백엔드가 `http://localhost:8080` 에서 실행 중 (`./gradlew bootRun --args='--spring.profiles.active=dev'`)
 
 ## 개발 실행
 
 ```bash
 cd frontend
-npm install
-npm run gen:api   # ../openapi.yml → src/api/schema.d.ts 재생성
-npm run dev       # http://localhost:5173
+pnpm install
+pnpm gen:api   # ../openapi.yml → src/api/schema.d.ts 재생성
+pnpm dev       # http://localhost:5173
 ```
 
 Vite dev 서버가 `/api`, `/team`, `/employee`, `/commute`, `/annual-leave`, `/overtime` 를 `localhost:8080` 으로 프록시한다. 브라우저 입장에서 same-origin 이므로 **세션 쿠키(JSESSIONID)가 그대로 붙고 CORS 설정이 필요 없다.**
@@ -31,7 +32,7 @@ Vite dev 서버가 `/api`, `/team`, `/employee`, `/commute`, `/annual-leave`, `/
 프론트를 Spring 과 한 서버에서 서빙하면 세션 쿠키가 별도 설정 없이 동작한다.
 
 ```bash
-npm run build     # → frontend/dist
+pnpm build        # → frontend/dist
 ```
 
 `dist/` 를 백엔드의 `src/main/resources/static/` 으로 복사하거나, Gradle 빌드에 프론트 빌드를 연결한다. 이렇게 하면 CORS/SameSite 를 건드릴 필요가 없다. (프론트를 별도 도메인에 올리면 백엔드에 CORS + `credentials` + 쿠키 `SameSite=None; Secure` 설정을 추가해야 한다.)
@@ -39,34 +40,14 @@ npm run build     # → frontend/dist
 ## `openapi.yml` 이 바뀌면
 
 ```bash
-npm run gen:api
+pnpm gen:api
 ```
 
 DTO/엔드포인트가 바뀌면 타입이 갱신되고, 어긋난 호출부는 컴파일 단계에서 드러난다.
 
-## ⚠️ 백엔드에 추가가 필요한 엔드포인트: `GET /api/auth/me`
+## 세션 복원: `GET /api/auth/me`
 
-로그인 응답에는 역할(role) 본문이 없어서, 프론트가 매니저/멤버 화면을 나누려면 **세션의 현재 사용자·역할을 돌려주는 조회 엔드포인트**가 필요하다. 프론트는 부팅 시 이걸 호출해 로그인 상태와 역할을 복원한다(`src/auth/AuthContext.tsx`).
-
-`/api/auth/**` 는 `WebConfig` 의 `AuthInterceptor` 에서 제외되므로, 이 컨트롤러가 세션을 직접 읽고 비로그인 시 401 을 반환하면 된다.
-
-```java
-// controller/auth/AuthController.java 에 추가
-@GetMapping("/api/auth/me")
-public ResponseEntity<CurrentUserResponse> me(HttpSession session) {
-    Long employeeId = (Long) session.getAttribute("currentEmployeeId");
-    Role role = (Role) session.getAttribute("currentRole");
-    if (employeeId == null || role == null) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-    Employee employee = employeeService.findById(employeeId); // name 등 표시용
-    return ResponseEntity.ok(new CurrentUserResponse(employeeId, employee.getName(), role));
-}
-
-// dto: record CurrentUserResponse(Long employeeId, String name, Role role) {}
-```
-
-추가 후 `openapi.yml` 에도 `/api/auth/me` 를 반영하고(Spec-first) `npm run gen:api` 를 다시 돌린다. 이 엔드포인트가 없으면 앱은 항상 비로그인 상태로 간주한다.
+로그인 응답에는 역할(role) 본문이 없으므로, 프론트는 부팅 시 `GET /api/auth/me` 를 호출해 로그인 상태와 역할을 복원한다(`src/auth/AuthContext.tsx`). 이 엔드포인트는 백엔드 `AuthController` 에 구현되어 있고 `openapi.yml` 에도 반영되어 있으며, 비로그인 시 401 을 반환한다.
 
 ## 폴더 구조
 

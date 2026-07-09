@@ -2,10 +2,11 @@
 
 ## Build / Test
 - Run app (dev, H2 TCP): `./gradlew bootRun --args='--spring.profiles.active=dev'`
-- Run app (mysql): `./gradlew bootRun --args='--spring.profiles.active=mysql'`
+- Run app (mysql): `./gradlew bootRun --args='--spring.profiles.active=mysql'` (local MySQL: `docker compose up -d`)
 - Tests: `./gradlew test`
 - Full check (tests + `openApiValidate`): `./gradlew check`
 - Build jar: `./gradlew build`
+- Frontend (in `frontend/`, uses **pnpm**): `pnpm dev` / `pnpm build` / `pnpm gen:api` — conventions in `frontend/CLAUDE.md`
 
 ## Project Structure
 - `src/main/java/com/company/officecommute/` — layered: `controller / service / domain / repository / dto / web / auth / global / config`
@@ -13,14 +14,16 @@
 - `src/main/resources/data.sql` — H2 dev seed
 - `src/main/resources/application*.yml` — profile configs (`dev`, `mysql`, `prod`)
 - `src/test/java/...` — mirrors main package layout
-- `openapi.yml` (root) — wire-format source of truth
+- `openapi.yml` (root) — wire-format source of truth (backend spec + frontend type generation)
+- `frontend/` — React 18 + TypeScript + Vite admin SPA; own conventions in `frontend/CLAUDE.md`
+- `docker-compose.yml` — local MySQL container paired with the `mysql` profile
 - `README.md` — project overview and local setup
 - `scripts/api_test.sh` — manual API smoke test
 
 ## Profiles
 - `dev`: H2 TCP `jdbc:h2:tcp://localhost/~/test`, `ddl-auto: create-drop`, `data.sql` on, Flyway off.
 - `mysql` / `prod`: Flyway on, `ddl-auto: validate`. Overrides via `DB_URL` / `DB_USERNAME` / `DB_PASSWORD`.
-- Holiday API requires `PUBLIC_API_SERVICE_KEY`.
+- Holiday API requires `PUBLIC_API_SERVICE_KEY` (endpoint override: `PUBLIC_API_URL`). Other env names: `SPRING_PROFILES_ACTIVE`, `SERVER_PORT` — see `.env.example`.
 - **Do not commit secret values or per-developer settings.** Runtime env values go in `.env` (gitignored), based on `.env.example`; agent-only local notes may go in `CLAUDE.local.md` (gitignored). Only the *names* of required env vars belong in tracked docs.
 
 ## Coding Conventions
@@ -35,7 +38,7 @@
 - ID-based API: registration returns `{ entityId }`; mutation endpoints carry the ID in the path (`PUT /employee/{employeeId}/team`). Don't introduce name-based contracts.
 
 ## Always
-- **Spec-first**: update `openapi.yml` whenever a controller or DTO changes. No `@Operation` / `@ApiResponse` annotations on controllers — the yml is the spec.
+- **Spec-first**: update `openapi.yml` whenever a controller or DTO changes. No `@Operation` / `@ApiResponse` annotations on controllers — the yml is the spec. After editing `openapi.yml`, regenerate frontend types: `pnpm gen:api` in `frontend/` (`src/api/schema.d.ts` is committed).
 - **Never edit an applied Flyway `V*__*.sql` file** (checksum). Schema changes go in a new `V` file.
 - When a column changes, update `data.sql` too — otherwise `dev` boot fails.
 - Throw domain exceptions, don't catch — `GlobalExceptionHandler` (`@RestControllerAdvice`) converts them. After a uniqueness pre-check, catch `DataIntegrityViolationException` and re-throw the matching domain conflict exception (e.g. `*_ALREADY_EXISTS`, `DUPLICATE_WORK`, `ANNUAL_LEAVE_DUPLICATE`) as a race safety net.
