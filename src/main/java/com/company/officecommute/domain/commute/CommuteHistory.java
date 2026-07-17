@@ -25,6 +25,7 @@ public class CommuteHistory {
 
     private Long employeeId;
 
+    @Column(nullable = false)
     private ZonedDateTime workStartTime;
 
     private ZonedDateTime workEndTime;
@@ -71,6 +72,7 @@ public class CommuteHistory {
             boolean usingDayOff,
             ZoneId workZone
     ) {
+        Objects.requireNonNull(workStartTime, "workStartTime은 null일 수 없습니다");
         Objects.requireNonNull(workZone, "workZone은 null일 수 없습니다");
         this.commuteHistoryId = commuteHistoryId;
         this.employeeId = employeeId;
@@ -79,9 +81,7 @@ public class CommuteHistory {
         this.workingMinutes = workingMinutes;
         this.usingDayOff = usingDayOff;
         this.workZone = workZone.getId();
-        this.workDate = (workStartTime != null)
-                ? workStartTime.withZoneSameInstant(workZone).toLocalDate()
-                : LocalDate.now(workZone);
+        this.workDate = workStartTime.withZoneSameInstant(workZone).toLocalDate();
     }
 
     public CommuteHistory endWork(ZonedDateTime workEndTime) {
@@ -93,9 +93,6 @@ public class CommuteHistory {
     // 상태를 변경하지 않는다 — managed 엔티티에서 호출해도 dirty checking flush가 발생하지 않아야
     // 조건부 update(workEndTime IS NULL)가 유일한 쓰기 경로로 유지된다.
     public long calculateWorkingMinutes(ZonedDateTime workEndTime) {
-        if (this.workStartTime == null) {
-            throw new CommuteNotStartedException();
-        }
         if (this.workEndTime != null) {
             throw new CommuteAlreadyEndedException();
         }

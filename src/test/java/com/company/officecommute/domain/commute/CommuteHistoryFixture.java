@@ -51,13 +51,6 @@ public final class CommuteHistoryFixture {
         return CommuteHistory.registerAnnualLeave(employeeId, annualLeaveDate, workZone);
     }
 
-    public static CommuteHistory notStarted(Long commuteHistoryId, Long employeeId) {
-        CommuteHistory commuteHistory = new CommuteHistory();
-        setId(commuteHistory, commuteHistoryId);
-        ReflectionTestUtils.setField(commuteHistory, "employeeId", employeeId);
-        return commuteHistory;
-    }
-
     private static void setId(CommuteHistory commuteHistory, Long commuteHistoryId) {
         ReflectionTestUtils.setField(commuteHistory, "commuteHistoryId", commuteHistoryId);
     }

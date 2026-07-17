@@ -25,13 +25,10 @@ public class CommuteHistoryTest {
     }
 
     @Test
-    void testEndWorkWhenNotStartWork() {
-        ZonedDateTime workEndTime = ZonedDateTime.of(2024, 1, 1, 18, 0, 0, 0, ZoneId.of(KOREA));
-
-        CommuteHistory commuteHistory = CommuteHistoryFixture.notStarted(1L, 1L);
-        assertThatThrownBy(() -> commuteHistory.endWork(workEndTime))
-                .isInstanceOf(CommuteNotStartedException.class)
-                .hasMessage("진행 중인 출근 기록이 없습니다.");
+    void testRegisterWorkStartWithoutStartTimeThrows() {
+        assertThatThrownBy(() -> CommuteHistory.registerWorkStart(1L, null, ZoneId.of(KOREA)))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("workStartTime은 null일 수 없습니다");
     }
 
     @Test
