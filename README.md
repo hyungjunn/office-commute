@@ -70,7 +70,7 @@ SPRING_PROFILES_ACTIVE=mysql ./gradlew bootRun
 - **리포트**: Apache POI 5.2.4 (`poi`, `poi-ooxml`) — Excel(.xlsx) 스트리밍 생성
 - **개발 로깅**: P6Spy 1.9.0 (`p6spy-spring-boot-starter`) — `dev` 프로필에서 SQL 가시화
 - **Build**: Gradle (Groovy DSL)
-- **Test**: JUnit 5 + Spring Boot Test + AssertJ + Mockito (자세한 규칙은 `.claude/rules/testing.md`)
+- **Test**: JUnit 5 + Spring Boot Test + AssertJ + Mockito + Testcontainers 1.21.4 (`spring-boot-testcontainers`, `testcontainers:mysql` — MySQL 특화 쿼리는 H2 가 아닌 실제 MySQL 컨테이너로 검증, 자세한 규칙은 `.claude/rules/testing.md`)
 
 ## 주요 기능
 - **직원·팀 관리** (매니저 전용 등록/변경)
