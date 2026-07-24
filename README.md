@@ -56,7 +56,7 @@ SPRING_PROFILES_ACTIVE=mysql ./gradlew bootRun
 - **Spec-first**: `openapi.yml` 이 API 의 단일 소스, 빌드 시 `openApiValidate` 로 검증.
 - **3-layer validation**: 도메인 팩토리/생성자 + JPA 제약 + Flyway DDL 이 항상 일치.
 - **파생이 기본**: 집계(예: 팀 멤버 수)는 저장하지 않고 조회 시 계산해 drift / lost-update 를 회피.
-- **시간은 명시적으로**: `LocalDateTime` 을 쓰지 않고 `ZonedDateTime` + `LocalDate`, "지금"은 `Clock` 주입으로 결정성 확보.
+- **시간은 명시적으로**: `LocalDateTime` 을 쓰지 않습니다. 영속 타임스탬프는 `Instant` (Hibernate 가 UTC 로 정규화 — JVM 타임존 무관) + 해석용 `ZoneId` 를 별도 컬럼으로 저장 (예: `commute_history.work_zone`), `ZonedDateTime` 은 in-flight 캘린더 계산용, 날짜는 `LocalDate` / `YearMonth`. "지금"은 `Clock` 주입으로 결정성 확보.
 - **도메인 예외 1 의미 = 1 클래스**, `GlobalExceptionHandler` 가 HTTP 코드로 변환.
 
 ## 기술 스택
@@ -116,8 +116,8 @@ erDiagram
     COMMUTE_HISTORY {
         Long commute_history_id PK "출퇴근 기록 ID"
         Long employee_id FK "직원 ID"
-        ZonedDateTime work_start_time "출근 시각"
-        ZonedDateTime work_end_time "퇴근 시각 (퇴근 전 null)"
+        Instant work_start_time "출근 시각 (UTC 저장)"
+        Instant work_end_time "퇴근 시각 (퇴근 전 null, UTC 저장)"
         long working_minutes "근무 시간(분)"
         boolean using_day_off "연차 사용 여부"
         LocalDate work_date "근무일 (employee_id 와 Unique)"
