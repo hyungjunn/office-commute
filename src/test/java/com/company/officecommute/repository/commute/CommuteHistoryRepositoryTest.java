@@ -184,12 +184,12 @@ class CommuteHistoryRepositoryTest {
 
         // when
         int updated = commuteHistoryRepository.updateWorkEndTimeIfOpen(
-                open.getCommuteHistoryId(), start.plusHours(9), 540);
+                open.getCommuteHistoryId(), start.plusHours(9).toInstant(), 540);
 
         // then
         assertThat(updated).isEqualTo(1);
         CommuteHistory found = commuteHistoryRepository.findById(open.getCommuteHistoryId()).orElseThrow();
-        assertThat(found.getWorkEndTime().toInstant()).isEqualTo(start.plusHours(9).toInstant());
+        assertThat(found.getWorkEndTime()).isEqualTo(start.plusHours(9).toInstant());
         assertThat(found.getWorkingMinutes()).isEqualTo(540);
     }
 
@@ -205,12 +205,12 @@ class CommuteHistoryRepositoryTest {
 
         // when
         int updated = commuteHistoryRepository.updateWorkEndTimeIfOpen(
-                ended.getCommuteHistoryId(), start.plusHours(10), 600);
+                ended.getCommuteHistoryId(), start.plusHours(10).toInstant(), 600);
 
         // then
         assertThat(updated).isZero();
         CommuteHistory found = commuteHistoryRepository.findById(ended.getCommuteHistoryId()).orElseThrow();
-        assertThat(found.getWorkEndTime().toInstant()).isEqualTo(firstEnd.toInstant());
+        assertThat(found.getWorkEndTime()).isEqualTo(firstEnd.toInstant());
         assertThat(found.getWorkingMinutes()).isEqualTo(540);
     }
 

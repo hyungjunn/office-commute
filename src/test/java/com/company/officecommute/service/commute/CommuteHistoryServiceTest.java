@@ -21,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -84,16 +85,16 @@ class CommuteHistoryServiceTest {
         BDDMockito.given(commuteHistoryRepository
                         .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
                 .willReturn(Optional.of(CommuteHistoryFixture.open(1L, 1L, workStartTime)));
-        BDDMockito.given(commuteHistoryRepository.updateWorkEndTimeIfOpen(eq(1L), any(ZonedDateTime.class), eq(10L * 60)))
+        BDDMockito.given(commuteHistoryRepository.updateWorkEndTimeIfOpen(eq(1L), any(Instant.class), eq(10L * 60)))
                 .willReturn(1);
 
         // when
         commuteHistoryService.registerWorkEndTime(1L);
 
         // then
-        ArgumentCaptor<ZonedDateTime> endTimeCaptor = ArgumentCaptor.forClass(ZonedDateTime.class);
+        ArgumentCaptor<Instant> endTimeCaptor = ArgumentCaptor.forClass(Instant.class);
         verify(commuteHistoryRepository).updateWorkEndTimeIfOpen(eq(1L), endTimeCaptor.capture(), eq(10L * 60));
-        assertThat(endTimeCaptor.getValue().toInstant()).isEqualTo(workEndTime.toInstant());
+        assertThat(endTimeCaptor.getValue()).isEqualTo(workEndTime.toInstant());
         then(commuteHistoryRepository).should(never()).save(any(CommuteHistory.class));
     }
 
@@ -106,7 +107,7 @@ class CommuteHistoryServiceTest {
         BDDMockito.given(commuteHistoryRepository
                         .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
                 .willReturn(Optional.of(CommuteHistoryFixture.open(1L, 1L, workStartTime)));
-        BDDMockito.given(commuteHistoryRepository.updateWorkEndTimeIfOpen(eq(1L), any(ZonedDateTime.class), eq(10L * 60)))
+        BDDMockito.given(commuteHistoryRepository.updateWorkEndTimeIfOpen(eq(1L), any(Instant.class), eq(10L * 60)))
                 .willReturn(0);
 
         // when / then

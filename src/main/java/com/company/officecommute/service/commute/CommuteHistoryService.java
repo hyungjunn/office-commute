@@ -17,10 +17,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.List;
 
 @Service
@@ -45,10 +45,9 @@ public class CommuteHistoryService {
     @Transactional
     public void registerWorkStartTime(Long employeeId) {
         Employee employee = getEmployee(employeeId);
-        ZoneId employeeZone = employee.getZoneId();
-        ZonedDateTime workStartTime = ZonedDateTime.now(clock.withZone(employeeZone));
+        Instant workStartTime = clock.instant();
         CommuteHistory newCommute = CommuteHistory.registerWorkStart(
-                employee.getEmployeeId(), workStartTime, employeeZone);
+                employee.getEmployeeId(), workStartTime, employee.getZoneId());
 
         validateCanRegisterWorkStart(employee.getEmployeeId(), newCommute.getWorkDate());
         saveCommuteHistory(newCommute);
@@ -92,8 +91,7 @@ public class CommuteHistoryService {
     public void registerWorkEndTime(Long employeeId) {
         Employee employee = getEmployee(employeeId);
         CommuteHistory lastCommute = findFirstByEmployeeId(employee.getEmployeeId());
-        ZoneId workZone = lastCommute.getWorkZoneId();
-        ZonedDateTime now = ZonedDateTime.now(clock.withZone(workZone));
+        Instant now = clock.instant();
         long workingMinutes = lastCommute.calculateWorkingMinutes(now);
         int updated = commuteHistoryRepository.updateWorkEndTimeIfOpen(
                 lastCommute.getCommuteHistoryId(), now, workingMinutes);

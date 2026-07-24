@@ -19,7 +19,7 @@ public class CommuteHistoryTest {
         ZonedDateTime workEndTime = ZonedDateTime.of(2024, 1, 1, 18, 0, 0, 0, ZoneId.of(KOREA));
         CommuteHistory commuteHistory = CommuteHistoryFixture.open(1L, 1L, workStartTime);
 
-        CommuteHistory commuteHistoryAfterEndWork = commuteHistory.endWork(workEndTime);
+        CommuteHistory commuteHistoryAfterEndWork = commuteHistory.endWork(workEndTime.toInstant());
 
         assertThat(commuteHistoryAfterEndWork.getWorkingMinutes()).isEqualTo(10L * 60);
     }
@@ -37,7 +37,7 @@ public class CommuteHistoryTest {
         ZonedDateTime workEndTime = ZonedDateTime.of(2024, 1, 1, 18, 0, 0, 0, ZoneId.of(KOREA));
 
         CommuteHistory commuteHistory = CommuteHistoryFixture.ended(1L, 1L, workStartTime, workEndTime);
-        assertThatThrownBy(() -> commuteHistory.endWork(workEndTime))
+        assertThatThrownBy(() -> commuteHistory.endWork(workEndTime.toInstant()))
                 .isInstanceOf(CommuteAlreadyEndedException.class)
                 .hasMessage("이미 퇴근 처리된 근무입니다.");
     }
@@ -48,7 +48,7 @@ public class CommuteHistoryTest {
         ZonedDateTime workEndTime = ZonedDateTime.of(2024, 1, 1, 18, 0, 0, 0, ZoneId.of(KOREA));
         CommuteHistory commuteHistory = CommuteHistoryFixture.open(1L, 1L, workStartTime);
 
-        long workingMinutes = commuteHistory.calculateWorkingMinutes(workEndTime);
+        long workingMinutes = commuteHistory.calculateWorkingMinutes(workEndTime.toInstant());
 
         assertThat(workingMinutes).isEqualTo(10L * 60);
         // 조건부 update가 유일한 쓰기 경로가 되도록 엔티티 상태는 그대로여야 한다
@@ -62,7 +62,7 @@ public class CommuteHistoryTest {
         ZonedDateTime workEndTime = ZonedDateTime.of(2024, 1, 1, 18, 0, 0, 0, ZoneId.of(KOREA));
         CommuteHistory commuteHistory = CommuteHistoryFixture.ended(1L, 1L, workStartTime, workEndTime);
 
-        assertThatThrownBy(() -> commuteHistory.calculateWorkingMinutes(workEndTime))
+        assertThatThrownBy(() -> commuteHistory.calculateWorkingMinutes(workEndTime.toInstant()))
                 .isInstanceOf(CommuteAlreadyEndedException.class)
                 .hasMessage("이미 퇴근 처리된 근무입니다.");
     }
@@ -80,7 +80,7 @@ public class CommuteHistoryTest {
         ZonedDateTime earlierThanStart = ZonedDateTime.of(2024, 1, 1, 7, 30, 0, 0, ZoneId.of(KOREA));
         CommuteHistory commuteHistory = CommuteHistoryFixture.open(1L, 1L, workStartTime);
 
-        assertThatThrownBy(() -> commuteHistory.endWork(earlierThanStart))
+        assertThatThrownBy(() -> commuteHistory.endWork(earlierThanStart.toInstant()))
                 .isInstanceOf(InvalidCommuteRangeException.class)
                 .hasMessage("퇴근 시간이 출근 시간보다 이릅니다.");
     }

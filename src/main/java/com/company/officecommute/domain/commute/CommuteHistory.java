@@ -9,9 +9,9 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.Objects;
 
 @Entity
@@ -25,10 +25,12 @@ public class CommuteHistory {
 
     private Long employeeId;
 
+    // Instant는 JDBC 바인딩이 항상 UTC로 정규화되므로 JVM 기본 타임존에 의존하지 않는다.
+    // 달력 해석(날짜·표시)은 workZone과 조합해서만 한다.
     @Column(nullable = false)
-    private ZonedDateTime workStartTime;
+    private Instant workStartTime;
 
-    private ZonedDateTime workEndTime;
+    private Instant workEndTime;
 
     private long workingMinutes;
 
@@ -47,16 +49,17 @@ public class CommuteHistory {
     protected CommuteHistory() {
     }
 
-    public static CommuteHistory registerWorkStart(Long employeeId, ZonedDateTime workStartTime, ZoneId workZone) {
+    public static CommuteHistory registerWorkStart(Long employeeId, Instant workStartTime, ZoneId workZone) {
         return new CommuteHistory(null, employeeId, workStartTime, null, 0, false, workZone);
     }
 
     public static CommuteHistory registerAnnualLeave(Long employeeId, LocalDate annualLeaveDate, ZoneId workZone) {
+        Instant startOfDay = annualLeaveDate.atStartOfDay(workZone).toInstant();
         return new CommuteHistory(
                 null,
                 employeeId,
-                annualLeaveDate.atStartOfDay(workZone),
-                annualLeaveDate.atStartOfDay(workZone),
+                startOfDay,
+                startOfDay,
                 ANNUAL_LEAVE_TIME,
                 IS_ANNUAL_LEAVE,
                 workZone
@@ -66,8 +69,8 @@ public class CommuteHistory {
     private CommuteHistory(
             Long commuteHistoryId,
             Long employeeId,
-            ZonedDateTime workStartTime,
-            ZonedDateTime workEndTime,
+            Instant workStartTime,
+            Instant workEndTime,
             long workingMinutes,
             boolean usingDayOff,
             ZoneId workZone
@@ -81,10 +84,10 @@ public class CommuteHistory {
         this.workingMinutes = workingMinutes;
         this.usingDayOff = usingDayOff;
         this.workZone = workZone.getId();
-        this.workDate = workStartTime.withZoneSameInstant(workZone).toLocalDate();
+        this.workDate = workStartTime.atZone(workZone).toLocalDate();
     }
 
-    public CommuteHistory endWork(ZonedDateTime workEndTime) {
+    public CommuteHistory endWork(Instant workEndTime) {
         this.workingMinutes = calculateWorkingMinutes(workEndTime);
         this.workEndTime = workEndTime;
         return this;
@@ -92,7 +95,7 @@ public class CommuteHistory {
 
     // 상태를 변경하지 않는다 — managed 엔티티에서 호출해도 dirty checking flush가 발생하지 않아야
     // 조건부 update(workEndTime IS NULL)가 유일한 쓰기 경로로 유지된다.
-    public long calculateWorkingMinutes(ZonedDateTime workEndTime) {
+    public long calculateWorkingMinutes(Instant workEndTime) {
         if (this.workEndTime != null) {
             throw new CommuteAlreadyEndedException();
         }
@@ -128,7 +131,7 @@ public class CommuteHistory {
     }
 
 
-    public ZonedDateTime getWorkEndTime() {
+    public Instant getWorkEndTime() {
         return workEndTime;
     }
 
@@ -138,9 +141,5 @@ public class CommuteHistory {
 
     public String getWorkZone() {
         return workZone;
-    }
-
-    public ZoneId getWorkZoneId() {
-        return ZoneId.of(workZone);
     }
 }

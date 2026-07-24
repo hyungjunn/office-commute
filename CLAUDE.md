@@ -28,7 +28,7 @@
 
 ## Coding Conventions
 - Java 21, Spring Boot 3.5. 4-space indentation, no tabs.
-- Date/time: avoid `LocalDateTime` (timezone-ambiguous). Use `ZonedDateTime` for timestamps (already standard in commute/overtime), `LocalDate` / `YearMonth` for calendar dates. Inject `Clock` for "now" so tests can control time; when domain logic needs "today", pass a `LocalDate` derived from that `Clock` rather than calling `LocalDate.now()` directly. Never downgrade dates to `String`.
+- Date/time: avoid `LocalDateTime` (timezone-ambiguous). Persisted timestamps use `Instant` (Hibernate normalizes to UTC — JVM-zone independent) with the interpreting `ZoneId` stored as a separate column when calendar semantics matter (e.g. `commute_history.work_zone`; workDate derives from `instant.atZone(zone)`). `ZonedDateTime` is fine for in-flight calendar logic; `LocalDate` / `YearMonth` for calendar dates. Inject `Clock` for "now" so tests can control time; when domain logic needs "today", pass a `LocalDate` derived from that `Clock` rather than calling `LocalDate.now()` directly. Never downgrade dates to `String`.
 - Naming: controllers `*Controller`, services `*Service`, repos `*Repository`, DTOs `*Request` / `*Response`, exceptions `*Exception`.
 - Domain exceptions: one class per business meaning (e.g. `TeamAlreadyExistsException`). Never reuse `IllegalArgumentException` for business errors.
 - Error envelope: `ErrorResult { code, message }` or `ValidationErrorResult { code, message, fieldErrorResults }`. Codes follow `*_ALREADY_EXISTS`, `*_NOT_FOUND`, `VALIDATION_ERROR`, `INVALID_JSON`.

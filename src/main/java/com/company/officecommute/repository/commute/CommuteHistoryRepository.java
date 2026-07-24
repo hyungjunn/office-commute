@@ -6,8 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,7 +34,7 @@ public interface CommuteHistoryRepository extends JpaRepository<CommuteHistory, 
             WHERE ch.commuteHistoryId = :commuteHistoryId
                 AND ch.workEndTime IS NULL
             """)
-    int updateWorkEndTimeIfOpen(Long commuteHistoryId, ZonedDateTime workEndTime, long workingMinutes);
+    int updateWorkEndTimeIfOpen(Long commuteHistoryId, Instant workEndTime, long workingMinutes);
 
     /**
      * Aggregates total working minutes per employee within the given work_date range.

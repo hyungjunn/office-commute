@@ -21,7 +21,7 @@ public final class CommuteHistoryFixture {
             ZonedDateTime workStartTime,
             ZoneId workZone
     ) {
-        CommuteHistory commuteHistory = CommuteHistory.registerWorkStart(employeeId, workStartTime, workZone);
+        CommuteHistory commuteHistory = CommuteHistory.registerWorkStart(employeeId, workStartTime.toInstant(), workZone);
         setId(commuteHistory, commuteHistoryId);
         return commuteHistory;
     }
@@ -43,7 +43,7 @@ public final class CommuteHistoryFixture {
             ZoneId workZone
     ) {
         CommuteHistory commuteHistory = open(commuteHistoryId, employeeId, workStartTime, workZone);
-        commuteHistory.endWork(workEndTime);
+        commuteHistory.endWork(workEndTime.toInstant());
         return commuteHistory;
     }
 
