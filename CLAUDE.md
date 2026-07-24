@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 ## Build / Test
-- Run app (dev, H2 TCP): `./gradlew bootRun --args='--spring.profiles.active=dev'`
+- Run app (dev, H2 in-memory): `./gradlew bootRun --args='--spring.profiles.active=dev'`
 - Run app (mysql): `./gradlew bootRun --args='--spring.profiles.active=mysql'` (local MySQL: `docker compose up -d`)
 - Tests: `./gradlew test`
 - Full check (tests + `openApiValidate`): `./gradlew check`
@@ -21,7 +21,7 @@
 - `scripts/api_test.sh` — manual API smoke test
 
 ## Profiles
-- `dev`: H2 TCP `jdbc:h2:tcp://localhost/~/test`, `ddl-auto: create-drop`, `data.sql` on, Flyway off.
+- `dev`: H2 in-memory `jdbc:h2:mem:test;DB_CLOSE_DELAY=-1`, `ddl-auto: create-drop`, `data.sql` on, Flyway off.
 - `mysql` / `prod`: Flyway on, `ddl-auto: validate`. Overrides via `DB_URL` / `DB_USERNAME` / `DB_PASSWORD`.
 - Holiday API requires `PUBLIC_API_SERVICE_KEY` (endpoint override: `PUBLIC_API_URL`). Other env names: `SPRING_PROFILES_ACTIVE`, `SERVER_PORT` — see `.env.example`.
 - **Do not commit secret values or per-developer settings.** Runtime env values go in `.env` (gitignored), based on `.env.example`; agent-only local notes may go in `CLAUDE.local.md` (gitignored). Only the *names* of required env vars belong in tracked docs.
