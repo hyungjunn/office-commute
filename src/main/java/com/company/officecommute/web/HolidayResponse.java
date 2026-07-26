@@ -9,8 +9,19 @@ import java.util.List;
 @JacksonXmlRootElement(localName = "response")
 public class HolidayResponse {
 
+    @JacksonXmlProperty(localName = "header")
+    private Header header;
+
     @JacksonXmlProperty(localName = "body")
     private Body body;
+
+    public Header getHeader() {
+        return header;
+    }
+
+    public void setHeader(Header header) {
+        this.header = header;
+    }
 
     public Body getBody() {
         return body;
@@ -20,10 +31,40 @@ public class HolidayResponse {
         this.body = body;
     }
 
+    // 공공데이터포털은 키 오류·트래픽 초과 등도 HTTP 200 + XML로 반환하므로
+    // resultCode 검증 없이는 실패를 "공휴일 0개"로 오인한다.
+    public static class Header {
+        @JacksonXmlProperty(localName = "resultCode")
+        private String resultCode;
+
+        @JacksonXmlProperty(localName = "resultMsg")
+        private String resultMsg;
+
+        public String getResultCode() {
+            return resultCode;
+        }
+
+        public void setResultCode(String resultCode) {
+            this.resultCode = resultCode;
+        }
+
+        public String getResultMsg() {
+            return resultMsg;
+        }
+
+        public void setResultMsg(String resultMsg) {
+            this.resultMsg = resultMsg;
+        }
+    }
+
     public static class Body {
         @JacksonXmlElementWrapper(localName = "items")
         @JacksonXmlProperty(localName = "item")
         private List<Item> items;
+
+        // 수신 건수와 비교해 페이지 잘림을 감지하는 데 쓴다.
+        @JacksonXmlProperty(localName = "totalCount")
+        private Integer totalCount;
 
         public List<Item> getItems() {
             return items;
@@ -31,6 +72,14 @@ public class HolidayResponse {
 
         public void setItems(List<Item> items) {
             this.items = items;
+        }
+
+        public Integer getTotalCount() {
+            return totalCount;
+        }
+
+        public void setTotalCount(Integer totalCount) {
+            this.totalCount = totalCount;
         }
     }
 
