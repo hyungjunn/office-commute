@@ -75,8 +75,12 @@
 발송 경로를 새로 만드는 작업이다. 리포트 생성부(`OverTimeReportService`)는 준비돼 있다.
 
 - [ ] 대상 월 공휴일 적재/확인 여부 (2번 의존)
-- [ ] **퇴근 미처리 기록** — `workEndTime IS NULL`이면 `workingMinutes=0`으로 SUM에 들어간다.
-      1일 오전 배치면 전월 말일에 퇴근을 찍지 않은 직원이 그대로 0분 처리된다
+- [x] **퇴근 미처리 기록 — 탐지·노출 완료.** `workEndTime IS NULL`이면 `workingMinutes=0`으로 SUM에 들어간다.
+      1일 오전 배치면 전월 말일에 퇴근을 찍지 않은 직원이 그대로 0분 처리된다.
+      `countByWorkDateBetweenAndWorkEndTimeIsNull`로 건수를 세어 `OverTimeReport`에 싣고,
+      시트 첫 행에 경고로 남긴다(연차는 `workEndTime`이 채워지므로 오탐 없음).
+      → 남은 것은 **라우팅**: 건수가 0이 아닐 때 대표 발송을 막고 근태 관리자에게 보낼지 여부.
+      발송 경로가 생긴 뒤 결정한다
 - [ ] 배치는 `StreamingResponseBody` 컨트롤러를 타지 말고 서비스 계층을 직접 호출한다.
       실패 시 부분 파일이 나가지 않도록 임시 파일에 다 쓴 뒤 첨부한다
 - [ ] **중복 발송 방지** — 배치 재시도나 수동 재실행 시 대표가 같은 리포트를 여러 번 받는다.
