@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
 
@@ -94,6 +95,18 @@ class ApiConvertorTest {
         assertThat(numberOfStandardWorkingDays).isEqualTo(19L);
     }
 
+    @Test
+    @DisplayName("fetchHolidays는 검증을 통과한 날짜와 이름을 반환한다 — 원장 동기화의 입력")
+    void fetchHolidays_returnsDatesWithNames() {
+        mockApiResponse(HolidayResponseFixture.normalResponse(
+                HolidayResponseFixture.holiday("20260717", "제헌절")
+        ));
+
+        List<HolidayApiItem> items = apiConvertor.fetchHolidays(YearMonth.of(2026, 7));
+
+        assertThat(items).containsExactly(new HolidayApiItem(LocalDate.of(2026, 7, 17), "제헌절"));
+    }
+
     private void mockApiResponse(HolidayResponse response) {
         when(apiProperties.combineURL(any(), any()))
                 .thenReturn("http://fake-api.com");
@@ -122,8 +135,13 @@ class ApiConvertorTest {
         }
 
         static HolidayResponse.Item holiday(String locdate) {
+            return holiday(locdate, "공휴일");
+        }
+
+        static HolidayResponse.Item holiday(String locdate, String dateName) {
             HolidayResponse.Item item = new HolidayResponse.Item();
-            item.setLocDate(locdate);
+            item.setLocdate(locdate);
+            item.setDateName(dateName);
             item.setIsHoliday("Y");
             return item;
         }

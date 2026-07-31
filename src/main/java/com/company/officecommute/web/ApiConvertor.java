@@ -11,6 +11,7 @@ import java.net.URISyntaxException;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Set;
 
@@ -37,7 +38,9 @@ public class ApiConvertor {
     }
 
     public long countNumberOfStandardWorkingDays(YearMonth yearMonth) {
-        Set<LocalDate> holidays = getHolidays(yearMonth);
+        Set<LocalDate> holidays = fetchHolidays(yearMonth).stream()
+                .map(HolidayApiItem::date)
+                .collect(toSet());
         long numberOfWeekDays = getNumberOfWeekDays(yearMonth);
         long numberOfHolidays = countWeekdayHolidays(holidays);
 
@@ -50,12 +53,16 @@ public class ApiConvertor {
         return lengthOfMonth - numberOfWeekends;
     }
 
-    private Set<LocalDate> getHolidays(YearMonth yearMonth) {
+    /**
+     * 해당 월의 공휴일을 조회해 검증을 통과한 항목만 반환한다. 원장 동기화와 소정근로일 계산이
+     * 공유하는 단일 경로로, 실패는 전부 {@link HolidayDataUnavailableException}으로 수렴한다.
+     */
+    public List<HolidayApiItem> fetchHolidays(YearMonth yearMonth) {
         try {
-            List<HolidayResponse.Item> items = fetchHolidaysFromApi(yearMonth);
-            Set<LocalDate> holidays = convertToLocalDate(items);
-            log.info("공휴일 API 호출 성공: {}-{}, 공휴일 {}일", yearMonth.getYear(), yearMonth.getMonthValue(), holidays.size());
-            return holidays;
+            List<HolidayResponse.Item> rawItems = fetchHolidaysFromApi(yearMonth);
+            List<HolidayApiItem> items = convertToApiItems(rawItems, yearMonth);
+            log.info("공휴일 API 호출 성공: {}-{}, 공휴일 {}일", yearMonth.getYear(), yearMonth.getMonthValue(), items.size());
+            return items;
         } catch (HolidayDataUnavailableException e) {
             // 응답 검증에서 잡아낸 구체적 사유는 일반 메시지로 덮지 않는다.
             log.warn("공휴일 응답이 유효하지 않습니다. 리포트 생성을 중단합니다. yearMonth={}, reason={}",
@@ -135,14 +142,39 @@ public class ApiConvertor {
     }
 
     /**
-     * getRestDeInfo(공휴일 정보조회)가 반환하는 항목은 정의상 모두 공휴일이므로 그대로 센다.
+     * getRestDeInfo(공휴일 정보조회)가 반환하는 항목은 정의상 모두 공휴일이므로 그대로 받아들인다.
      * 국경일 조회는 별도 엔드포인트(getHoliDeInfo)이고, 제헌절처럼 연도에 따라 공휴일 지정이
      * 바뀌는 날도 지정된 연도에만 이 응답에 나타난다. 즉 공휴일 여부 판단은 API의 책임이다.
+     * <p>
+     * 원장에 적재되는 데이터이므로 항목의 완전성(locdate 형식·요청 월 일치·dateName 존재)을
+     * 검증하고, 어긋나면 조용히 건너뛰는 대신 실패시킨다.
      */
-    private Set<LocalDate> convertToLocalDate(List<HolidayResponse.Item> items) {
+    private List<HolidayApiItem> convertToApiItems(List<HolidayResponse.Item> items, YearMonth yearMonth) {
         return items.stream()
-                .map(item -> LocalDate.parse(item.getLocdate(), DATE_FORMATTER))
-                .collect(toSet());
+                .map(item -> toApiItem(item, yearMonth))
+                .toList();
+    }
+
+    private HolidayApiItem toApiItem(HolidayResponse.Item item, YearMonth yearMonth) {
+        LocalDate date;
+        try {
+            date = LocalDate.parse(item.getLocdate(), DATE_FORMATTER);
+        } catch (DateTimeParseException | NullPointerException e) {
+            throw new HolidayDataUnavailableException(
+                    "공휴일 API 응답의 locdate를 해석할 수 없습니다. yearMonth=" + yearMonth
+                            + ", locdate=" + item.getLocdate());
+        }
+        if (!YearMonth.from(date).equals(yearMonth)) {
+            throw new HolidayDataUnavailableException(
+                    "공휴일 API 응답에 요청한 월 밖의 날짜가 있습니다. yearMonth=" + yearMonth
+                            + ", locdate=" + item.getLocdate());
+        }
+        if (item.getDateName() == null || item.getDateName().isBlank()) {
+            throw new HolidayDataUnavailableException(
+                    "공휴일 API 응답에 dateName이 없습니다. yearMonth=" + yearMonth
+                            + ", locdate=" + item.getLocdate());
+        }
+        return new HolidayApiItem(date, item.getDateName().trim());
     }
 
     public long calculateStandardWorkingMinutes(long numberOfStandardWorkingDays) {

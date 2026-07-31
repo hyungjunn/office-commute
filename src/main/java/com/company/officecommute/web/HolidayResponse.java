@@ -90,6 +90,9 @@ public class HolidayResponse {
         @JacksonXmlProperty(localName = "locdate")
         private String locdate;
 
+        @JacksonXmlProperty(localName = "dateName")
+        private String dateName;
+
         public String getIsHoliday() {
             return isHoliday;
         }
@@ -98,12 +101,20 @@ public class HolidayResponse {
             return locdate;
         }
 
+        public String getDateName() {
+            return dateName;
+        }
+
         public void setIsHoliday(String isHoliday) {
             this.isHoliday = isHoliday;
         }
 
-        public void setLocDate(String locdate) {
+        public void setLocdate(String locdate) {
             this.locdate = locdate;
+        }
+
+        public void setDateName(String dateName) {
+            this.dateName = dateName;
         }
     }
 

@@ -13,6 +13,7 @@ import com.company.officecommute.domain.commute.InvalidCommuteRangeException;
 import com.company.officecommute.domain.commute.PreviousCommuteNotEndedException;
 import com.company.officecommute.domain.employee.EmployeeAlreadyExistsException;
 import com.company.officecommute.domain.employee.EmployeeNotFoundException;
+import com.company.officecommute.domain.holiday.HolidayMonthNotLoadedException;
 import com.company.officecommute.domain.team.TeamAlreadyExistsException;
 import com.company.officecommute.domain.team.TeamNotFoundException;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -203,6 +204,13 @@ public class GlobalExceptionHandler {
     public ErrorResult handleHolidayDataUnavailable(HolidayDataUnavailableException e) {
         log.warn("Holiday data unavailable: {}", e.getMessage());
         return new ErrorResult("HOLIDAY_DATA_UNAVAILABLE", e.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    @ExceptionHandler(HolidayMonthNotLoadedException.class)
+    public ErrorResult handleHolidayMonthNotLoaded(HolidayMonthNotLoadedException e) {
+        log.warn("Holiday month not loaded: {}", e.getMessage());
+        return new ErrorResult("HOLIDAY_MONTH_NOT_LOADED", e.getMessage());
     }
 
     @ResponseStatus(HttpStatus.CONFLICT)
