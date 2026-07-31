@@ -5,6 +5,6 @@ public record OverTimeCalculateResponse(
         String employeeCode,
         String name,
         String teamName,
-        Long overTimeMinutes
+        long overTimeMinutes
 ) {
 }

@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -92,6 +93,18 @@ class OverTimeReportServiceTest {
                         tuple("백엔드팀", "임형준", "EMP003"),
                         tuple("프론트엔드팀", "김철수", "EMP004")
                 );
+    }
+
+    @Test
+    @DisplayName("식별 정보가 비어 있으면 빈 칸을 만드는 대신 실패한다")
+    void generateOverTimeReportData_rejectsMissingIdentity() {
+        YearMonth yearMonth = YearMonth.of(2024, 8);
+        BDDMockito.given(overTimeService.calculateOverTime(yearMonth))
+                .willReturn(List.of(new OverTimeCalculateResponse(1L, null, "임형준", "백엔드팀", 300L)));
+
+        assertThatThrownBy(() -> overTimeReportService.generateOverTimeReportData(yearMonth))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("employeeCode");
     }
 
     @Test
