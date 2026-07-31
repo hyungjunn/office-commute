@@ -1,6 +1,7 @@
 package com.company.officecommute.service.overtime;
 
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
+import com.company.officecommute.dto.overtime.response.OverTimeReport;
 import com.company.officecommute.dto.overtime.response.OverTimeReportData;
 import org.springframework.stereotype.Service;
 
@@ -9,6 +10,7 @@ import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.YearMonth;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -18,6 +20,13 @@ public class OverTimeReportService {
     // (가산 전 값. 연장근로 가산 1.5×는 OVERTIME_MULTIPLIER 로 별도 적용)
     private static final long HOURLY_ORDINARY_WAGE = 15000;
     private static final BigDecimal OVERTIME_MULTIPLIER = new BigDecimal("1.5"); // 근로기준법 연장근로 가산
+
+    // 조회 순서(DB 반환 순서)는 보장되지 않는다. 매달 같은 순서로 나와야 전월 리포트와 나란히 비교할 수 있다.
+    // 사번은 unique 라 동점자가 남지 않는 전순서(total order)가 된다.
+    private static final Comparator<OverTimeReportData> REPORT_ORDER =
+            Comparator.comparing(OverTimeReportData::teamName)
+                    .thenComparing(OverTimeReportData::employeeName)
+                    .thenComparing(OverTimeReportData::employeeCode);
 
     private final OverTimeService overTimeService;
     private final OverTimeExcelWriter overTimeExcelWriter;
@@ -31,20 +40,22 @@ public class OverTimeReportService {
     }
 
     public void generateExcelReport(YearMonth yearMonth, OutputStream outputStream) throws IOException {
-        List<OverTimeReportData> reportData = generateOverTimeReportData(yearMonth);
-        writeExcelReport(yearMonth, reportData, outputStream);
+        writeExcelReport(generateReport(yearMonth), outputStream);
     }
 
-    public void writeExcelReport(YearMonth yearMonth, List<OverTimeReportData> reportData, OutputStream outputStream) throws IOException {
-        overTimeExcelWriter.write(yearMonth, reportData, outputStream);
+    public void writeExcelReport(OverTimeReport report, OutputStream outputStream) throws IOException {
+        overTimeExcelWriter.write(report, outputStream);
     }
 
-    public List<OverTimeReportData> generateOverTimeReportData(YearMonth yearMonth) {
+    public OverTimeReport generateReport(YearMonth yearMonth) {
         List<OverTimeCalculateResponse> overTimeData = overTimeService.calculateOverTime(yearMonth);
 
-        return overTimeData.stream()
+        List<OverTimeReportData> rows = overTimeData.stream()
                 .map(this::convertToReportData)
+                .sorted(REPORT_ORDER)
                 .toList();
+
+        return new OverTimeReport(yearMonth, rows, overTimeService.countUnclosedCommutes(yearMonth));
     }
 
     private OverTimeReportData convertToReportData(OverTimeCalculateResponse response) {
@@ -55,6 +66,7 @@ public class OverTimeReportService {
                 .longValueExact();
 
         return new OverTimeReportData(
+                response.employeeCode(),
                 response.name(),
                 response.teamName(),
                 response.overTimeMinutes(),

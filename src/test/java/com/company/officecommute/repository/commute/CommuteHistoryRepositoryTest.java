@@ -159,6 +159,33 @@ class CommuteHistoryRepositoryTest {
     }
 
     @Test
+    @DisplayName("countByWorkDateBetweenAndWorkEndTimeIsNull — 퇴근 미마감 기록만 세고 연차·마감 기록은 제외한다")
+    void countByWorkDateBetweenAndWorkEndTimeIsNull_countsOnlyOpenCommutes() {
+        // given
+        ZoneId zone = ZoneId.of("Asia/Seoul");
+        commuteHistoryRepository.saveAll(List.of(
+                // 말일에 퇴근을 찍지 않은 기록 — workingMinutes=0 으로 집계되어 초과근무가 과소 계산된다
+                CommuteHistoryFixture.open(null, 1L, ZonedDateTime.of(2024, 8, 31, 9, 0, 0, 0, zone), zone),
+                CommuteHistoryFixture.open(null, 2L, ZonedDateTime.of(2024, 8, 30, 9, 0, 0, 0, zone), zone),
+                // 정상 마감
+                CommuteHistoryFixture.ended(null, 3L,
+                        ZonedDateTime.of(2024, 8, 5, 9, 0, 0, 0, zone),
+                        ZonedDateTime.of(2024, 8, 5, 18, 0, 0, 0, zone)),
+                // 연차는 workEndTime 이 채워지므로 미마감이 아니다
+                CommuteHistoryFixture.annualLeave(4L, LocalDate.of(2024, 8, 6), zone),
+                // 대상 월 밖의 미마감 기록
+                CommuteHistoryFixture.open(null, 5L, ZonedDateTime.of(2024, 9, 1, 9, 0, 0, 0, zone), zone)
+        ));
+
+        // when
+        long unclosed = commuteHistoryRepository.countByWorkDateBetweenAndWorkEndTimeIsNull(
+                LocalDate.of(2024, 8, 1), LocalDate.of(2024, 8, 31));
+
+        // then
+        assertThat(unclosed).isEqualTo(2);
+    }
+
+    @Test
     @DisplayName("existsByEmployeeIdAndWorkDate — 동일 일자 기록이 있으면 true")
     void existsByEmployeeIdAndWorkDate_returnsTrue_whenRecordExists() {
         // given

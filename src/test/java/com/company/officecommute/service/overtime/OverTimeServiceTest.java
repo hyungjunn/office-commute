@@ -49,7 +49,7 @@ class OverTimeServiceTest {
         Employee noHistoryEmployee = employee(2L, "김개발", backend, "EMP002", "dev@company.com");
         given(employeeRepository.findAllWithTeam()).willReturn(List.of(recordedEmployee, noHistoryEmployee));
         given(commuteHistoryRepository.findTotalWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
-                .willReturn(List.of(new TotalWorkingMinutes(1L, "임형준", "백엔드팀", 9_700L)));
+                .willReturn(List.of(new TotalWorkingMinutes(1L, "EMP001", "임형준", "백엔드팀", 9_700L)));
         givenStandardWorkingMinutes(9_600L);
 
         List<OverTimeCalculateResponse> responses = overTimeService.calculateOverTime(YEAR_MONTH);
@@ -57,13 +57,14 @@ class OverTimeServiceTest {
         assertThat(responses)
                 .extracting(
                         OverTimeCalculateResponse::id,
+                        OverTimeCalculateResponse::employeeCode,
                         OverTimeCalculateResponse::name,
                         OverTimeCalculateResponse::teamName,
                         OverTimeCalculateResponse::overTimeMinutes
                 )
                 .containsExactly(
-                        tuple(1L, "임형준", "백엔드팀", 100L),
-                        tuple(2L, "김개발", "백엔드팀", 0L)
+                        tuple(1L, "EMP001", "임형준", "백엔드팀", 100L),
+                        tuple(2L, "EMP002", "김개발", "백엔드팀", 0L)
                 );
     }
 
@@ -74,7 +75,7 @@ class OverTimeServiceTest {
         Employee employee = employee(1L, "임형준", backend, "EMP001", "hyungjun@company.com");
         given(employeeRepository.findAllWithTeam()).willReturn(List.of(employee));
         given(commuteHistoryRepository.findTotalWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
-                .willReturn(List.of(new TotalWorkingMinutes(1L, "임형준", "백엔드팀", 10_000L)));
+                .willReturn(List.of(new TotalWorkingMinutes(1L, "EMP001", "임형준", "백엔드팀", 10_000L)));
         givenStandardWorkingMinutes(9_600L);
 
         List<OverTimeCalculateResponse> responses = overTimeService.calculateOverTime(YEAR_MONTH);

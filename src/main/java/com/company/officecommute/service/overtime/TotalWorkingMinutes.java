@@ -2,12 +2,14 @@ package com.company.officecommute.service.overtime;
 
 public class TotalWorkingMinutes {
     private final Long employeeId;
+    private final String employeeCode;
     private final String employeeName;
     private final String teamName;
     private final Long totalWorkingMinutes;
 
-    public TotalWorkingMinutes(Long employeeId, String employeeName, String teamName, Long totalWorkingMinutes) {
+    public TotalWorkingMinutes(Long employeeId, String employeeCode, String employeeName, String teamName, Long totalWorkingMinutes) {
         this.employeeId = employeeId;
+        this.employeeCode = employeeCode;
         this.employeeName = employeeName;
         this.teamName = teamName;
         this.totalWorkingMinutes = totalWorkingMinutes;
@@ -22,6 +24,10 @@ public class TotalWorkingMinutes {
 
     public Long getEmployeeId() {
         return employeeId;
+    }
+
+    public String getEmployeeCode() {
+        return employeeCode;
     }
 
     public String getEmployeeName() {
