@@ -70,8 +70,8 @@ class OverTimeControllerTest {
         void calculateOverTime_authorized() {
             YearMonth yearMonth = YearMonth.of(2024, 8);
             List<OverTimeCalculateResponse> mockData = Arrays.asList(
-                    new OverTimeCalculateResponse(1L, "임형준", "팀A", 300L),
-                    new OverTimeCalculateResponse(2L, "김개발", "팀B", 120L)
+                    new OverTimeCalculateResponse(1L, "EMP001", "임형준", "팀A", 300L),
+                    new OverTimeCalculateResponse(2L, "EMP002", "김개발", "팀B", 120L)
             );
 
             given(overTimeService.calculateOverTime(yearMonth))
@@ -87,11 +87,13 @@ class OverTimeControllerTest {
                             [
                                 {
                                     "id": 1,
+                                    "employeeCode": "EMP001",
                                     "name": "임형준",
                                     "overTimeMinutes": 300
                                 },
                                 {
                                     "id": 2,
+                                    "employeeCode": "EMP002",
                                     "name": "김개발",
                                     "overTimeMinutes": 120
                                 }
@@ -159,7 +161,7 @@ class OverTimeControllerTest {
             YearMonth yearMonth = YearMonth.of(2024, 8);
 
             given(overTimeReportService.generateOverTimeReportData(yearMonth))
-                    .willReturn(List.of(new OverTimeReportData("임형준", "팀A", 300L, 75000L)));
+                    .willReturn(List.of(new OverTimeReportData("EMP001", "임형준", "팀A", 300L, 75000L)));
 
             assertThat(mockMvcTester
                     .get()
@@ -224,7 +226,7 @@ class OverTimeControllerTest {
             YearMonth yearMonth = YearMonth.of(2024, 8);
 
             given(overTimeReportService.generateOverTimeReportData(yearMonth))
-                    .willReturn(List.of(new OverTimeReportData("임형준", "팀A", 300L, 75000L)));
+                    .willReturn(List.of(new OverTimeReportData("EMP001", "임형준", "팀A", 300L, 75000L)));
             willThrow(new RuntimeException("엑셀 생성 실패")).given(overTimeReportService)
                     .writeExcelReport(eq(yearMonth), any(), any(OutputStream.class));
 

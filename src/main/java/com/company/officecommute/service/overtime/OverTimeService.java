@@ -49,6 +49,7 @@ public class OverTimeService {
                     if (totalWorkingMinute == null) {
                         return new OverTimeCalculateResponse(
                                 employee.getEmployeeId(),
+                                employee.getEmployeeCode(),
                                 employee.getName(),
                                 employee.getTeamName() != null ? employee.getTeamName() : UNASSIGNED_TEAM_NAME,
                                 0L
@@ -56,6 +57,7 @@ public class OverTimeService {
                     }
                     return new OverTimeCalculateResponse(
                             totalWorkingMinute.getEmployeeId(),
+                            totalWorkingMinute.getEmployeeCode(),
                             totalWorkingMinute.getEmployeeName(),
                             totalWorkingMinute.getTeamName(),
                             totalWorkingMinute.calculateOverTime(standardWorkingMinutes)

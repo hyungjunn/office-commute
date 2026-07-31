@@ -47,13 +47,13 @@ public interface CommuteHistoryRepository extends JpaRepository<CommuteHistory, 
      */
     @Query("""
             SELECT new com.company.officecommute.service.overtime.TotalWorkingMinutes(
-                        ch.employeeId, e.name, COALESCE(t.name, '미배정') , SUM(ch.workingMinutes)
+                        ch.employeeId, e.employeeCode, e.name, COALESCE(t.name, '미배정') , SUM(ch.workingMinutes)
                     )
             FROM CommuteHistory ch
             JOIN Employee e ON ch.employeeId = e.employeeId
             LEFT JOIN e.team t
             WHERE ch.workDate BETWEEN :startDate AND :endDate
-            GROUP BY ch.employeeId, e.name, t.name
+            GROUP BY ch.employeeId, e.employeeCode, e.name, t.name
             """)
     List<TotalWorkingMinutes> findTotalWorkingMinutesByWorkDateBetween(LocalDate startDate, LocalDate endDate);
 }
