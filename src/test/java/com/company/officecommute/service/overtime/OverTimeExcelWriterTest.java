@@ -21,13 +21,18 @@ class OverTimeExcelWriterTest {
     private final OverTimeExcelWriter overTimeExcelWriter = new OverTimeExcelWriter();
 
     @Test
-    @DisplayName("시트 이름이 '월 초과근무 보고서' 형식으로 생성된다")
+    @DisplayName("시트 이름에 연도가 포함되어 다른 해의 같은 달과 구분된다")
     void sheetName() throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         overTimeExcelWriter.write(YearMonth.of(2024, 8), List.of(), out);
 
-        try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(out.toByteArray()))) {
-            assertThat(workbook.getSheetName(0)).isEqualTo("8월 초과근무 보고서");
+        ByteArrayOutputStream nextYearOut = new ByteArrayOutputStream();
+        overTimeExcelWriter.write(YearMonth.of(2025, 8), List.of(), nextYearOut);
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(out.toByteArray()));
+             XSSFWorkbook nextYearWorkbook = new XSSFWorkbook(new ByteArrayInputStream(nextYearOut.toByteArray()))) {
+            assertThat(workbook.getSheetName(0)).isEqualTo("2024년 8월 초과근무 보고서");
+            assertThat(nextYearWorkbook.getSheetName(0)).isEqualTo("2025년 8월 초과근무 보고서");
         }
     }
 

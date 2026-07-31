@@ -35,7 +35,7 @@ public class OverTimeExcelWriter {
     // SXSSF와 달리 수식 계산이 가능해, 합계 수식에 계산된 값까지 함께 저장할 수 있다.
     public void write(YearMonth yearMonth, List<OverTimeReportData> reportData, OutputStream outputStream) throws IOException {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
-            Sheet sheet = workbook.createSheet(yearMonth.getMonthValue() + "월 초과근무 보고서");
+            Sheet sheet = workbook.createSheet(sheetName(yearMonth));
             setColumnWidths(sheet);
             createHeader(sheet);
 
@@ -48,6 +48,11 @@ public class OverTimeExcelWriter {
             XSSFFormulaEvaluator.evaluateAllFormulaCells(workbook);
             workbook.write(outputStream);
         }
+    }
+
+    // 월만 넣으면 2024-08과 2025-08 시트가 구분되지 않는다. 여러 달치를 모아 보관하는 쪽에서 헷갈린다.
+    private String sheetName(YearMonth yearMonth) {
+        return String.format("%d년 %d월 초과근무 보고서", yearMonth.getYear(), yearMonth.getMonthValue());
     }
 
     private void setColumnWidths(Sheet sheet) {
