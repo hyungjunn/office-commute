@@ -2,6 +2,7 @@ package com.company.officecommute.controller.overtime;
 
 import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
+import com.company.officecommute.dto.overtime.response.OverTimeReport;
 import com.company.officecommute.dto.overtime.response.OverTimeReportData;
 import com.company.officecommute.global.exception.HolidayDataUnavailableException;
 import com.company.officecommute.service.overtime.OverTimeReportService;
@@ -70,8 +71,8 @@ class OverTimeControllerTest {
         void calculateOverTime_authorized() {
             YearMonth yearMonth = YearMonth.of(2024, 8);
             List<OverTimeCalculateResponse> mockData = Arrays.asList(
-                    new OverTimeCalculateResponse(1L, "임형준", "팀A", 300L),
-                    new OverTimeCalculateResponse(2L, "김개발", "팀B", 120L)
+                    new OverTimeCalculateResponse(1L, "EMP001", "임형준", "팀A", 300L),
+                    new OverTimeCalculateResponse(2L, "EMP002", "김개발", "팀B", 120L)
             );
 
             given(overTimeService.calculateOverTime(yearMonth))
@@ -87,11 +88,13 @@ class OverTimeControllerTest {
                             [
                                 {
                                     "id": 1,
+                                    "employeeCode": "EMP001",
                                     "name": "임형준",
                                     "overTimeMinutes": 300
                                 },
                                 {
                                     "id": 2,
+                                    "employeeCode": "EMP002",
                                     "name": "김개발",
                                     "overTimeMinutes": 120
                                 }
@@ -158,8 +161,8 @@ class OverTimeControllerTest {
         void downloadOverTimeReport_authorized() throws Exception {
             YearMonth yearMonth = YearMonth.of(2024, 8);
 
-            given(overTimeReportService.generateOverTimeReportData(yearMonth))
-                    .willReturn(List.of(new OverTimeReportData("임형준", "팀A", 300L, 75000L)));
+            given(overTimeReportService.generateReport(yearMonth))
+                    .willReturn(new OverTimeReport(yearMonth, List.of(new OverTimeReportData("EMP001", "임형준", "팀A", 300L, 75000L)), 0));
 
             assertThat(mockMvcTester
                     .get()
@@ -206,7 +209,7 @@ class OverTimeControllerTest {
         @DisplayName("공휴일 정보를 확인할 수 없으면 엑셀 다운로드를 중단한다")
         void downloadOverTimeReport_holidayDataUnavailable() {
             YearMonth yearMonth = YearMonth.of(2024, 8);
-            given(overTimeReportService.generateOverTimeReportData(yearMonth))
+            given(overTimeReportService.generateReport(yearMonth))
                     .willThrow(new HolidayDataUnavailableException("공휴일 정보를 확인할 수 없어 초과근무 리포트를 생성할 수 없습니다. 잠시 후 다시 시도해 주세요."));
 
             assertThat(mockMvcTester
@@ -223,10 +226,10 @@ class OverTimeControllerTest {
         void downloadOverTimeReport_ioException() throws Exception {
             YearMonth yearMonth = YearMonth.of(2024, 8);
 
-            given(overTimeReportService.generateOverTimeReportData(yearMonth))
-                    .willReturn(List.of(new OverTimeReportData("임형준", "팀A", 300L, 75000L)));
+            given(overTimeReportService.generateReport(yearMonth))
+                    .willReturn(new OverTimeReport(yearMonth, List.of(new OverTimeReportData("EMP001", "임형준", "팀A", 300L, 75000L)), 0));
             willThrow(new RuntimeException("엑셀 생성 실패")).given(overTimeReportService)
-                    .writeExcelReport(eq(yearMonth), any(), any(OutputStream.class));
+                    .writeExcelReport(any(OverTimeReport.class), any(OutputStream.class));
 
             assertThat(mockMvcTester
                     .get()

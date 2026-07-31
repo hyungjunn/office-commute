@@ -613,9 +613,10 @@ components:
     # ---- OverTime ----
     OverTimeCalculateResponse:
       type: object
-      required: [id, name, teamName, overTimeMinutes]
+      required: [id, employeeCode, name, teamName, overTimeMinutes]
       properties:
         id: { type: integer, format: int64 }
+        employeeCode: { type: string }
         name: { type: string }
         teamName: { type: string, nullable: true }
         overTimeMinutes: { type: integer, format: int64 }

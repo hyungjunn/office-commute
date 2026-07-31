@@ -386,6 +386,19 @@ export interface paths {
                         "application/json": components["schemas"]["WorkDurationPerDateResponse"];
                     };
                 };
+                /**
+                 * @description 요청 파라미터 오류.
+                 *     - MISSING_PARAMETER: yearMonth 누락
+                 *     - INVALID_PARAMETER: yearMonth 형식 오류 (yyyy-MM 아님)
+                 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
                 401: components["responses"]["Unauthorized"];
             };
         };
@@ -584,6 +597,7 @@ export interface paths {
                  * @description 상태/중복 충돌.
                  *     - ANNUAL_LEAVE_DUPLICATE: 동일 일자 중복 신청
                  *     - EMPLOYEE_WITHOUT_TEAM: 팀 미배정 직원의 신청
+                 *     - DUPLICATE_WORK: 신청 일자에 이미 출근 기록 존재
                  */
                 409: {
                     headers: {
@@ -806,6 +820,7 @@ export interface components {
             teamId?: number | null;
             /**
              * @description 직원의 기본 시간대 (IANA ZoneId). 옵셔널 — null이거나 빈 문자열이면 서버 기본값 `Asia/Seoul` 적용.
+             *     유효하지 않은 ZoneId면 400 `VALIDATION_ERROR`.
              *     출퇴근 등록 시 이 값을 기준으로 `workDate`가 계산되며, 각 출근 레코드에 snapshot으로 저장된다.
              * @example Asia/Seoul
              */
@@ -879,6 +894,7 @@ export interface components {
         OverTimeCalculateResponse: {
             /** Format: int64 */
             id: number;
+            employeeCode: string;
             name: string;
             teamName: string | null;
             /** Format: int64 */
