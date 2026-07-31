@@ -1,6 +1,7 @@
 package com.company.officecommute.service.overtime;
 
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
+import com.company.officecommute.dto.overtime.response.OverTimeReport;
 import com.company.officecommute.dto.overtime.response.OverTimeReportData;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,7 @@ class OverTimeReportServiceTest {
     @Mock private OverTimeService overTimeService;
     @Mock private OverTimeExcelWriter overTimeExcelWriter;
 
-    @Captor private ArgumentCaptor<List<OverTimeReportData>> reportDataCaptor;
+    @Captor private ArgumentCaptor<OverTimeReport> reportCaptor;
 
     @Test
     @DisplayName("초과근무 보고서 데이터를 정상적으로 생성한다")
@@ -49,8 +50,8 @@ class OverTimeReportServiceTest {
 
         overTimeReportService.generateExcelReport(yearMonth, OutputStream.nullOutputStream());
 
-        then(overTimeExcelWriter).should().write(eq(yearMonth), reportDataCaptor.capture(), any(OutputStream.class));
-        List<OverTimeReportData> result = reportDataCaptor.getValue();
+        then(overTimeExcelWriter).should().write(reportCaptor.capture(), any(OutputStream.class));
+        List<OverTimeReportData> result = reportCaptor.getValue().rows();
 
         assertThat(result).hasSize(2);
 
@@ -83,7 +84,7 @@ class OverTimeReportServiceTest {
         BDDMockito.given(overTimeService.calculateOverTime(yearMonth))
                 .willReturn(mockOverTimeData);
 
-        List<OverTimeReportData> result = overTimeReportService.generateOverTimeReportData(yearMonth);
+        List<OverTimeReportData> result = overTimeReportService.generateReport(yearMonth).rows();
 
         assertThat(result)
                 .extracting(OverTimeReportData::teamName, OverTimeReportData::employeeName, OverTimeReportData::employeeCode)
@@ -96,13 +97,27 @@ class OverTimeReportServiceTest {
     }
 
     @Test
+    @DisplayName("퇴근 미마감 건수를 리포트에 함께 실어 과소 집계 가능성을 드러낸다")
+    void generateReport_carriesUnclosedCommuteCount() {
+        YearMonth yearMonth = YearMonth.of(2024, 8);
+        BDDMockito.given(overTimeService.calculateOverTime(yearMonth))
+                .willReturn(List.of(new OverTimeCalculateResponse(1L, "EMP001", "임형준", "백엔드팀", 300L)));
+        BDDMockito.given(overTimeService.countUnclosedCommutes(yearMonth)).willReturn(3L);
+
+        OverTimeReport report = overTimeReportService.generateReport(yearMonth);
+
+        assertThat(report.unclosedCommuteCount()).isEqualTo(3L);
+        assertThat(report.hasUnclosedCommutes()).isTrue();
+    }
+
+    @Test
     @DisplayName("식별 정보가 비어 있으면 빈 칸을 만드는 대신 실패한다")
     void generateOverTimeReportData_rejectsMissingIdentity() {
         YearMonth yearMonth = YearMonth.of(2024, 8);
         BDDMockito.given(overTimeService.calculateOverTime(yearMonth))
                 .willReturn(List.of(new OverTimeCalculateResponse(1L, null, "임형준", "백엔드팀", 300L)));
 
-        assertThatThrownBy(() -> overTimeReportService.generateOverTimeReportData(yearMonth))
+        assertThatThrownBy(() -> overTimeReportService.generateReport(yearMonth))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("employeeCode");
     }
@@ -120,8 +135,8 @@ class OverTimeReportServiceTest {
 
         overTimeReportService.generateExcelReport(yearMonth, OutputStream.nullOutputStream());
 
-        then(overTimeExcelWriter).should().write(eq(yearMonth), reportDataCaptor.capture(), any(OutputStream.class));
-        OverTimeReportData reportData = reportDataCaptor.getValue().getFirst();
+        then(overTimeExcelWriter).should().write(reportCaptor.capture(), any(OutputStream.class));
+        OverTimeReportData reportData = reportCaptor.getValue().rows().getFirst();
         assertThat(reportData.overTimeMinutes()).isEqualTo(0L);
         assertThat(reportData.overTimePay()).isEqualTo(0L);
     }
@@ -139,8 +154,8 @@ class OverTimeReportServiceTest {
 
         overTimeReportService.generateExcelReport(yearMonth, OutputStream.nullOutputStream());
 
-        then(overTimeExcelWriter).should().write(eq(yearMonth), reportDataCaptor.capture(), any(OutputStream.class));
-        OverTimeReportData reportData = reportDataCaptor.getValue().getFirst();
+        then(overTimeExcelWriter).should().write(reportCaptor.capture(), any(OutputStream.class));
+        OverTimeReportData reportData = reportCaptor.getValue().rows().getFirst();
         assertThat(reportData.overTimeMinutes()).isEqualTo(90L);
         assertThat(reportData.overTimePay()).isEqualTo(33750L); // 90분 × 15000원 × 1.5 / 60
     }
@@ -158,8 +173,8 @@ class OverTimeReportServiceTest {
 
         overTimeReportService.generateExcelReport(yearMonth, OutputStream.nullOutputStream());
 
-        then(overTimeExcelWriter).should().write(eq(yearMonth), reportDataCaptor.capture(), any(OutputStream.class));
-        OverTimeReportData reportData = reportDataCaptor.getValue().getFirst();
+        then(overTimeExcelWriter).should().write(reportCaptor.capture(), any(OutputStream.class));
+        OverTimeReportData reportData = reportCaptor.getValue().rows().getFirst();
         assertThat(reportData.overTimeMinutes()).isEqualTo(59L);
         assertThat(reportData.overTimePay()).isEqualTo(22125L); // 59분 × 15000원 × 1.5 / 60
     }

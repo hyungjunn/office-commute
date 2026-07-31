@@ -1,5 +1,6 @@
 package com.company.officecommute.service.overtime;
 
+import com.company.officecommute.dto.overtime.response.OverTimeReport;
 import com.company.officecommute.dto.overtime.response.OverTimeReportData;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
@@ -24,10 +25,10 @@ class OverTimeExcelWriterTest {
     @DisplayName("시트 이름에 연도가 포함되어 다른 해의 같은 달과 구분된다")
     void sheetName() throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        overTimeExcelWriter.write(YearMonth.of(2024, 8), List.of(), out);
+        overTimeExcelWriter.write(report(YearMonth.of(2024, 8), List.of()), out);
 
         ByteArrayOutputStream nextYearOut = new ByteArrayOutputStream();
-        overTimeExcelWriter.write(YearMonth.of(2025, 8), List.of(), nextYearOut);
+        overTimeExcelWriter.write(report(YearMonth.of(2025, 8), List.of()), nextYearOut);
 
         try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(out.toByteArray()));
              XSSFWorkbook nextYearWorkbook = new XSSFWorkbook(new ByteArrayInputStream(nextYearOut.toByteArray()))) {
@@ -40,10 +41,10 @@ class OverTimeExcelWriterTest {
     @DisplayName("헤더 행에 올바른 컬럼명이 존재한다")
     void headerRow() throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        overTimeExcelWriter.write(YearMonth.of(2024, 8), List.of(), out);
+        overTimeExcelWriter.write(report(YearMonth.of(2024, 8), List.of()), out);
 
         try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(out.toByteArray()))) {
-            Row header = workbook.getSheetAt(0).getRow(0);
+            Row header = workbook.getSheetAt(0).getRow(1);
             assertThat(header.getCell(0).getStringCellValue()).isEqualTo("사번");
             assertThat(header.getCell(1).getStringCellValue()).isEqualTo("직원명");
             assertThat(header.getCell(2).getStringCellValue()).isEqualTo("부서명");
@@ -61,19 +62,19 @@ class OverTimeExcelWriterTest {
         );
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        overTimeExcelWriter.write(YearMonth.of(2024, 8), data, out);
+        overTimeExcelWriter.write(report(YearMonth.of(2024, 8), data), out);
 
         try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(out.toByteArray()))) {
             Sheet sheet = workbook.getSheetAt(0);
 
-            Row row1 = sheet.getRow(1);
+            Row row1 = sheet.getRow(2);
             assertThat(row1.getCell(0).getStringCellValue()).isEqualTo("EMP001");
             assertThat(row1.getCell(1).getStringCellValue()).isEqualTo("임형준");
             assertThat(row1.getCell(2).getStringCellValue()).isEqualTo("백엔드팀");
             assertThat(row1.getCell(3).getNumericCellValue()).isCloseTo(300d / (24 * 60), withinPercentage(0.01));
             assertThat(row1.getCell(4).getNumericCellValue()).isEqualTo(75000d);
 
-            Row row2 = sheet.getRow(2);
+            Row row2 = sheet.getRow(3);
             assertThat(row2.getCell(0).getStringCellValue()).isEqualTo("EMP002");
             assertThat(row2.getCell(1).getStringCellValue()).isEqualTo("김개발");
             assertThat(row2.getCell(2).getStringCellValue()).isEqualTo("프론트엔드팀");
@@ -89,17 +90,17 @@ class OverTimeExcelWriterTest {
         );
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        overTimeExcelWriter.write(YearMonth.of(2024, 8), data, out);
+        overTimeExcelWriter.write(report(YearMonth.of(2024, 8), data), out);
 
         try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(out.toByteArray()))) {
             Sheet sheet = workbook.getSheetAt(0);
-            Row totalRow = sheet.getRow(2); // header(0) + 1 data row(1) + total(2)
+            Row totalRow = sheet.getRow(3); // 알림(0) + 헤더(1) + 데이터 1행(2) + 합계(3)
 
             assertThat(totalRow.getCell(0).getStringCellValue()).isEqualTo("합계");
             assertThat(totalRow.getCell(3).getCellType()).isEqualTo(CellType.FORMULA);
-            assertThat(totalRow.getCell(3).getCellFormula()).isEqualTo("SUM(D2:D2)");
+            assertThat(totalRow.getCell(3).getCellFormula()).isEqualTo("SUM(D3:D3)");
             assertThat(totalRow.getCell(4).getCellType()).isEqualTo(CellType.FORMULA);
-            assertThat(totalRow.getCell(4).getCellFormula()).isEqualTo("SUM(E2:E2)");
+            assertThat(totalRow.getCell(4).getCellFormula()).isEqualTo("SUM(E3:E3)");
         }
     }
 
@@ -112,10 +113,10 @@ class OverTimeExcelWriterTest {
         );
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        overTimeExcelWriter.write(YearMonth.of(2024, 8), data, out);
+        overTimeExcelWriter.write(report(YearMonth.of(2024, 8), data), out);
 
         try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(out.toByteArray()))) {
-            Row totalRow = workbook.getSheetAt(0).getRow(3); // header(0) + 2 data rows(1,2) + total(3)
+            Row totalRow = workbook.getSheetAt(0).getRow(4); // 알림(0) + 헤더(1) + 데이터 2행(2,3) + 합계(4)
 
             // 재계산하지 않는 뷰어도 값을 볼 수 있어야 한다 (getNumericCellValue 는 캐시된 계산값을 읽는다)
             assertThat(totalRow.getCell(3).getNumericCellValue()).isCloseTo(420d / (24 * 60), withinPercentage(0.01));
@@ -127,21 +128,58 @@ class OverTimeExcelWriterTest {
     @DisplayName("데이터가 없는 경우 헤더와 합계 행만 존재하고, 합계는 수식 대신 0이 된다")
     void emptyData() throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        overTimeExcelWriter.write(YearMonth.of(2024, 8), List.of(), out);
+        overTimeExcelWriter.write(report(YearMonth.of(2024, 8), List.of()), out);
 
         try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(out.toByteArray()))) {
             Sheet sheet = workbook.getSheetAt(0);
 
-            assertThat(sheet.getRow(0).getCell(0).getStringCellValue()).isEqualTo("사번");
-            Row totalRow = sheet.getRow(1); // header(0) + total(1)
+            assertThat(sheet.getRow(1).getCell(0).getStringCellValue()).isEqualTo("사번");
+            Row totalRow = sheet.getRow(2); // 알림(0) + 헤더(1) + 합계(2)
             assertThat(totalRow.getCell(0).getStringCellValue()).isEqualTo("합계");
 
-            // SUM(D2:D1) 같은 역전 범위를 만들지 않는다
+            // SUM(D3:D2) 같은 역전 범위를 만들지 않는다
             assertThat(totalRow.getCell(3).getCellType()).isEqualTo(CellType.NUMERIC);
             assertThat(totalRow.getCell(3).getNumericCellValue()).isZero();
             assertThat(totalRow.getCell(4).getCellType()).isEqualTo(CellType.NUMERIC);
             assertThat(totalRow.getCell(4).getNumericCellValue()).isZero();
         }
+    }
+
+    @Test
+    @DisplayName("퇴근 미마감 기록이 있으면 건수와 과소 집계 경고를 첫 행에 남긴다")
+    void noticeRowWarnsAboutUnclosedCommutes() throws IOException {
+        List<OverTimeReportData> data = List.of(
+                new OverTimeReportData("EMP001", "임형준", "백엔드팀", 300L, 75000L)
+        );
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        overTimeExcelWriter.write(new OverTimeReport(YearMonth.of(2024, 8), data, 3), out);
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(out.toByteArray()))) {
+            String notice = workbook.getSheetAt(0).getRow(0).getCell(0).getStringCellValue();
+
+            assertThat(notice).contains("3건");
+            // 수치를 그대로 믿으면 안 된다는 신호가 파일 안에 있어야 한다
+            assertThat(notice).contains("실제보다 적을 수 있습니다");
+        }
+    }
+
+    @Test
+    @DisplayName("퇴근 미마감이 없어도 알림 행은 유지되어 확인 사실이 드러난다")
+    void noticeRowKeptWhenNothingUnclosed() throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        overTimeExcelWriter.write(report(YearMonth.of(2024, 8), List.of()), out);
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(out.toByteArray()))) {
+            String notice = workbook.getSheetAt(0).getRow(0).getCell(0).getStringCellValue();
+
+            assertThat(notice).contains("0건");
+            assertThat(notice).doesNotContain("[주의]");
+        }
+    }
+
+    private static OverTimeReport report(YearMonth yearMonth, List<OverTimeReportData> rows) {
+        return new OverTimeReport(yearMonth, rows, 0);
     }
 
     private static org.assertj.core.data.Percentage withinPercentage(double percentage) {

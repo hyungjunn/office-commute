@@ -1,6 +1,7 @@
 package com.company.officecommute.service.overtime;
 
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
+import com.company.officecommute.dto.overtime.response.OverTimeReport;
 import com.company.officecommute.dto.overtime.response.OverTimeReportData;
 import org.springframework.stereotype.Service;
 
@@ -39,21 +40,22 @@ public class OverTimeReportService {
     }
 
     public void generateExcelReport(YearMonth yearMonth, OutputStream outputStream) throws IOException {
-        List<OverTimeReportData> reportData = generateOverTimeReportData(yearMonth);
-        writeExcelReport(yearMonth, reportData, outputStream);
+        writeExcelReport(generateReport(yearMonth), outputStream);
     }
 
-    public void writeExcelReport(YearMonth yearMonth, List<OverTimeReportData> reportData, OutputStream outputStream) throws IOException {
-        overTimeExcelWriter.write(yearMonth, reportData, outputStream);
+    public void writeExcelReport(OverTimeReport report, OutputStream outputStream) throws IOException {
+        overTimeExcelWriter.write(report, outputStream);
     }
 
-    public List<OverTimeReportData> generateOverTimeReportData(YearMonth yearMonth) {
+    public OverTimeReport generateReport(YearMonth yearMonth) {
         List<OverTimeCalculateResponse> overTimeData = overTimeService.calculateOverTime(yearMonth);
 
-        return overTimeData.stream()
+        List<OverTimeReportData> rows = overTimeData.stream()
                 .map(this::convertToReportData)
                 .sorted(REPORT_ORDER)
                 .toList();
+
+        return new OverTimeReport(yearMonth, rows, overTimeService.countUnclosedCommutes(yearMonth));
     }
 
     private OverTimeReportData convertToReportData(OverTimeCalculateResponse response) {

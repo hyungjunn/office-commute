@@ -1,5 +1,6 @@
 package com.company.officecommute.service.overtime;
 
+import com.company.officecommute.dto.overtime.response.OverTimeReport;
 import com.company.officecommute.dto.overtime.response.OverTimeReportData;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -31,18 +32,25 @@ public class OverTimeExcelWriter {
 
     private static final String[] HEADERS = {"사번", "직원명", "부서명", "초과근무시간", "초과근무수당"};
 
+    // 신뢰성 알림은 헤더 위에 고정한다. 건수가 0이어도 행을 유지해야 달마다 레이아웃이 같고,
+    // "확인했고 문제없음"과 "확인 자체를 안 함"이 구분된다.
+    private static final int NOTICE_ROW = 0;
+    private static final int HEADER_ROW = 1;
+    private static final int FIRST_DATA_ROW = 2;
+
     // 행 수가 직원 수로 묶여 있어(수천 행) 전체를 메모리에 들고 가는 XSSF로 충분하다.
     // SXSSF와 달리 수식 계산이 가능해, 합계 수식에 계산된 값까지 함께 저장할 수 있다.
-    public void write(YearMonth yearMonth, List<OverTimeReportData> reportData, OutputStream outputStream) throws IOException {
+    public void write(OverTimeReport report, OutputStream outputStream) throws IOException {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
-            Sheet sheet = workbook.createSheet(sheetName(yearMonth));
+            Sheet sheet = workbook.createSheet(sheetName(report.yearMonth()));
             setColumnWidths(sheet);
+            createNoticeRow(sheet, report);
             createHeader(sheet);
 
             CellStyle timeCellStyle = createTimeCellStyle(workbook);
             CellStyle currencyCellStyle = createCurrencyCellStyle(workbook);
-            createDataRows(sheet, reportData, timeCellStyle, currencyCellStyle);
-            createTotalRow(sheet, reportData.size(), timeCellStyle, currencyCellStyle);
+            createDataRows(sheet, report.rows(), timeCellStyle, currencyCellStyle);
+            createTotalRow(sheet, report.rows().size(), timeCellStyle, currencyCellStyle);
 
             // 수식만 저장하면 계산된 값이 없어, 열 때 재계산하지 않는 뷰어(메일 미리보기 등)에서 합계가 비어 보인다.
             XSSFFormulaEvaluator.evaluateAllFormulaCells(workbook);
@@ -63,8 +71,39 @@ public class OverTimeExcelWriter {
         sheet.setColumnWidth(COL_PAY, 6000);
     }
 
+    /**
+     * 퇴근 미마감 기록은 {@code workingMinutes = 0}으로 합계에 들어가므로, 그 직원의 초과근무는
+     * 실제보다 적게 나온다. 수치만 보면 "야근 안 함"과 구분되지 않으니 파일 안에 근거를 남긴다.
+     */
+    private void createNoticeRow(Sheet sheet, OverTimeReport report) {
+        Cell notice = sheet.createRow(NOTICE_ROW).createCell(COL_EMPLOYEE_CODE);
+        notice.setCellValue(noticeText(report));
+        notice.setCellStyle(createNoticeStyle(sheet.getWorkbook(), report.hasUnclosedCommutes()));
+    }
+
+    private String noticeText(OverTimeReport report) {
+        if (!report.hasUnclosedCommutes()) {
+            return "퇴근 미마감 0건 — 대상 월의 출근 기록이 모두 마감되었습니다.";
+        }
+        return String.format(
+                "[주의] 퇴근 미마감 %d건 — 해당 기록은 0분으로 집계되어, 아래 초과근무가 실제보다 적을 수 있습니다.",
+                report.unclosedCommuteCount()
+        );
+    }
+
+    private CellStyle createNoticeStyle(Workbook workbook, boolean hasUnclosedCommutes) {
+        Font font = workbook.createFont();
+        font.setBold(true);
+        if (hasUnclosedCommutes) {
+            font.setColor(IndexedColors.DARK_RED.getIndex());
+        }
+        CellStyle style = workbook.createCellStyle();
+        style.setFont(font);
+        return style;
+    }
+
     private void createHeader(Sheet sheet) {
-        Row headerRow = sheet.createRow(0);
+        Row headerRow = sheet.createRow(HEADER_ROW);
 
         CellStyle headerStyle = sheet.getWorkbook().createCellStyle();
         Font headerFont = sheet.getWorkbook().createFont();
@@ -82,7 +121,7 @@ public class OverTimeExcelWriter {
 
     private void createDataRows(Sheet sheet, List<OverTimeReportData> reportData, CellStyle timeCellStyle, CellStyle currencyCellStyle) {
 
-        int rowNum = 1;
+        int rowNum = FIRST_DATA_ROW;
         for (OverTimeReportData data : reportData) {
             Row row = sheet.createRow(rowNum++);
 
@@ -106,8 +145,7 @@ public class OverTimeExcelWriter {
     }
 
     private void createTotalRow(Sheet sheet, int dataRowCount, CellStyle timeCellStyle, CellStyle currencyCellStyle) {
-        int totalRowIdx = dataRowCount + 1;
-        Row totalRow = sheet.createRow(totalRowIdx);
+        Row totalRow = sheet.createRow(FIRST_DATA_ROW + dataRowCount);
 
         Cell totalLabel = totalRow.createCell(COL_EMPLOYEE_CODE);
         totalLabel.setCellValue("합계");
@@ -118,22 +156,23 @@ public class OverTimeExcelWriter {
         Cell totalPay = totalRow.createCell(COL_PAY);
         totalPay.setCellStyle(currencyCellStyle);
 
-        // 데이터 행이 없으면 SUM(D2:D1) 같은 역전 범위가 되어 헤더 행을 끌어들인다.
+        // 데이터 행이 없으면 SUM(D3:D2) 같은 역전 범위가 되어 헤더 행을 끌어들인다.
         if (dataRowCount == 0) {
             totalTime.setCellValue(0);
             totalPay.setCellValue(0);
             return;
         }
 
-        // 데이터 행은 2행부터 시작한다 (1행은 헤더)
-        int lastDataRow = dataRowCount + 1;
-        totalTime.setCellFormula(sumFormula(COL_OVERTIME, lastDataRow));
-        totalPay.setCellFormula(sumFormula(COL_PAY, lastDataRow));
+        // 엑셀 행 번호는 1부터 시작하므로 POI 인덱스 + 1
+        int firstExcelRow = FIRST_DATA_ROW + 1;
+        int lastExcelRow = FIRST_DATA_ROW + dataRowCount;
+        totalTime.setCellFormula(sumFormula(COL_OVERTIME, firstExcelRow, lastExcelRow));
+        totalPay.setCellFormula(sumFormula(COL_PAY, firstExcelRow, lastExcelRow));
     }
 
-    private String sumFormula(int columnIndex, int lastDataRow) {
+    private String sumFormula(int columnIndex, int firstExcelRow, int lastExcelRow) {
         String column = CellReference.convertNumToColString(columnIndex);
-        return String.format("SUM(%s2:%s%d)", column, column, lastDataRow);
+        return String.format("SUM(%s%d:%s%d)", column, firstExcelRow, column, lastExcelRow);
     }
 
     private CellStyle createTimeCellStyle(Workbook workbook) {

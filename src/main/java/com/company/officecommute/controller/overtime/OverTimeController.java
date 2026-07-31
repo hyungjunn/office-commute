@@ -2,7 +2,7 @@ package com.company.officecommute.controller.overtime;
 
 import com.company.officecommute.auth.ManagerOnly;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
-import com.company.officecommute.dto.overtime.response.OverTimeReportData;
+import com.company.officecommute.dto.overtime.response.OverTimeReport;
 import com.company.officecommute.service.overtime.OverTimeReportService;
 import com.company.officecommute.service.overtime.OverTimeService;
 import org.springframework.http.ContentDisposition;
@@ -42,9 +42,10 @@ public class OverTimeController {
     @ManagerOnly
     @GetMapping("/overtime/report/excel")
     public ResponseEntity<StreamingResponseBody> downloadOverTimeReport(@RequestParam YearMonth yearMonth) {
-        List<OverTimeReportData> reportData = overTimeReportService.generateOverTimeReportData(yearMonth);
+        // 스트리밍 시작 전에 집계를 끝낸다. 응답이 커밋된 뒤 실패하면 200 + 깨진 파일이 나간다.
+        OverTimeReport report = overTimeReportService.generateReport(yearMonth);
         StreamingResponseBody body = outputStream ->
-                overTimeReportService.writeExcelReport(yearMonth, reportData, outputStream);
+                overTimeReportService.writeExcelReport(report, outputStream);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));

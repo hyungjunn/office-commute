@@ -32,6 +32,15 @@ public class OverTimeService {
         this.apiConvertor = apiConvertor;
     }
 
+    /**
+     * 대상 월에 퇴근이 찍히지 않은 기록 수. 0이 아니면 {@link #calculateOverTime} 결과가 과소 집계다.
+     */
+    public long countUnclosedCommutes(YearMonth yearMonth) {
+        return commuteHistoryRepository.countByWorkDateBetweenAndWorkEndTimeIsNull(
+                yearMonth.atDay(1), yearMonth.atEndOfMonth()
+        );
+    }
+
     public List<OverTimeCalculateResponse> calculateOverTime(YearMonth yearMonth) {
         LocalDate startDate = yearMonth.atDay(1);
         LocalDate endDate = yearMonth.atEndOfMonth();
