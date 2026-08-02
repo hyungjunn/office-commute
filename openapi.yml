@@ -23,7 +23,9 @@ tags:
   - name: AnnualLeave
     description: 연차 신청 및 잔여 연차 조회
   - name: OverTime
-    description: 초과근무 조회/공휴일 동기화/Excel 리포트
+    description: 초과근무 조회 및 Excel 리포트
+  - name: Holiday
+    description: 공휴일 원장 동기화
 
 # ----------------------------------------------------------------------
 # 권한 모델 (참고)
@@ -365,6 +367,41 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResult' }
 
+  /holiday/sync:
+    post:
+      tags: [Holiday]
+      summary: 지정 연도 공휴일 동기화 (Manager Only)
+      description: |
+        공공데이터포털에서 해당 연도의 공휴일을 받아 원장에 반영한다.
+        연 단위 범위 교체이므로 멱등이고, 과거 연도를 채우는 backfill 통로이기도 하다.
+
+        매일 새벽 정기 동기화(올해~+2년)와 달리 실패를 삼키지 않는다.
+        응답 검증(resultCode/건수/항목)에 실패하거나 해당 연도가 0건이면
+        원장을 그대로 둔 채 503을 반환한다.
+
+        수동 등록 행 중 API가 같은 날짜를 공휴일로 준 것은 흡수되어 사라지고,
+        부정 오버라이드(근무일 지정)와 회사 지정 휴일은 그대로 남는다.
+      parameters:
+        - in: query
+          name: year
+          required: true
+          schema: { type: integer, minimum: 2000, maximum: 2100, example: 2026 }
+          description: 동기화할 연도
+      responses:
+        '200':
+          description: 동기화 완료
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HolidaySyncResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503':
+          description: 공휴일 데이터 미가용 (HOLIDAY_DATA_UNAVAILABLE)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResult' }
+
 components:
   securitySchemes:
     SessionAuth:
@@ -417,7 +454,7 @@ components:
             - TEAM_ALREADY_EXISTS, EMPLOYEE_ALREADY_EXISTS
             - TEAM_NOT_FOUND, EMPLOYEE_NOT_FOUND
             - DUPLICATE_WORK, DATA_INTEGRITY_ERROR
-            - HOLIDAY_DATA_UNAVAILABLE
+            - HOLIDAY_DATA_UNAVAILABLE, HOLIDAY_MONTH_NOT_LOADED
             - INTERNAL_SERVER_ERROR
         message: { type: string }
     FieldErrorResult:
@@ -611,6 +648,17 @@ components:
         sumWorkingMinutes: { type: integer, format: int64 }
 
     # ---- OverTime ----
+    # ---- Holiday ----
+    HolidaySyncResponse:
+      type: object
+      required: [year, holidayCount]
+      properties:
+        year: { type: integer, example: 2026 }
+        holidayCount:
+          type: integer
+          description: 원장에 적재된 공휴일 날짜 수
+          example: 22
+
     OverTimeCalculateResponse:
       type: object
       required: [id, employeeCode, name, teamName, overTimeMinutes]

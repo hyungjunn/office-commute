@@ -718,6 +718,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/holiday/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 지정 연도 공휴일 동기화 (Manager Only)
+         * @description 공공데이터포털에서 해당 연도의 공휴일을 받아 원장에 반영한다.
+         *     연 단위 범위 교체이므로 멱등이고, 과거 연도를 채우는 backfill 통로이기도 하다.
+         *
+         *     매일 새벽 정기 동기화(올해~+2년)와 달리 실패를 삼키지 않는다.
+         *     응답 검증(resultCode/건수/항목)에 실패하거나 해당 연도가 0건이면
+         *     원장을 그대로 둔 채 503을 반환한다.
+         *
+         *     수동 등록 행 중 API가 같은 날짜를 공휴일로 준 것은 흡수되어 사라지고,
+         *     부정 오버라이드(근무일 지정)와 회사 지정 휴일은 그대로 남는다.
+         */
+        post: {
+            parameters: {
+                query: {
+                    /** @description 동기화할 연도 */
+                    year: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 동기화 완료 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["HolidaySyncResponse"];
+                    };
+                };
+                400: components["responses"]["ValidationError"];
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                /** @description 공휴일 데이터 미가용 (HOLIDAY_DATA_UNAVAILABLE) */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -730,7 +792,7 @@ export interface components {
              *     - TEAM_ALREADY_EXISTS, EMPLOYEE_ALREADY_EXISTS
              *     - TEAM_NOT_FOUND, EMPLOYEE_NOT_FOUND
              *     - DUPLICATE_WORK, DATA_INTEGRITY_ERROR
-             *     - HOLIDAY_DATA_UNAVAILABLE
+             *     - HOLIDAY_DATA_UNAVAILABLE, HOLIDAY_MONTH_NOT_LOADED
              *     - INTERNAL_SERVER_ERROR
              */
             code: string;
@@ -890,6 +952,15 @@ export interface components {
             details: components["schemas"]["CommuteDetail"][];
             /** Format: int64 */
             sumWorkingMinutes: number;
+        };
+        HolidaySyncResponse: {
+            /** @example 2026 */
+            year: number;
+            /**
+             * @description 원장에 적재된 공휴일 날짜 수
+             * @example 22
+             */
+            holidayCount: number;
         };
         OverTimeCalculateResponse: {
             /** Format: int64 */

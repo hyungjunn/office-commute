@@ -18,6 +18,8 @@ import com.company.officecommute.domain.team.TeamAlreadyExistsException;
 import com.company.officecommute.domain.team.TeamNotFoundException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -63,6 +65,30 @@ public class GlobalExceptionHandler {
                 .map(error -> new FieldErrorResult(error.getField(), error.getDefaultMessage()))
                 .toList();
         return new ValidationErrorResult("VALIDATION_ERROR", "입력값이 올바르지 않습니다", errors);
+    }
+
+    /**
+     * {@code @Validated} 컨트롤러의 쿼리 파라미터 제약 위반. 요청 본문 검증
+     * ({@link MethodArgumentNotValidException})과 같은 봉투로 내려야 클라이언트가 한 가지 형태만 다룬다.
+     */
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ValidationErrorResult handleConstraintViolation(ConstraintViolationException e) {
+        log.warn("Request parameter validation failed", e);
+        List<FieldErrorResult> errors = e.getConstraintViolations().stream()
+                .map(violation -> new FieldErrorResult(lastNodeOf(violation), violation.getMessage()))
+                .toList();
+        return new ValidationErrorResult("VALIDATION_ERROR", "입력값이 올바르지 않습니다", errors);
+    }
+
+    /**
+     * propertyPath는 {@code syncHolidays.year}처럼 메서드명을 포함한다. 클라이언트에게 의미 있는 건
+     * 파라미터 이름뿐이므로 마지막 마디만 남긴다.
+     */
+    private String lastNodeOf(ConstraintViolation<?> violation) {
+        String propertyPath = violation.getPropertyPath().toString();
+        int lastSeparator = propertyPath.lastIndexOf('.');
+        return lastSeparator < 0 ? propertyPath : propertyPath.substring(lastSeparator + 1);
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
