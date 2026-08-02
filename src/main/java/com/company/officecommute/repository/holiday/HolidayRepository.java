@@ -22,8 +22,13 @@ public interface HolidayRepository extends JpaRepository<Holiday, HolidayId> {
      * INSERT를 DELETE보다 먼저 실행하므로, 같은 (날짜, 출처) 키를 지우고 다시 넣는 이 흐름에서
      * 영속성 컨텍스트에 맡기면 아직 살아 있는 행과 부딪혀 UNIQUE 제약을 위반한다.
      * {@code flushAutomatically}가 이 DELETE를 이후 INSERT보다 먼저 DB에 도달시킨다.
+     * <p>
+     * {@code clearAutomatically}는 그 반대편 함정을 막는다. 벌크 DELETE는 영속성 컨텍스트를
+     * 갱신하지 않으므로, 감사 로그를 만들려고 미리 읽어 둔 엔티티가 그대로 관리 상태로 남는다.
+     * 그 상태에서 같은 키를 저장하면 merge가 INSERT 대신 UPDATE를 내보내고, 이미 지워진 행을
+     * 고치려다 그 날짜가 조용히 사라진다.
      */
-    @Modifying(flushAutomatically = true)
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""
             delete from Holiday h
             where h.source = com.company.officecommute.domain.holiday.HolidaySource.API
@@ -42,7 +47,7 @@ public interface HolidayRepository extends JpaRepository<Holiday, HolidayId> {
      * <p>
      * 부정 오버라이드(is_holiday=false)는 정반대 의도이므로 건드리지 않는다.
      */
-    @Modifying(flushAutomatically = true)
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""
             delete from Holiday h
             where h.source = com.company.officecommute.domain.holiday.HolidaySource.MANUAL

@@ -2,11 +2,14 @@ package com.company.officecommute.service.holiday;
 
 import com.company.officecommute.domain.holiday.Holiday;
 import com.company.officecommute.domain.holiday.HolidayJudgment;
+import com.company.officecommute.domain.holiday.HolidayLedgerDiff;
 import com.company.officecommute.domain.holiday.HolidayMonthMarker;
 import com.company.officecommute.domain.holiday.HolidayMonthNotLoadedException;
 import com.company.officecommute.repository.holiday.HolidayMonthMarkerRepository;
 import com.company.officecommute.repository.holiday.HolidayRepository;
 import com.company.officecommute.web.HolidayApiItem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +30,8 @@ import java.util.stream.IntStream;
 public class HolidayLedgerService {
 
     private static final int MONTHS_PER_YEAR = 12;
+
+    private static final Logger log = LoggerFactory.getLogger(HolidayLedgerService.class);
 
     private final HolidayRepository holidayRepository;
     private final HolidayMonthMarkerRepository holidayMonthMarkerRepository;
@@ -63,8 +68,13 @@ public class HolidayLedgerService {
     @Transactional
     public void applyApiSync(Year year, List<HolidayApiItem> apiItems) {
         Map<LocalDate, String> apiNameByDate = nameByDate(year, apiItems);
+        LocalDate firstDay = year.atDay(1);
+        LocalDate lastDay = year.atMonth(MONTHS_PER_YEAR).atEndOfMonth();
 
-        holidayRepository.deleteApiRowsBetween(year.atDay(1), year.atMonth(MONTHS_PER_YEAR).atEndOfMonth());
+        logLedgerChanges(year, holidayRepository.findByHolidayDateBetweenOrderByHolidayDate(firstDay, lastDay),
+                apiNameByDate);
+
+        holidayRepository.deleteApiRowsBetween(firstDay, lastDay);
         if (!apiNameByDate.isEmpty()) {
             holidayRepository.deleteManualHolidaysOn(apiNameByDate.keySet());
         }
@@ -74,6 +84,32 @@ public class HolidayLedgerService {
                 .toList());
 
         holidayMonthMarkerRepository.saveAll(monthMarkersOf(year));
+    }
+
+    /**
+     * 적용 전에 무엇이 바뀌는지 남긴다.
+     * <p>
+     * 매일 도는 동기화는 이미 급여 계산에 쓰인 과거 월도 다시 쓴다. 그 자체는 필요한 동작이지만
+     * (임시공휴일은 연중에 늘어난다), 흔적 없이 바뀌면 "지난달 리포트가 왜 이 값이었는지"를
+     * 되짚을 수 없다. 지난 달에 걸린 변경은 리포트 재산정 판단이 필요하므로 WARN으로 올린다.
+     * <p>
+     * 마감 개념이 아직 없어 재동기화를 막지는 않는다. 마감된 월을 동기화 대상에서 제외하는 건
+     * 마감 상태를 표현할 수단이 생긴 뒤의 일이고, 그때까지는 로그가 유일한 감사 자료다.
+     */
+    private void logLedgerChanges(Year year, List<Holiday> existingRows, Map<LocalDate, String> apiNameByDate) {
+        HolidayLedgerDiff diff = HolidayLedgerDiff.between(existingRows, apiNameByDate);
+        if (diff.isEmpty()) {
+            log.debug("공휴일 원장 변경 없음: year={}", year);
+            return;
+        }
+
+        List<LocalDate> settledChanges = diff.changedDatesBefore(YearMonth.now(clock));
+        if (settledChanges.isEmpty()) {
+            log.info("공휴일 원장 변경: year={}, {}", year, diff);
+            return;
+        }
+        log.warn("공휴일 원장이 지난 달을 바꿉니다. 해당 월 리포트가 이미 나갔다면 재산정이 필요합니다. "
+                + "year={}, 지난 달 변경={}, 전체 변경={}", year, settledChanges, diff);
     }
 
     /**

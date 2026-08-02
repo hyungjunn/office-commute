@@ -87,6 +87,17 @@ class HolidayLedgerServiceTest {
     }
 
     @Test
+    @DisplayName("감사 로그용 조회는 삭제보다 먼저다 — 지운 뒤에 읽으면 무엇이 바뀌었는지 알 수 없다")
+    void readsExistingRowsBeforeDeleting() {
+        holidayLedgerService.applyApiSync(YEAR, List.of(new HolidayApiItem(CONSTITUTION_DAY, "제헌절")));
+
+        InOrder inOrder = inOrder(holidayRepository);
+        inOrder.verify(holidayRepository).findByHolidayDateBetweenOrderByHolidayDate(
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31));
+        inOrder.verify(holidayRepository).deleteApiRowsBetween(any(), any());
+    }
+
+    @Test
     @DisplayName("API가 공휴일로 준 날짜의 수동 등록 휴일은 흡수해 삭제한다 — API 행이 대신한다")
     void absorbsManualHolidayOnApiDate() {
         holidayLedgerService.applyApiSync(YEAR, List.of(
