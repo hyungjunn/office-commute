@@ -72,24 +72,28 @@ class HolidayLedgerServiceTest {
     }
 
     @Test
-    @DisplayName("MANUAL 행은 API가 같은 날짜를 줘도 저장·갱신하지 않는다 — save()의 merge가 덮어쓰지 않게 한다")
-    void manualRowIsNotOverwrittenBySameDateFromApi() {
-        Holiday manualRow = Holiday.manual(CONSTITUTION_DAY, "제헌절(수동 보정)");
+    @DisplayName("MANUAL 행은 API가 같은 날짜를 줘도 갱신하지 않고, API 행은 그 옆에 따로 적재된다")
+    void manualRowSurvivesAlongsideApiRowOnSameDate() {
+        Holiday manualRow = Holiday.manualWorkingDay(CONSTITUTION_DAY, "정상 근무(API 오적재 보정)");
         when(holidayRepository.findByHolidayDateBetweenOrderByHolidayDate(JULY.atDay(1), JULY.atEndOfMonth()))
                 .thenReturn(List.of(manualRow));
 
         holidayLedgerService.applyApiSync(JULY, List.of(new HolidayApiItem(CONSTITUTION_DAY, "제헌절")));
 
-        verify(holidayRepository, never()).save(any());
         verify(holidayRepository, never()).delete(any());
-        assertThat(manualRow.getName()).isEqualTo("제헌절(수동 보정)");
-        assertThat(manualRow.isManual()).isTrue();
+        assertThat(manualRow.getName()).isEqualTo("정상 근무(API 오적재 보정)");
+        assertThat(manualRow.isHoliday()).isFalse();
+
+        ArgumentCaptor<Holiday> savedHoliday = ArgumentCaptor.forClass(Holiday.class);
+        verify(holidayRepository).save(savedHoliday.capture());
+        assertThat(savedHoliday.getValue().getSource()).isEqualTo(HolidaySource.API);
+        assertThat(savedHoliday.getValue().getHolidayDate()).isEqualTo(CONSTITUTION_DAY);
     }
 
     @Test
     @DisplayName("MANUAL 행은 API 응답에 없어도 삭제하지 않는다")
     void manualRowSurvivesWhenAbsentFromApi() {
-        Holiday manualRow = Holiday.manual(LocalDate.of(2026, 6, 3), "제21대 대통령 선거(사후 지정)");
+        Holiday manualRow = Holiday.manualHoliday(LocalDate.of(2026, 6, 3), "제21대 대통령 선거(사후 지정)");
         YearMonth june = YearMonth.of(2026, 6);
         when(holidayRepository.findByHolidayDateBetweenOrderByHolidayDate(june.atDay(1), june.atEndOfMonth()))
                 .thenReturn(List.of(manualRow));
@@ -98,6 +102,20 @@ class HolidayLedgerServiceTest {
 
         verify(holidayRepository, never()).delete(any());
         verify(holidayRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("COMPANY 행도 동기화가 삭제·갱신하지 않는다 — API가 줄 리 없는 회사 지정 휴일이다")
+    void companyRowSurvivesSync() {
+        Holiday companyRow = Holiday.companyHoliday(LocalDate.of(2026, 7, 20), "창립기념일");
+        when(holidayRepository.findByHolidayDateBetweenOrderByHolidayDate(JULY.atDay(1), JULY.atEndOfMonth()))
+                .thenReturn(List.of(companyRow));
+
+        holidayLedgerService.applyApiSync(JULY, List.of());
+
+        verify(holidayRepository, never()).delete(any());
+        verify(holidayRepository, never()).save(any());
+        assertThat(companyRow.getName()).isEqualTo("창립기념일");
     }
 
     @Test
@@ -152,18 +170,33 @@ class HolidayLedgerServiceTest {
     }
 
     @Test
-    @DisplayName("마커가 있는 달은 출처와 무관하게 공휴일 날짜를 반환한다")
+    @DisplayName("마커가 있는 달은 출처와 무관하게 휴일 날짜를 반환한다")
     void returnsHolidayDatesForLoadedMonth() {
         when(holidayMonthMarkerRepository.existsByMonth(JULY)).thenReturn(true);
         when(holidayRepository.findByHolidayDateBetweenOrderByHolidayDate(JULY.atDay(1), JULY.atEndOfMonth()))
                 .thenReturn(List.of(
                         Holiday.fromApi(CONSTITUTION_DAY, "제헌절"),
-                        Holiday.manual(LocalDate.of(2026, 7, 27), "임시공휴일(사후 지정)")
+                        Holiday.manualHoliday(LocalDate.of(2026, 7, 27), "임시공휴일(사후 지정)"),
+                        Holiday.companyHoliday(LocalDate.of(2026, 7, 30), "창립기념일")
                 ));
 
         Set<LocalDate> holidayDates = holidayLedgerService.getHolidayDates(JULY);
 
-        assertThat(holidayDates).containsExactlyInAnyOrder(CONSTITUTION_DAY, LocalDate.of(2026, 7, 27));
+        assertThat(holidayDates).containsExactlyInAnyOrder(
+                CONSTITUTION_DAY, LocalDate.of(2026, 7, 27), LocalDate.of(2026, 7, 30));
+    }
+
+    @Test
+    @DisplayName("부정 오버라이드가 걸린 날짜는 API 행이 있어도 휴일에서 빠진다")
+    void excludesDateWithNegativeOverride() {
+        when(holidayMonthMarkerRepository.existsByMonth(JULY)).thenReturn(true);
+        when(holidayRepository.findByHolidayDateBetweenOrderByHolidayDate(JULY.atDay(1), JULY.atEndOfMonth()))
+                .thenReturn(List.of(
+                        Holiday.fromApi(CONSTITUTION_DAY, "제헌절"),
+                        Holiday.manualWorkingDay(CONSTITUTION_DAY, "정상 근무(전사 공지)")
+                ));
+
+        assertThat(holidayLedgerService.getHolidayDates(JULY)).isEmpty();
     }
 
     @Test
