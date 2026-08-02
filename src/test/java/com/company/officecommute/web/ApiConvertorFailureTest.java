@@ -12,6 +12,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
+import java.time.Year;
 import java.time.YearMonth;
 
 import static com.company.officecommute.web.ApiConvertorTest.HolidayResponseFixture.header;
@@ -116,6 +117,23 @@ class ApiConvertorFailureTest {
                 .hasMessageContaining("totalCount=null");
     }
 
+    /**
+     * 월 단위로는 0건인 달이 정상이지만(4월·11월), 공휴일이 하나도 없는 해는 한국에 없다.
+     * 연간 0건은 "공휴일 없음"이 아니라 "아직 발표되지 않음"이므로 적재하지 않는다.
+     */
+    @Test
+    @DisplayName("연간 0건 응답은 정상이 아니라 미발표 신호로 다뤄 적재를 중단한다")
+    void fetchHolidays_throwsException_whenYearHasNoHoliday() {
+        HolidayResponse response = normalResponse();
+        response.getBody().setItems(null);
+        response.getBody().setTotalCount(0);
+        mockApiResponse(response);
+
+        assertThatThrownBy(() -> apiConvertor.fetchHolidays(Year.of(2099)))
+                .isInstanceOf(HolidayDataUnavailableException.class)
+                .hasMessageContaining("0건을 반환했습니다");
+    }
+
     @Test
     @DisplayName("totalCount보다 많이 수신한 응답도 신뢰하지 않는다")
     void countStandardWorkingDays_throwsException_whenReceivedMoreThanTotalCount() {
@@ -143,19 +161,19 @@ class ApiConvertorFailureTest {
     void fetchHolidays_throwsException_whenDateNameIsMissing() {
         mockApiResponse(normalResponse(holiday("20251225", null)));
 
-        assertThatThrownBy(() -> apiConvertor.fetchHolidays(YearMonth.of(2025, 12)))
+        assertThatThrownBy(() -> apiConvertor.fetchHolidays(Year.of(2025)))
                 .isInstanceOf(HolidayDataUnavailableException.class)
                 .hasMessageContaining("dateName이 없습니다");
     }
 
     @Test
-    @DisplayName("요청한 월 밖의 날짜가 섞인 응답은 신뢰하지 않는다")
-    void fetchHolidays_throwsException_whenDateIsOutsideRequestedMonth() {
+    @DisplayName("요청한 연도 밖의 날짜가 섞인 응답은 신뢰하지 않는다")
+    void fetchHolidays_throwsException_whenDateIsOutsideRequestedYear() {
         mockApiResponse(normalResponse(holiday("20251225")));
 
-        assertThatThrownBy(() -> apiConvertor.fetchHolidays(YearMonth.of(2025, 11)))
+        assertThatThrownBy(() -> apiConvertor.fetchHolidays(Year.of(2026)))
                 .isInstanceOf(HolidayDataUnavailableException.class)
-                .hasMessageContaining("요청한 월 밖의 날짜");
+                .hasMessageContaining("요청한 연도 밖의 날짜");
     }
 
     @Test
@@ -163,20 +181,20 @@ class ApiConvertorFailureTest {
     void fetchHolidays_throwsException_whenLocdateIsUnparsable() {
         mockApiResponse(normalResponse(holiday("2025-12-25")));
 
-        assertThatThrownBy(() -> apiConvertor.fetchHolidays(YearMonth.of(2025, 12)))
+        assertThatThrownBy(() -> apiConvertor.fetchHolidays(Year.of(2025)))
                 .isInstanceOf(HolidayDataUnavailableException.class)
                 .hasMessageContaining("locdate를 해석할 수 없습니다");
     }
 
     private void mockApiResponse(HolidayResponse response) {
-        when(apiProperties.combineURL(any(), any()))
+        when(apiProperties.combineURL(any()))
                 .thenReturn("http://fake-api.com");
         when(restTemplate.getForObject(any(URI.class), eq(HolidayResponse.class)))
                 .thenReturn(response);
     }
 
     private void mockFailedApiResponse() {
-        when(apiProperties.combineURL(any(), any()))
+        when(apiProperties.combineURL(any()))
                 .thenReturn("http://fake-api.com");
 
         when(restTemplate.getForObject(any(URI.class), eq(HolidayResponse.class)))

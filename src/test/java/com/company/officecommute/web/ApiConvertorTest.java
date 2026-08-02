@@ -10,12 +10,14 @@ import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
 import java.time.LocalDate;
+import java.time.Year;
 import java.time.YearMonth;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest
@@ -45,25 +47,30 @@ class ApiConvertorTest {
     }
 
     @Test
-    void 공휴일이_없는_달의_API_응답을_처리한다() {
-        mockApiResponse(HolidayResponseFixture.normalResponse());
+    @DisplayName("연간 응답에서 대상 월 밖의 공휴일은 그 달 계산에 끼어들지 않는다")
+    void countStandardWorkingDays_ignoresHolidaysOutsideTargetMonth() {
+        // 2024년 6월은 현충일(6/6, 목) 하나뿐이다. 같은 응답에 실린 5월 공휴일이 6월을 깎으면 안 된다.
+        mockApiResponse(HolidayResponseFixture.normalResponse(
+                HolidayResponseFixture.holiday("20240505"),
+                HolidayResponseFixture.holiday("20240506"),
+                HolidayResponseFixture.holiday("20240606")
+        ));
 
         long numberOfStandardWorkingDays = apiConvertor.countNumberOfStandardWorkingDays(YearMonth.of(2024, 6));
 
-        assertThat(numberOfStandardWorkingDays).isEqualTo(20L);
+        assertThat(numberOfStandardWorkingDays).isEqualTo(19L);
     }
 
     @Test
-    @DisplayName("공휴일 0건 응답의 계약은 items 없음 + totalCount=0이다")
-    void countStandardWorkingDays_treatsNullItemsAsNoHoliday_whenTotalCountIsZero() {
-        HolidayResponse response = HolidayResponseFixture.normalResponse();
-        response.getBody().setItems(null);
-        response.getBody().setTotalCount(0);
-        mockApiResponse(response);
+    @DisplayName("공휴일이 하나도 없는 달도 정상이다 — 4월·11월은 실제로 0개다")
+    void countStandardWorkingDays_handlesMonthWithoutHoliday() {
+        mockApiResponse(HolidayResponseFixture.normalResponse(
+                HolidayResponseFixture.holiday("20240606")
+        ));
 
-        long numberOfStandardWorkingDays = apiConvertor.countNumberOfStandardWorkingDays(YearMonth.of(2024, 6));
+        long numberOfStandardWorkingDays = apiConvertor.countNumberOfStandardWorkingDays(YearMonth.of(2024, 4));
 
-        assertThat(numberOfStandardWorkingDays).isEqualTo(20L);
+        assertThat(numberOfStandardWorkingDays).isEqualTo(22L);
     }
 
     @Test
@@ -96,19 +103,32 @@ class ApiConvertorTest {
     }
 
     @Test
-    @DisplayName("fetchHolidays는 검증을 통과한 날짜와 이름을 반환한다 — 원장 동기화의 입력")
-    void fetchHolidays_returnsDatesWithNames() {
+    @DisplayName("fetchHolidays는 한 해 전체를 검증된 날짜·이름으로 반환한다 — 원장 동기화의 입력")
+    void fetchHolidays_returnsWholeYearWithNames() {
         mockApiResponse(HolidayResponseFixture.normalResponse(
+                HolidayResponseFixture.holiday("20260101", "1월1일"),
                 HolidayResponseFixture.holiday("20260717", "제헌절")
         ));
 
-        List<HolidayApiItem> items = apiConvertor.fetchHolidays(YearMonth.of(2026, 7));
+        List<HolidayApiItem> items = apiConvertor.fetchHolidays(Year.of(2026));
 
-        assertThat(items).containsExactly(new HolidayApiItem(LocalDate.of(2026, 7, 17), "제헌절"));
+        assertThat(items).containsExactly(
+                new HolidayApiItem(LocalDate.of(2026, 1, 1), "1월1일"),
+                new HolidayApiItem(LocalDate.of(2026, 7, 17), "제헌절"));
+    }
+
+    @Test
+    @DisplayName("연 단위 조회이므로 URL에 월을 싣지 않는다")
+    void fetchHolidays_requestsWholeYear() {
+        mockApiResponse(HolidayResponseFixture.normalResponse(HolidayResponseFixture.holiday("20260101")));
+
+        apiConvertor.fetchHolidays(Year.of(2026));
+
+        verify(apiProperties).combineURL("2026");
     }
 
     private void mockApiResponse(HolidayResponse response) {
-        when(apiProperties.combineURL(any(), any()))
+        when(apiProperties.combineURL(any()))
                 .thenReturn("http://fake-api.com");
         when(restTemplate.getForObject(any(URI.class), eq(HolidayResponse.class)))
                 .thenReturn(response);

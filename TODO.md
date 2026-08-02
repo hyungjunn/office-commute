@@ -51,7 +51,9 @@
     다른 해 날짜가 섞이면 낡은 행 옆에 조용히 얹힌다.
   - `HolidaySyncService.syncYear`는 아직 월 12회 호출로 한 해를 모은다(다음 항목에서 1회로).
   - 커밋 후 상태를 확인하는 `HolidayLedgerServiceIntegrationTest` 추가 — 목으로는 UNIQUE 통과가 증명되지 않는다.
-- [ ] **`ApiConvertor` 시그니처 변경**: `combineURL(solYear, solMonth)`에서 월 제거(연간 조회), `toApiItem`의 "요청 월 밖 날짜" 검증 → "요청 연도 밖" 검증. 검증 사다리(resultCode / totalCount / 항목 검증)는 유지.
+- [x] **`ApiConvertor` 시그니처 변경**: `combineURL(solYear, solMonth)`에서 월 제거(연간 조회), `toApiItem`의 "요청 월 밖 날짜" 검증 → "요청 연도 밖" 검증. 검증 사다리(resultCode / totalCount / 항목 검증)는 유지.
+  - 검증 사다리 끝에 **연간 0건 = 실패**를 추가했다. 월 단위 0건은 정상이지만 연간 0건은 미발표 신호다.
+  - `countNumberOfStandardWorkingDays`는 연간 응답을 받아 대상 월로 필터한다 — 계산 경로 전환 전까지의 임시 형태.
 - [ ] **동기화 트리거**(관리자 API 또는 스케줄러)와 **dev `data.sql` 시드**(공휴일 + 월 마커)를 계산 경로 전환 **전에** 만든다 — 없으면 모든 환경에서 리포트가 항상 "미적재"로 거부된다.
 - [ ] **계산 경로 원장 전환**: `OverTimeService`가 `ApiConvertor` 실시간 호출 대신 원장을 읽는다. `countNumberOfStandardWorkingDays` / `calculateStandardWorkingMinutes`를 `web` 패키지 밖 서비스/도메인으로 옮기고 `ApiConvertor`는 순수 API 게이트웨이만 남긴다. `@Transactional(readOnly=true)` 부착.
 - [ ] **감사성**: 매일 동기화는 이미 급여 계산에 쓰인 과거 월도 다시 쓸 수 있다. 마감된 월은 재동기화에서 제외하거나, 최소한 변경 diff를 로그로 남긴다.
