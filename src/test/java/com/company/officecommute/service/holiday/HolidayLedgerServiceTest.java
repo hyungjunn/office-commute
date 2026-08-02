@@ -12,12 +12,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.Year;
 import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.List;
@@ -25,7 +27,10 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.groups.Tuple.tuple;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -33,6 +38,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class HolidayLedgerServiceTest {
 
+    private static final Year YEAR = Year.of(2026);
     private static final YearMonth JULY = YearMonth.of(2026, 7);
     private static final LocalDate CONSTITUTION_DAY = LocalDate.of(2026, 7, 17);
     private static final Instant SYNC_INSTANT = Instant.parse("2026-08-01T00:30:00Z");
@@ -52,112 +58,99 @@ class HolidayLedgerServiceTest {
     }
 
     @Test
-    @DisplayName("원장에 없는 날짜는 API 출처로 새로 저장하고 마커를 남긴다")
-    void savesNewHolidaysAndMarker() {
-        when(holidayRepository.findByHolidayDateBetweenOrderByHolidayDate(JULY.atDay(1), JULY.atEndOfMonth()))
-                .thenReturn(List.of());
+    @DisplayName("해당 연도의 API 행을 통째로 지운 뒤 응답 전체를 다시 넣는다")
+    void replacesApiRowsForWholeYear() {
+        holidayLedgerService.applyApiSync(YEAR, List.of(new HolidayApiItem(CONSTITUTION_DAY, "제헌절")));
 
-        holidayLedgerService.applyApiSync(JULY, List.of(new HolidayApiItem(CONSTITUTION_DAY, "제헌절")));
+        verify(holidayRepository).deleteApiRowsBetween(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31));
 
-        ArgumentCaptor<Holiday> savedHoliday = ArgumentCaptor.forClass(Holiday.class);
-        verify(holidayRepository).save(savedHoliday.capture());
-        assertThat(savedHoliday.getValue().getHolidayDate()).isEqualTo(CONSTITUTION_DAY);
-        assertThat(savedHoliday.getValue().getName()).isEqualTo("제헌절");
-        assertThat(savedHoliday.getValue().getSource()).isEqualTo(HolidaySource.API);
+        ArgumentCaptor<List<Holiday>> saved = ArgumentCaptor.captor();
+        verify(holidayRepository).saveAll(saved.capture());
+        assertThat(saved.getValue())
+                .extracting(Holiday::getHolidayDate, Holiday::getName, Holiday::getSource)
+                .containsExactly(tuple(CONSTITUTION_DAY, "제헌절", HolidaySource.API));
+    }
 
-        ArgumentCaptor<HolidayMonthMarker> savedMarker = ArgumentCaptor.forClass(HolidayMonthMarker.class);
-        verify(holidayMonthMarkerRepository).save(savedMarker.capture());
-        assertThat(savedMarker.getValue().getMonth()).isEqualTo(JULY);
-        assertThat(savedMarker.getValue().getSyncedAt()).isEqualTo(SYNC_INSTANT);
+    /**
+     * Hibernate는 flush에서 INSERT를 DELETE보다 먼저 실행한다. 삭제가 먼저 나가지 않으면
+     * 같은 (날짜, 출처) 키의 재삽입이 UNIQUE 제약을 위반하므로 이 순서 자체가 계약이다.
+     */
+    @Test
+    @DisplayName("삭제가 삽입보다 먼저다 — 순서가 어긋나면 UNIQUE 제약을 위반한다")
+    void deletesBeforeInserting() {
+        holidayLedgerService.applyApiSync(YEAR, List.of(new HolidayApiItem(CONSTITUTION_DAY, "제헌절")));
+
+        InOrder inOrder = inOrder(holidayRepository);
+        inOrder.verify(holidayRepository).deleteApiRowsBetween(any(), any());
+        inOrder.verify(holidayRepository).deleteManualHolidaysOn(anyCollection());
+        inOrder.verify(holidayRepository).saveAll(any());
     }
 
     @Test
-    @DisplayName("MANUAL 행은 API가 같은 날짜를 줘도 갱신하지 않고, API 행은 그 옆에 따로 적재된다")
-    void manualRowSurvivesAlongsideApiRowOnSameDate() {
-        Holiday manualRow = Holiday.manualWorkingDay(CONSTITUTION_DAY, "정상 근무(API 오적재 보정)");
-        when(holidayRepository.findByHolidayDateBetweenOrderByHolidayDate(JULY.atDay(1), JULY.atEndOfMonth()))
-                .thenReturn(List.of(manualRow));
+    @DisplayName("API가 공휴일로 준 날짜의 수동 등록 휴일은 흡수해 삭제한다 — API 행이 대신한다")
+    void absorbsManualHolidayOnApiDate() {
+        holidayLedgerService.applyApiSync(YEAR, List.of(
+                new HolidayApiItem(CONSTITUTION_DAY, "제헌절"),
+                new HolidayApiItem(LocalDate.of(2026, 1, 1), "1월1일")
+        ));
 
-        holidayLedgerService.applyApiSync(JULY, List.of(new HolidayApiItem(CONSTITUTION_DAY, "제헌절")));
-
-        verify(holidayRepository, never()).delete(any());
-        assertThat(manualRow.getName()).isEqualTo("정상 근무(API 오적재 보정)");
-        assertThat(manualRow.isHoliday()).isFalse();
-
-        ArgumentCaptor<Holiday> savedHoliday = ArgumentCaptor.forClass(Holiday.class);
-        verify(holidayRepository).save(savedHoliday.capture());
-        assertThat(savedHoliday.getValue().getSource()).isEqualTo(HolidaySource.API);
-        assertThat(savedHoliday.getValue().getHolidayDate()).isEqualTo(CONSTITUTION_DAY);
+        ArgumentCaptor<Set<LocalDate>> absorbedDates = ArgumentCaptor.captor();
+        verify(holidayRepository).deleteManualHolidaysOn(absorbedDates.capture());
+        assertThat(absorbedDates.getValue())
+                .containsExactlyInAnyOrder(CONSTITUTION_DAY, LocalDate.of(2026, 1, 1));
     }
 
     @Test
-    @DisplayName("MANUAL 행은 API 응답에 없어도 삭제하지 않는다")
-    void manualRowSurvivesWhenAbsentFromApi() {
-        Holiday manualRow = Holiday.manualHoliday(LocalDate.of(2026, 6, 3), "제21대 대통령 선거(사후 지정)");
-        YearMonth june = YearMonth.of(2026, 6);
-        when(holidayRepository.findByHolidayDateBetweenOrderByHolidayDate(june.atDay(1), june.atEndOfMonth()))
-                .thenReturn(List.of(manualRow));
+    @DisplayName("응답이 비어 있으면 흡수할 날짜가 없으므로 수동 행 삭제를 시도하지 않는다")
+    void skipsAbsorptionWhenResponseIsEmpty() {
+        holidayLedgerService.applyApiSync(YEAR, List.of());
 
-        holidayLedgerService.applyApiSync(june, List.of());
-
-        verify(holidayRepository, never()).delete(any());
-        verify(holidayRepository, never()).save(any());
+        verify(holidayRepository).deleteApiRowsBetween(any(), any());
+        verify(holidayRepository, never()).deleteManualHolidaysOn(anyCollection());
     }
 
     @Test
-    @DisplayName("COMPANY 행도 동기화가 삭제·갱신하지 않는다 — API가 줄 리 없는 회사 지정 휴일이다")
-    void companyRowSurvivesSync() {
-        Holiday companyRow = Holiday.companyHoliday(LocalDate.of(2026, 7, 20), "창립기념일");
-        when(holidayRepository.findByHolidayDateBetweenOrderByHolidayDate(JULY.atDay(1), JULY.atEndOfMonth()))
-                .thenReturn(List.of(companyRow));
+    @DisplayName("같은 날짜가 두 번 오면 첫 항목만 남긴다 — 복합키 중복은 곧 UNIQUE 위반이다")
+    void keepsFirstItemOnDuplicateDate() {
+        holidayLedgerService.applyApiSync(YEAR, List.of(
+                new HolidayApiItem(CONSTITUTION_DAY, "제헌절"),
+                new HolidayApiItem(CONSTITUTION_DAY, "제헌절(중복)")
+        ));
 
-        holidayLedgerService.applyApiSync(JULY, List.of());
-
-        verify(holidayRepository, never()).delete(any());
-        verify(holidayRepository, never()).save(any());
-        assertThat(companyRow.getName()).isEqualTo("창립기념일");
+        ArgumentCaptor<List<Holiday>> saved = ArgumentCaptor.captor();
+        verify(holidayRepository).saveAll(saved.capture());
+        assertThat(saved.getValue()).singleElement()
+                .extracting(Holiday::getName).isEqualTo("제헌절");
     }
 
     @Test
-    @DisplayName("API 행의 이름 변경은 기존 행에 반영한다 — 새로 저장하지 않는다")
-    void renamesExistingApiRow() {
-        Holiday apiRow = Holiday.fromApi(CONSTITUTION_DAY, "임시공휴일");
-        when(holidayRepository.findByHolidayDateBetweenOrderByHolidayDate(JULY.atDay(1), JULY.atEndOfMonth()))
-                .thenReturn(List.of(apiRow));
+    @DisplayName("요청한 해 밖의 날짜가 섞이면 원장을 건드리지 않고 실패한다")
+    void rejectsDateOutsideRequestedYear() {
+        assertThatThrownBy(() -> holidayLedgerService.applyApiSync(
+                YEAR, List.of(new HolidayApiItem(LocalDate.of(2027, 1, 1), "1월1일"))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("요청한 연도 밖");
 
-        holidayLedgerService.applyApiSync(JULY, List.of(new HolidayApiItem(CONSTITUTION_DAY, "제헌절")));
-
-        assertThat(apiRow.getName()).isEqualTo("제헌절");
-        verify(holidayRepository, never()).save(any());
-        verify(holidayRepository, never()).delete(any());
+        verify(holidayRepository, never()).deleteApiRowsBetween(any(), any());
+        verify(holidayRepository, never()).saveAll(any());
     }
 
     @Test
-    @DisplayName("API 응답에서 사라진 API 행은 삭제한다")
-    void deletesApiRowAbsentFromApi() {
-        Holiday staleApiRow = Holiday.fromApi(LocalDate.of(2026, 7, 20), "잘못 적재된 날");
-        when(holidayRepository.findByHolidayDateBetweenOrderByHolidayDate(JULY.atDay(1), JULY.atEndOfMonth()))
-                .thenReturn(List.of(staleApiRow));
+    @DisplayName("연간 동기화 한 번이 월 마커 12개를 세운다")
+    void writesTwelveMonthMarkers() {
+        holidayLedgerService.applyApiSync(YEAR, List.of(new HolidayApiItem(CONSTITUTION_DAY, "제헌절")));
 
-        holidayLedgerService.applyApiSync(JULY, List.of());
-
-        verify(holidayRepository).delete(staleApiRow);
-        verify(holidayRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("공휴일이 0건인 달도 마커를 남긴다 — '정상 0개'와 '미적재'를 구분하는 근거")
-    void emptyMonthStillGetsMarker() {
-        YearMonth april = YearMonth.of(2026, 4);
-        when(holidayRepository.findByHolidayDateBetweenOrderByHolidayDate(april.atDay(1), april.atEndOfMonth()))
-                .thenReturn(List.of());
-
-        holidayLedgerService.applyApiSync(april, List.of());
-
-        ArgumentCaptor<HolidayMonthMarker> savedMarker = ArgumentCaptor.forClass(HolidayMonthMarker.class);
-        verify(holidayMonthMarkerRepository).save(savedMarker.capture());
-        assertThat(savedMarker.getValue().getMonth()).isEqualTo(april);
-        verify(holidayRepository, never()).save(any());
+        ArgumentCaptor<List<HolidayMonthMarker>> savedMarkers = ArgumentCaptor.captor();
+        verify(holidayMonthMarkerRepository).saveAll(savedMarkers.capture());
+        assertThat(savedMarkers.getValue())
+                .hasSize(12)
+                .allSatisfy(marker -> assertThat(marker.getSyncedAt()).isEqualTo(SYNC_INSTANT))
+                .extracting(HolidayMonthMarker::getMonth)
+                .containsExactly(
+                        YearMonth.of(2026, 1), YearMonth.of(2026, 2), YearMonth.of(2026, 3),
+                        YearMonth.of(2026, 4), YearMonth.of(2026, 5), YearMonth.of(2026, 6),
+                        YearMonth.of(2026, 7), YearMonth.of(2026, 8), YearMonth.of(2026, 9),
+                        YearMonth.of(2026, 10), YearMonth.of(2026, 11), YearMonth.of(2026, 12));
     }
 
     @Test

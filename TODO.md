@@ -44,7 +44,13 @@
     부정 오버라이드 MANUAL 전용 제약은 도메인 생성자와 DDL CHECK 양쪽에 건다.
     `getHolidayDates`가 행 목록이 아니라 판정 결과를 반환하므로 부정 오버라이드가 걸린 날은 휴일에서 빠진다.
     `save()` merge 덮어쓰기 함정은 식별자에 출처가 들어가면서 해소됐다.
-- [ ] **`applyApiSync` 재작성**: 월 단위 diff + MANUAL 불가침 → 연 단위 범위 교체 + 위 흡수 순서(2절 1~5).
+- [x] **`applyApiSync` 재작성**: 월 단위 diff + MANUAL 불가침 → 연 단위 범위 교체 + 위 흡수 순서(2절 1~5).
+  - 삭제는 벌크 DELETE(`@Modifying(flushAutomatically = true)`)로 한다. 엔티티 삭제에 맡기면
+    Hibernate가 flush에서 INSERT를 DELETE보다 먼저 실행해 같은 (날짜, 출처) 키에서 UNIQUE를 위반한다.
+  - `applyApiSync`가 요청 연도 밖 날짜를 스스로 거부한다 — 범위 교체는 그 해의 행만 지우므로
+    다른 해 날짜가 섞이면 낡은 행 옆에 조용히 얹힌다.
+  - `HolidaySyncService.syncYear`는 아직 월 12회 호출로 한 해를 모은다(다음 항목에서 1회로).
+  - 커밋 후 상태를 확인하는 `HolidayLedgerServiceIntegrationTest` 추가 — 목으로는 UNIQUE 통과가 증명되지 않는다.
 - [ ] **`ApiConvertor` 시그니처 변경**: `combineURL(solYear, solMonth)`에서 월 제거(연간 조회), `toApiItem`의 "요청 월 밖 날짜" 검증 → "요청 연도 밖" 검증. 검증 사다리(resultCode / totalCount / 항목 검증)는 유지.
 - [ ] **동기화 트리거**(관리자 API 또는 스케줄러)와 **dev `data.sql` 시드**(공휴일 + 월 마커)를 계산 경로 전환 **전에** 만든다 — 없으면 모든 환경에서 리포트가 항상 "미적재"로 거부된다.
 - [ ] **계산 경로 원장 전환**: `OverTimeService`가 `ApiConvertor` 실시간 호출 대신 원장을 읽는다. `countNumberOfStandardWorkingDays` / `calculateStandardWorkingMinutes`를 `web` 패키지 밖 서비스/도메인으로 옮기고 `ApiConvertor`는 순수 API 게이트웨이만 남긴다. `@Transactional(readOnly=true)` 부착.
