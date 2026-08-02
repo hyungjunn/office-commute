@@ -646,7 +646,12 @@ export interface paths {
                 };
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
-                /** @description 공휴일 데이터 미가용 (HOLIDAY_DATA_UNAVAILABLE) */
+                /**
+                 * @description 공휴일 원장 미적재 (HOLIDAY_MONTH_NOT_LOADED).
+                 *     해당 월이 아직 동기화되지 않아 계산을 거부한다 —
+                 *     빈 원장을 "공휴일 0개"로 읽으면 초과근무가 과소 집계되기 때문이다.
+                 *     `POST /holiday/sync`로 적재한 뒤 재시도한다.
+                 */
                 503: {
                     headers: {
                         [name: string]: unknown;
@@ -699,7 +704,10 @@ export interface paths {
                 };
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
-                /** @description 공휴일 데이터 미가용 (HOLIDAY_DATA_UNAVAILABLE) */
+                /**
+                 * @description 공휴일 원장 미적재 (HOLIDAY_MONTH_NOT_LOADED).
+                 *     `POST /holiday/sync`로 적재한 뒤 재시도한다.
+                 */
                 503: {
                     headers: {
                         [name: string]: unknown;

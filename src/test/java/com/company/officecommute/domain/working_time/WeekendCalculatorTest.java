@@ -1,4 +1,4 @@
-package com.company.officecommute.web;
+package com.company.officecommute.domain.working_time;
 
 import org.junit.jupiter.api.Test;
 

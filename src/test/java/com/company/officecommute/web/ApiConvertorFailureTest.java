@@ -13,7 +13,6 @@ import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
 import java.time.Year;
-import java.time.YearMonth;
 
 import static com.company.officecommute.web.ApiConvertorTest.HolidayResponseFixture.header;
 import static com.company.officecommute.web.ApiConvertorTest.HolidayResponseFixture.holiday;
@@ -34,85 +33,80 @@ class ApiConvertorFailureTest {
     @MockitoBean private ApiProperties apiProperties;
 
     @Test
-    @DisplayName("API 호출 성공 시 응답 데이터로 근무일수를 계산한다")
-    void countStandardWorkingDays_calculatesWorkingDays_whenApiSucceeds() {
-        YearMonth yearMonth = YearMonth.of(2025, 11);
+    @DisplayName("검증을 통과한 응답은 항목 그대로 반환한다")
+    void fetchHolidays_returnsItems_whenApiSucceeds() {
         mockApiResponse(normalResponse(holiday("20251103"), holiday("20251115")));
 
-        long workingDays = apiConvertor.countNumberOfStandardWorkingDays(yearMonth);
-
-        assertThat(workingDays).isEqualTo(19);
+        assertThat(apiConvertor.fetchHolidays(Year.of(2025))).hasSize(2);
     }
 
     @Test
-    @DisplayName("API 호출 실패 시 계산을 중단한다")
-    void countStandardWorkingDays_throwsException_whenApiFails() {
-        YearMonth yearMonth = YearMonth.of(2025, 12);
-
+    @DisplayName("API 호출 실패 시 적재를 중단한다")
+    void fetchHolidays_throwsException_whenApiFails() {
         mockFailedApiResponse();
 
-        assertThatThrownBy(() -> apiConvertor.countNumberOfStandardWorkingDays(yearMonth))
+        assertThatThrownBy(() -> apiConvertor.fetchHolidays(Year.of(2025)))
                 .isInstanceOf(HolidayDataUnavailableException.class)
                 .hasMessageContaining("공휴일 정보를 확인할 수 없어 초과근무 리포트를 생성할 수 없습니다");
     }
 
     @Test
     @DisplayName("HTTP 200이지만 resultCode가 오류면 공휴일 0개로 계산하지 않고 중단한다")
-    void countStandardWorkingDays_throwsException_whenResultCodeIsNotNormal() {
+    void fetchHolidays_throwsException_whenResultCodeIsNotNormal() {
         HolidayResponse response = normalResponse();
         response.setHeader(header("30", "SERVICE_KEY_IS_NOT_REGISTERED_ERROR"));
         mockApiResponse(response);
 
-        assertThatThrownBy(() -> apiConvertor.countNumberOfStandardWorkingDays(YearMonth.of(2025, 12)))
+        assertThatThrownBy(() -> apiConvertor.fetchHolidays(Year.of(2025)))
                 .isInstanceOf(HolidayDataUnavailableException.class)
                 .hasMessageContaining("SERVICE_KEY_IS_NOT_REGISTERED_ERROR");
     }
 
     @Test
     @DisplayName("header가 없는 응답은 신뢰하지 않는다")
-    void countStandardWorkingDays_throwsException_whenHeaderIsMissing() {
+    void fetchHolidays_throwsException_whenHeaderIsMissing() {
         HolidayResponse response = normalResponse();
         response.setHeader(null);
         mockApiResponse(response);
 
-        assertThatThrownBy(() -> apiConvertor.countNumberOfStandardWorkingDays(YearMonth.of(2025, 12)))
+        assertThatThrownBy(() -> apiConvertor.fetchHolidays(Year.of(2025)))
                 .isInstanceOf(HolidayDataUnavailableException.class)
                 .hasMessageContaining("resultCode가 없습니다");
     }
 
     @Test
     @DisplayName("body가 없는 응답은 신뢰하지 않는다")
-    void countStandardWorkingDays_throwsException_whenBodyIsMissing() {
+    void fetchHolidays_throwsException_whenBodyIsMissing() {
         HolidayResponse response = normalResponse();
         response.setBody(null);
         mockApiResponse(response);
 
-        assertThatThrownBy(() -> apiConvertor.countNumberOfStandardWorkingDays(YearMonth.of(2025, 12)))
+        assertThatThrownBy(() -> apiConvertor.fetchHolidays(Year.of(2025)))
                 .isInstanceOf(HolidayDataUnavailableException.class)
                 .hasMessageContaining("body가 없습니다");
     }
 
     @Test
     @DisplayName("totalCount보다 적게 수신한 잘린 응답으로는 계산하지 않는다")
-    void countStandardWorkingDays_throwsException_whenResponseIsTruncated() {
+    void fetchHolidays_throwsException_whenResponseIsTruncated() {
         HolidayResponse response = normalResponse(holiday("20251225"));
         response.getBody().setTotalCount(3);
         mockApiResponse(response);
 
-        assertThatThrownBy(() -> apiConvertor.countNumberOfStandardWorkingDays(YearMonth.of(2025, 12)))
+        assertThatThrownBy(() -> apiConvertor.fetchHolidays(Year.of(2025)))
                 .isInstanceOf(HolidayDataUnavailableException.class)
                 .hasMessageContaining("건수가 일치하지 않습니다");
     }
 
     @Test
     @DisplayName("totalCount가 없으면 응답의 완전성을 확인할 수 없어 계산하지 않는다")
-    void countStandardWorkingDays_throwsException_whenTotalCountIsMissing() {
+    void fetchHolidays_throwsException_whenTotalCountIsMissing() {
         HolidayResponse response = normalResponse();
         response.getBody().setItems(null);
         response.getBody().setTotalCount(null);
         mockApiResponse(response);
 
-        assertThatThrownBy(() -> apiConvertor.countNumberOfStandardWorkingDays(YearMonth.of(2025, 12)))
+        assertThatThrownBy(() -> apiConvertor.fetchHolidays(Year.of(2025)))
                 .isInstanceOf(HolidayDataUnavailableException.class)
                 .hasMessageContaining("totalCount=null");
     }
@@ -136,22 +130,22 @@ class ApiConvertorFailureTest {
 
     @Test
     @DisplayName("totalCount보다 많이 수신한 응답도 신뢰하지 않는다")
-    void countStandardWorkingDays_throwsException_whenReceivedMoreThanTotalCount() {
+    void fetchHolidays_throwsException_whenReceivedMoreThanTotalCount() {
         HolidayResponse response = normalResponse(holiday("20251225"));
         response.getBody().setTotalCount(0);
         mockApiResponse(response);
 
-        assertThatThrownBy(() -> apiConvertor.countNumberOfStandardWorkingDays(YearMonth.of(2025, 12)))
+        assertThatThrownBy(() -> apiConvertor.fetchHolidays(Year.of(2025)))
                 .isInstanceOf(HolidayDataUnavailableException.class)
                 .hasMessageContaining("건수가 일치하지 않습니다");
     }
 
     @Test
     @DisplayName("응답 본문이 비어 있으면 계산을 중단한다")
-    void countStandardWorkingDays_throwsException_whenResponseIsNull() {
+    void fetchHolidays_throwsException_whenResponseIsNull() {
         mockApiResponse(null);
 
-        assertThatThrownBy(() -> apiConvertor.countNumberOfStandardWorkingDays(YearMonth.of(2025, 12)))
+        assertThatThrownBy(() -> apiConvertor.fetchHolidays(Year.of(2025)))
                 .isInstanceOf(HolidayDataUnavailableException.class)
                 .hasMessageContaining("비어 있습니다");
     }

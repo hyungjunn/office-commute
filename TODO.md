@@ -60,5 +60,8 @@
   - dev 시드는 2026년 공휴일 + 월 마커 12개. 다른 해는 동기화로 채운다.
   - 테스트에서는 `spring.sql.init.mode: never`로 dev 시드를 끄고, `holiday.sync.scheduled.enabled: false`로 cron을 막는다.
   - 남은 4절 항목(공휴일 추가/삭제, 월별 조회 API)은 이 박스 범위 밖이다.
-- [ ] **계산 경로 원장 전환**: `OverTimeService`가 `ApiConvertor` 실시간 호출 대신 원장을 읽는다. `countNumberOfStandardWorkingDays` / `calculateStandardWorkingMinutes`를 `web` 패키지 밖 서비스/도메인으로 옮기고 `ApiConvertor`는 순수 API 게이트웨이만 남긴다. `@Transactional(readOnly=true)` 부착.
+- [x] **계산 경로 원장 전환**: `OverTimeService`가 `ApiConvertor` 실시간 호출 대신 원장을 읽는다. `countNumberOfStandardWorkingDays` / `calculateStandardWorkingMinutes`를 `web` 패키지 밖 서비스/도메인으로 옮기고 `ApiConvertor`는 순수 API 게이트웨이만 남긴다. `@Transactional(readOnly=true)` 부착.
+  - 두 메서드는 `domain/working_time/StandardWorkingTime`(record) 하나로 합쳤다 — 소정근로일과
+    소정근로시간은 따로 부를 이유가 없는 한 개념이다. `WeekendCalculator`도 `web`에서 같이 옮겼다.
+  - 이제 `/overtime`의 503은 `HOLIDAY_DATA_UNAVAILABLE`이 아니라 `HOLIDAY_MONTH_NOT_LOADED`다.
 - [ ] **감사성**: 매일 동기화는 이미 급여 계산에 쓰인 과거 월도 다시 쓸 수 있다. 마감된 월은 재동기화에서 제외하거나, 최소한 변경 diff를 로그로 남긴다.

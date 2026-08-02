@@ -10,14 +10,14 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.LocalDate;
 import java.time.Year;
-import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
-import java.util.Set;
 
-import static java.util.stream.Collectors.toSet;
-
+/**
+ * 공공데이터포털 공휴일 API 게이트웨이. 응답을 받아 검증하고 {@link HolidayApiItem}으로 옮기는
+ * 것까지가 전부다 — 소정근로일 계산은 원장을 읽는 도메인의 일이고, 여기는 적재 도구일 뿐이다.
+ */
 @Component
 public class ApiConvertor {
 
@@ -36,23 +36,6 @@ public class ApiConvertor {
     ) {
         this.restTemplate = restTemplate;
         this.apiProperties = apiProperties;
-    }
-
-    public long countNumberOfStandardWorkingDays(YearMonth yearMonth) {
-        Set<LocalDate> holidays = fetchHolidays(Year.from(yearMonth)).stream()
-                .map(HolidayApiItem::date)
-                .filter(date -> YearMonth.from(date).equals(yearMonth))
-                .collect(toSet());
-        long numberOfWeekDays = getNumberOfWeekDays(yearMonth);
-        long numberOfHolidays = countWeekdayHolidays(holidays);
-
-        return numberOfWeekDays - numberOfHolidays;
-    }
-
-    private static long getNumberOfWeekDays(YearMonth yearMonth) {
-        int lengthOfMonth = yearMonth.lengthOfMonth();
-        long numberOfWeekends = WeekendCalculator.countNumberOfWeekends(yearMonth);
-        return lengthOfMonth - numberOfWeekends;
     }
 
     /**
@@ -149,12 +132,6 @@ public class ApiConvertor {
         }
     }
 
-    private long countWeekdayHolidays(Set<LocalDate> holidays) {
-        return holidays.stream()
-                .filter(date -> !WeekendCalculator.isWeekend(date))
-                .count();
-    }
-
     /**
      * getRestDeInfo(공휴일 정보조회)가 반환하는 항목은 정의상 모두 공휴일이므로 그대로 받아들인다.
      * 국경일 조회는 별도 엔드포인트(getHoliDeInfo)이고, 제헌절처럼 연도에 따라 공휴일 지정이
@@ -189,10 +166,6 @@ public class ApiConvertor {
                             + ", locdate=" + item.getLocdate());
         }
         return new HolidayApiItem(date, item.getDateName().trim());
-    }
-
-    public long calculateStandardWorkingMinutes(long numberOfStandardWorkingDays) {
-        return numberOfStandardWorkingDays * 8 * 60;
     }
 
 }
