@@ -40,7 +40,7 @@
 요구사항인 순간 캐시는 탈락 — 캐시는 원본과 다른 주장을 담을 수 없다. ② 조용히 틀린 값 >
 리포트 부재라는 비용 비대칭. ③ 매월 1일 고정 크리티컬 타임에 외부 가용성을 걸 수 없음.
 
-### 데이터 모델 (V8, 전부 신규 — V6가 구 테이블을 이미 삭제했다)
+### 데이터 모델 (V8·V9, 전부 신규 — V6가 구 테이블을 이미 삭제했다)
 
 - [x] `holiday(holiday_id PK, holiday_date, name, source[API|MANUAL], is_holiday,
       UNIQUE(holiday_date, source), CHECK(source <> 'API' OR is_holiday = TRUE))`
@@ -52,13 +52,20 @@
       API+부정 조합은 만들 수 없고, JPA는 `@Check`로 H2에도 같은 제약을 건다.
       레포지토리와 제약 테스트는 두지 않았다 — 첫 쿼리가 필요한 항목에서 동작 테스트와
       함께 만든다. (MySQL 8.4 실측: 위반이 HY000/3819라 Spring이 분류하지 못한다)
-- [ ] `holiday_sync_marker(sync_year PK, synced_at)` — 마커는 **연 단위**.
+- [x] `holiday_sync_marker(sync_year PK, synced_at)` — 마커는 **연 단위**.
       동기화 단위가 연이고 "연간 0건 = 미발표" 판정도 연 단위이므로 월 마커 12개는
       연 단위 사실의 비정규화일 뿐이다. **"공휴일 0개인 달"과 "아직 적재 안 된 달"의
       구분**(4월·11월은 정상 0개)은 연 마커로 동일하게 해결된다: 마커 있음 + 해당 월
       행 없음 = 정상 0개. 마커 없는 연도의 월은 계산을 거부한다 — 이게 없으면
-      1번에서 잡은 silent fail-open이 DB로 이사한다
-- [ ] `data.sql`에 dev 시드(데모 월 공휴일 + 마커) — 없으면 dev에서 전부 "미적재" 거부
+      1번에서 잡은 silent fail-open이 DB로 이사한다.
+      → `V9__holiday_sync_marker.sql` + `domain/holiday/HolidaySyncMarker`.
+      V8은 이미 커밋되어 적용 가능한 상태라 수정하지 않고 새 V로 나눴다(체크섬).
+      `synced_at`은 `Instant`(컬럼 `DATETIME(6)`, 기존 시각 컬럼과 동일 규약).
+      upsert 뮤테이터와 신선도 판정은 이를 실제로 쓰는 동기화·프리플라이트 항목에서
+      동작 테스트와 함께 만든다
+- [x] `data.sql`에 dev 시드(데모 월 공휴일 + 마커) — 없으면 dev에서 전부 "미적재" 거부.
+      2025·2026 연 마커 + 두 해의 공휴일, 그리고 오버라이드 두 갈래(MANUAL-true /
+      MANUAL-false) 예시 각 1건. **데모용 근사 데이터**이며 정본이 아님을 파일에 명시했다
 
 ### 동기화 — 매일 새벽, **작년 ~ +2년**, 연 단위, 멱등
 
