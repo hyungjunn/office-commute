@@ -49,4 +49,4 @@ public:
   data:
     api:
       serviceKey: ${PUBLIC_API_SERVICE_KEY}
-      url: ${PUBLIC_API_URL:http://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo}
+      url: ${PUBLIC_API_URL:https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo}

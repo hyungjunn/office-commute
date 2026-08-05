@@ -5,12 +5,12 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @ConfigurationProperties(prefix = "public.data.api")
-public class PublicDataApi implements ApiProperties {
-
-    // 월 단위 조회지만 numOfRows 기본값(10)에 의존하면 대체공휴일이 겹치는 달에서 응답이 잘릴 수 있다.
-    private static final int NUM_OF_ROWS = 100;
+public class HolidayApiProperties {
 
     private String url;
+
+    // 공공데이터포털이 발급한 "URL 인코딩" 형태의 키를 그대로 보관한다.
+    // 디코딩 키를 넣으면 '+'가 서버에서 공백으로 해석되어 인증에 실패한다.
     private String serviceKey;
 
     public String getUrl() {
@@ -27,14 +27,6 @@ public class PublicDataApi implements ApiProperties {
 
     public void setServiceKey(String serviceKey) {
         this.serviceKey = serviceKey;
-    }
-
-    @Override
-    public String combineURL(String solYear, String solMonth) {
-        return this.url + "?serviceKey=" + this.serviceKey
-                + "&solYear=" + solYear
-                + "&solMonth=" + solMonth
-                + "&numOfRows=" + NUM_OF_ROWS;
     }
 
 }

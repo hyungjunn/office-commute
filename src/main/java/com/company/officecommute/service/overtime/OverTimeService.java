@@ -3,7 +3,6 @@ package com.company.officecommute.service.overtime;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
-import com.company.officecommute.web.ApiConvertor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -20,16 +19,16 @@ public class OverTimeService {
 
     private final CommuteHistoryRepository commuteHistoryRepository;
     private final EmployeeRepository employeeRepository;
-    private final ApiConvertor apiConvertor;
+    private final StandardWorkingTimeService standardWorkingTimeService;
 
     public OverTimeService(
             CommuteHistoryRepository commuteHistoryRepository,
             EmployeeRepository employeeRepository,
-            ApiConvertor apiConvertor
+            StandardWorkingTimeService standardWorkingTimeService
     ) {
         this.commuteHistoryRepository = commuteHistoryRepository;
         this.employeeRepository = employeeRepository;
-        this.apiConvertor = apiConvertor;
+        this.standardWorkingTimeService = standardWorkingTimeService;
     }
 
     /**
@@ -49,8 +48,8 @@ public class OverTimeService {
         Map<Long, TotalWorkingMinutes> totalWorkingMinutesByEmployeeId = totalWorkingMinutes.stream()
                 .collect(Collectors.toMap(TotalWorkingMinutes::getEmployeeId, Function.identity(), (left, right) -> left));
 
-        long numberOfStandardWorkingDays = apiConvertor.countNumberOfStandardWorkingDays(yearMonth);
-        long standardWorkingMinutes = apiConvertor.calculateStandardWorkingMinutes(numberOfStandardWorkingDays);
+        long numberOfStandardWorkingDays = standardWorkingTimeService.countNumberOfStandardWorkingDays(yearMonth);
+        long standardWorkingMinutes = standardWorkingTimeService.calculateStandardWorkingMinutes(numberOfStandardWorkingDays);
 
         return employeeRepository.findAllWithTeam().stream()
                 .map(employee -> {

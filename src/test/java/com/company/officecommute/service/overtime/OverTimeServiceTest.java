@@ -7,7 +7,6 @@ import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
-import com.company.officecommute.web.ApiConvertor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,7 +38,7 @@ class OverTimeServiceTest {
     private EmployeeRepository employeeRepository;
 
     @Mock
-    private ApiConvertor apiConvertor;
+    private StandardWorkingTimeService standardWorkingTimeService;
 
     @Test
     @DisplayName("근무 기록 없는 직원도 초과근무 0분으로 포함한다")
@@ -101,8 +100,8 @@ class OverTimeServiceTest {
     }
 
     private void givenStandardWorkingMinutes(long standardWorkingMinutes) {
-        given(apiConvertor.countNumberOfStandardWorkingDays(YEAR_MONTH)).willReturn(20L);
-        given(apiConvertor.calculateStandardWorkingMinutes(20L)).willReturn(standardWorkingMinutes);
+        given(standardWorkingTimeService.countNumberOfStandardWorkingDays(YEAR_MONTH)).willReturn(20L);
+        given(standardWorkingTimeService.calculateStandardWorkingMinutes(20L)).willReturn(standardWorkingMinutes);
     }
 
     private Employee employee(Long id, String name, Team team, String employeeCode, String email) {

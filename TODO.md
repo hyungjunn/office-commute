@@ -5,7 +5,8 @@
 
 관련 경로:
 `OverTimeController` → `OverTimeReportService` → `OverTimeService.calculateOverTime`
-→ `CommuteHistoryRepository.findTotalWorkingMinutesByWorkDateBetween` + `ApiConvertor.countNumberOfStandardWorkingDays`
+→ `CommuteHistoryRepository.findTotalWorkingMinutesByWorkDateBetween`
++ `StandardWorkingTimeService.countNumberOfStandardWorkingDays` → `HolidayApiClient.getHolidays`
 
 ---
 
@@ -50,14 +51,19 @@
       (적용된 V8·V9는 수정 불가 — V6이 캐시 테이블을 지운 것과 같은 방식),
       `domain/holiday` 패키지(`Holiday`·`HolidaySource`·`HolidaySyncMarker`) 삭제
       (main+test — 참조하는 다른 코드 없음을 확인), `data.sql`의 공휴일·마커 시드 전부 제거
-- [ ] 외부 호출을 `ApiConvertor`(계산 로직을 가진 `web` 패키지 클래스, 층 위반)에서 분리:
-      HTTP 클라이언트와 계산 서비스로
-- [ ] 클라이언트 재작성에 URL 조립 수정 포함 — `combineURL`은 serviceKey를 인코딩 없이
-      문자열 연결하는데, 이게 지금 동작하는 이유는 `.env`의 키가 **이미 URL 인코딩된
-      형태**라서다(실측: 같은 키를 `--data-urlencode`로 재인코딩하면 인증 실패 —
-      이중 인코딩). 이 암묵 전제를 코드에 명시할 것: `UriComponentsBuilder` 사용 시
-      `build(true)`(인코딩 키 보관) 또는 디코딩 키 보관 후 1회 인코딩 중 하나로 통일
-- [ ] `http://` → `https://`
+- [x] 외부 호출을 `ApiConvertor`(계산 로직을 가진 `web` 패키지 클래스, 층 위반)에서 분리:
+      `web/HolidayApiClient`(HTTP 호출 + 응답 검증 + `Set<LocalDate>` 변환)와
+      `service/overtime/StandardWorkingTimeService`(소정근로일·소정근로시간 계산)로.
+      `ApiProperties` 인터페이스·`PublicDataApi`는 `HolidayApiProperties`로 대체.
+      테스트도 같은 경계로 분리 — `@SpringBootTest`였던 클라이언트 테스트를 Mockito
+      단위 테스트로 내림(testing.md의 narrowest slice)
+- [x] 클라이언트 재작성에 URL 조립 수정 포함 — 구 `combineURL`은 serviceKey를 인코딩 없이
+      문자열 연결했고, 동작한 이유는 `.env`의 키가 **이미 URL 인코딩된 형태**라서였다
+      (실측: 같은 키를 `--data-urlencode`로 재인코딩하면 인증 실패 — 이중 인코딩).
+      → 계약을 코드에 명시: `HolidayApiProperties.serviceKey`는 인코딩 키를 그대로 보관,
+      `UriComponentsBuilder` + `build(true)`로 재인코딩 없이 조립.
+      재인코딩 회귀는 `HolidayApiClientTest`의 URI 검증 테스트가 고정한다
+- [x] `http://` → `https://` (세 프로파일 yml의 `PUBLIC_API_URL` 기본값)
 
 ### 철회 기록 (재도입 검토 시 읽을 것)
 
@@ -122,7 +128,8 @@
 ## 6. 마이너
 
 - [ ] `OverTimeService.calculateOverTime`에 `@Transactional(readOnly = true)` 부재 —
-      두 쿼리 사이 비일관 스냅샷 가능. 붙일 때는 외부 API 호출을 트랜잭션 밖으로 빼야 한다
-      (라이브 호출을 유지하므로 2번의 구조 정리와 함께 처리)
+      두 쿼리 사이 비일관 스냅샷 가능. 붙일 때는 외부 API 호출(`StandardWorkingTimeService`
+      경유)을 트랜잭션 밖으로 빼야 한다
 - [ ] 외부 API 타임아웃을 `application-*.yml`로 분리 (`RestTemplateConfig`의 기존 TODO)
-- [ ] `HolidayResponse.Item.setLocDate` 오타 (필드는 `locdate`)
+- [x] `HolidayResponse.Item.setLocDate` 오타 수정 (`setLocdate`, 필드와 일치 — 클라이언트
+      분리에 딸려 처리)

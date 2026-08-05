@@ -5,9 +5,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
@@ -16,41 +16,33 @@ import java.util.Set;
 
 import static java.util.stream.Collectors.toSet;
 
+/**
+ * 공공데이터포털 특일(공휴일) 조회 API 클라이언트.
+ * HTTP 호출과 응답 검증까지가 책임이고, 소정근로일 계산은 StandardWorkingTimeService가 한다.
+ */
 @Component
-public class ApiConvertor {
+public class HolidayApiClient {
 
-    private static final Logger log = LoggerFactory.getLogger(ApiConvertor.class);
+    private static final Logger log = LoggerFactory.getLogger(HolidayApiClient.class);
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final String HOLIDAY_DATA_UNAVAILABLE_MESSAGE =
             "공휴일 정보를 확인할 수 없어 초과근무 리포트를 생성할 수 없습니다. 잠시 후 다시 시도해 주세요.";
     private static final String NORMAL_RESULT_CODE = "00";
+    // 월 단위 조회지만 numOfRows 기본값(10)에 의존하면 대체공휴일이 겹치는 달에서 응답이 잘릴 수 있다.
+    private static final int NUM_OF_ROWS = 100;
 
     private final RestTemplate restTemplate;
-    private final ApiProperties apiProperties;
+    private final HolidayApiProperties properties;
 
-    public ApiConvertor(
+    public HolidayApiClient(
             RestTemplate restTemplate,
-            ApiProperties apiProperties
+            HolidayApiProperties properties
     ) {
         this.restTemplate = restTemplate;
-        this.apiProperties = apiProperties;
+        this.properties = properties;
     }
 
-    public long countNumberOfStandardWorkingDays(YearMonth yearMonth) {
-        Set<LocalDate> holidays = getHolidays(yearMonth);
-        long numberOfWeekDays = getNumberOfWeekDays(yearMonth);
-        long numberOfHolidays = countWeekdayHolidays(holidays);
-
-        return numberOfWeekDays - numberOfHolidays;
-    }
-
-    private static long getNumberOfWeekDays(YearMonth yearMonth) {
-        int lengthOfMonth = yearMonth.lengthOfMonth();
-        long numberOfWeekends = WeekendCalculator.countNumberOfWeekends(yearMonth);
-        return lengthOfMonth - numberOfWeekends;
-    }
-
-    private Set<LocalDate> getHolidays(YearMonth yearMonth) {
+    public Set<LocalDate> getHolidays(YearMonth yearMonth) {
         try {
             List<HolidayResponse.Item> items = fetchHolidaysFromApi(yearMonth);
             Set<LocalDate> holidays = convertToLocalDate(items);
@@ -69,15 +61,7 @@ public class ApiConvertor {
     }
 
     private List<HolidayResponse.Item> fetchHolidaysFromApi(YearMonth yearMonth) {
-        String solYear = String.valueOf(yearMonth.getYear());
-        String solMonth = String.format("%02d", yearMonth.getMonthValue());
-        String stringURL = apiProperties.combineURL(solYear, solMonth);
-        URI uri;
-        try {
-            uri = new URI(stringURL);
-        } catch (URISyntaxException e) {
-            throw new RuntimeException(e);
-        }
+        URI uri = buildRequestUri(yearMonth);
 
         HolidayResponse holidayResponse = restTemplate.getForObject(uri, HolidayResponse.class);
         if (holidayResponse == null) {
@@ -93,6 +77,21 @@ public class ApiConvertor {
         List<HolidayResponse.Item> items = body.getItems() != null ? body.getItems() : List.of();
         validateResponseCount(body.getTotalCount(), items.size(), yearMonth);
         return items;
+    }
+
+    /**
+     * serviceKey는 포털이 발급한 URL 인코딩 형태 그대로 보관되므로(HolidayApiProperties 참조)
+     * build(true)로 재인코딩 없이 조립한다 — 재인코딩하면 %가 %25로 이중 인코딩되어 인증에 실패한다.
+     * 나머지 파라미터는 전부 숫자라 인코딩과 무관하다.
+     */
+    private URI buildRequestUri(YearMonth yearMonth) {
+        return UriComponentsBuilder.fromUriString(properties.getUrl())
+                .queryParam("serviceKey", properties.getServiceKey())
+                .queryParam("solYear", yearMonth.getYear())
+                .queryParam("solMonth", String.format("%02d", yearMonth.getMonthValue()))
+                .queryParam("numOfRows", NUM_OF_ROWS)
+                .build(true)
+                .toUri();
     }
 
     /**
@@ -128,12 +127,6 @@ public class ApiConvertor {
         }
     }
 
-    private long countWeekdayHolidays(Set<LocalDate> holidays) {
-        return holidays.stream()
-                .filter(date -> !WeekendCalculator.isWeekend(date))
-                .count();
-    }
-
     /**
      * getRestDeInfo(공휴일 정보조회)가 반환하는 항목은 정의상 모두 공휴일이므로 그대로 센다.
      * 국경일 조회는 별도 엔드포인트(getHoliDeInfo)이고, 제헌절처럼 연도에 따라 공휴일 지정이
@@ -143,10 +136,6 @@ public class ApiConvertor {
         return items.stream()
                 .map(item -> LocalDate.parse(item.getLocdate(), DATE_FORMATTER))
                 .collect(toSet());
-    }
-
-    public long calculateStandardWorkingMinutes(long numberOfStandardWorkingDays) {
-        return numberOfStandardWorkingDays * 8 * 60;
     }
 
 }

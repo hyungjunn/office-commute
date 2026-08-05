@@ -102,7 +102,7 @@ public class HolidayResponse {
             this.isHoliday = isHoliday;
         }
 
-        public void setLocDate(String locdate) {
+        public void setLocdate(String locdate) {
             this.locdate = locdate;
         }
     }
