@@ -31,8 +31,6 @@ public class HolidayResponse {
         this.body = body;
     }
 
-    // 공공데이터포털은 키 오류·트래픽 초과 등도 HTTP 200 + XML로 반환하므로
-    // resultCode 검증 없이는 실패를 "공휴일 0개"로 오인한다.
     public static class Header {
         @JacksonXmlProperty(localName = "resultCode")
         private String resultCode;
@@ -102,7 +100,7 @@ public class HolidayResponse {
             this.isHoliday = isHoliday;
         }
 
-        public void setLocDate(String locdate) {
+        public void setLocdate(String locdate) {
             this.locdate = locdate;
         }
     }

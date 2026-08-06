@@ -5,9 +5,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
@@ -17,40 +17,28 @@ import java.util.Set;
 import static java.util.stream.Collectors.toSet;
 
 @Component
-public class ApiConvertor {
+public class HolidayApiClient {
 
-    private static final Logger log = LoggerFactory.getLogger(ApiConvertor.class);
+    private static final Logger log = LoggerFactory.getLogger(HolidayApiClient.class);
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final String HOLIDAY_DATA_UNAVAILABLE_MESSAGE =
             "공휴일 정보를 확인할 수 없어 초과근무 리포트를 생성할 수 없습니다. 잠시 후 다시 시도해 주세요.";
     private static final String NORMAL_RESULT_CODE = "00";
+    // 월 단위 조회지만 numOfRows 기본값(10)에 의존하면 대체공휴일이 겹치는 달에서 응답이 잘릴 수 있다.
+    private static final int NUM_OF_ROWS = 100;
 
     private final RestTemplate restTemplate;
-    private final ApiProperties apiProperties;
+    private final HolidayApiProperties properties;
 
-    public ApiConvertor(
+    public HolidayApiClient(
             RestTemplate restTemplate,
-            ApiProperties apiProperties
+            HolidayApiProperties properties
     ) {
         this.restTemplate = restTemplate;
-        this.apiProperties = apiProperties;
+        this.properties = properties;
     }
 
-    public long countNumberOfStandardWorkingDays(YearMonth yearMonth) {
-        Set<LocalDate> holidays = getHolidays(yearMonth);
-        long numberOfWeekDays = getNumberOfWeekDays(yearMonth);
-        long numberOfHolidays = countWeekdayHolidays(holidays);
-
-        return numberOfWeekDays - numberOfHolidays;
-    }
-
-    private static long getNumberOfWeekDays(YearMonth yearMonth) {
-        int lengthOfMonth = yearMonth.lengthOfMonth();
-        long numberOfWeekends = WeekendCalculator.countNumberOfWeekends(yearMonth);
-        return lengthOfMonth - numberOfWeekends;
-    }
-
-    private Set<LocalDate> getHolidays(YearMonth yearMonth) {
+    public Set<LocalDate> getHolidays(YearMonth yearMonth) {
         try {
             List<HolidayResponse.Item> items = fetchHolidaysFromApi(yearMonth);
             Set<LocalDate> holidays = convertToLocalDate(items);
@@ -69,15 +57,7 @@ public class ApiConvertor {
     }
 
     private List<HolidayResponse.Item> fetchHolidaysFromApi(YearMonth yearMonth) {
-        String solYear = String.valueOf(yearMonth.getYear());
-        String solMonth = String.format("%02d", yearMonth.getMonthValue());
-        String stringURL = apiProperties.combineURL(solYear, solMonth);
-        URI uri;
-        try {
-            uri = new URI(stringURL);
-        } catch (URISyntaxException e) {
-            throw new RuntimeException(e);
-        }
+        URI uri = buildRequestUri(yearMonth);
 
         HolidayResponse holidayResponse = restTemplate.getForObject(uri, HolidayResponse.class);
         if (holidayResponse == null) {
@@ -95,11 +75,16 @@ public class ApiConvertor {
         return items;
     }
 
-    /**
-     * 공공데이터포털은 서비스키 미등록·트래픽 초과 같은 실패도 HTTP 200 + XML 본문으로 반환한다.
-     * resultCode를 검증하지 않으면 그 응답이 "공휴일 0개"로 해석되어 소정근로시간이 과대 계산되고,
-     * 결과적으로 초과근무가 과소 집계된다.
-     */
+    private URI buildRequestUri(YearMonth yearMonth) {
+        return UriComponentsBuilder.fromUriString(properties.getUrl())
+                .queryParam("serviceKey", properties.getServiceKey())
+                .queryParam("solYear", yearMonth.getYear())
+                .queryParam("solMonth", String.format("%02d", yearMonth.getMonthValue()))
+                .queryParam("numOfRows", NUM_OF_ROWS)
+                .build(true)
+                .toUri();
+    }
+
     private void validateResultCode(HolidayResponse.Header header, YearMonth yearMonth) {
         if (header == null || header.getResultCode() == null) {
             throw new HolidayDataUnavailableException("공휴일 API 응답에 resultCode가 없습니다. yearMonth=" + yearMonth);
@@ -112,14 +97,6 @@ public class ApiConvertor {
         }
     }
 
-    /**
-     * 정상 응답은 항상 totalCount를 포함하며 실제 수신 건수와 일치한다.
-     * 공휴일이 없는 달도 totalCount=0으로 온다.
-     * <p>
-     * totalCount가 없으면 응답의 완전성을 확인할 수 없고, 수신 건수보다 크면 페이지 크기를 넘겨
-     * 잘린 것이다. 어느 쪽이든 조용히 넘기면 공휴일이 누락되어 초과근무가 과소 집계되므로
-     * 건수가 정확히 일치하지 않는 응답으로는 계산하지 않는다.
-     */
     private void validateResponseCount(Integer totalCount, int receivedCount, YearMonth yearMonth) {
         if (totalCount == null || totalCount != receivedCount) {
             throw new HolidayDataUnavailableException(
@@ -128,25 +105,10 @@ public class ApiConvertor {
         }
     }
 
-    private long countWeekdayHolidays(Set<LocalDate> holidays) {
-        return holidays.stream()
-                .filter(date -> !WeekendCalculator.isWeekend(date))
-                .count();
-    }
-
-    /**
-     * getRestDeInfo(공휴일 정보조회)가 반환하는 항목은 정의상 모두 공휴일이므로 그대로 센다.
-     * 국경일 조회는 별도 엔드포인트(getHoliDeInfo)이고, 제헌절처럼 연도에 따라 공휴일 지정이
-     * 바뀌는 날도 지정된 연도에만 이 응답에 나타난다. 즉 공휴일 여부 판단은 API의 책임이다.
-     */
     private Set<LocalDate> convertToLocalDate(List<HolidayResponse.Item> items) {
         return items.stream()
                 .map(item -> LocalDate.parse(item.getLocdate(), DATE_FORMATTER))
                 .collect(toSet());
-    }
-
-    public long calculateStandardWorkingMinutes(long numberOfStandardWorkingDays) {
-        return numberOfStandardWorkingDays * 8 * 60;
     }
 
 }
