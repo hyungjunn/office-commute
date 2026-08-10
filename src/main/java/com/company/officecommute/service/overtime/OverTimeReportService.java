@@ -17,9 +17,10 @@ import java.util.List;
 public class OverTimeReportService {
 
     // TODO: 통상시급은 본래 직원별 속성. 현재 전 직원 동일값으로 단순화.
-    // (가산 전 값. 연장근로 가산 1.5×는 OVERTIME_MULTIPLIER 로 별도 적용)
+    // (가산 전 값. 가산율은 아래 MULTIPLIER 로 별도 적용)
     private static final long HOURLY_ORDINARY_WAGE = 15000;
-    private static final BigDecimal OVERTIME_MULTIPLIER = new BigDecimal("1.5"); // 근로기준법 연장근로 가산
+    private static final BigDecimal OVERTIME_MULTIPLIER = new BigDecimal("1.5"); // 연장근로·휴일근로 8h 이내 가산
+    private static final BigDecimal HOLIDAY_EXCESS_MULTIPLIER = new BigDecimal("2.0"); // 휴일근로 8h 초과 가산
 
     // 조회 순서(DB 반환 순서)는 보장되지 않는다. 매달 같은 순서로 나와야 전월 리포트와 나란히 비교할 수 있다.
     // 사번은 unique 라 동점자가 남지 않는 전순서(total order)가 된다.
@@ -59,18 +60,25 @@ public class OverTimeReportService {
     }
 
     private OverTimeReportData convertToReportData(OverTimeCalculateResponse response) {
-        long overTimePay = BigDecimal.valueOf(response.overTimeMinutes())
-                .multiply(BigDecimal.valueOf(HOURLY_ORDINARY_WAGE))
-                .multiply(OVERTIME_MULTIPLIER)
-                .divide(BigDecimal.valueOf(60), 0, RoundingMode.HALF_UP)
-                .longValueExact();
-
         return new OverTimeReportData(
                 response.employeeCode(),
                 response.name(),
                 response.teamName(),
                 response.overTimeMinutes(),
-                overTimePay
+                response.holidayWithin8HoursMinutes(),
+                response.holidayExceeding8HoursMinutes(),
+                calculateOverTimePay(response)
         );
+    }
+
+    // 반올림은 합산 후 한 번만 — 트랙별로 먼저 반올림하면 분 단위 비례가 어긋난다
+    private long calculateOverTimePay(OverTimeCalculateResponse response) {
+        BigDecimal multipliedMinutes = BigDecimal.valueOf(response.overTimeMinutes() + response.holidayWithin8HoursMinutes())
+                .multiply(OVERTIME_MULTIPLIER)
+                .add(BigDecimal.valueOf(response.holidayExceeding8HoursMinutes()).multiply(HOLIDAY_EXCESS_MULTIPLIER));
+        return multipliedMinutes
+                .multiply(BigDecimal.valueOf(HOURLY_ORDINARY_WAGE))
+                .divide(BigDecimal.valueOf(60), 0, RoundingMode.HALF_UP)
+                .longValueExact();
     }
 }

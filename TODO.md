@@ -5,8 +5,8 @@
 
 관련 경로:
 `OverTimeController` → `OverTimeReportService` → `OverTimeService.calculateOverTime`
-→ `CommuteHistoryRepository.findTotalWorkingMinutesByWorkDateBetween`
-+ `StandardWorkingTimeService.countNumberOfStandardWorkingDays` → `HolidayApiClient.getHolidays`
+→ `CommuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween` + `MonthlyOverTimeCalculator`
++ `HolidayApiClient.getHolidays` (휴일근로 분류용 — 대상 월, 첫 주가 걸치면 전월도)
 
 ---
 
@@ -86,14 +86,16 @@
 - **COMPANY 소스(회사 지정 휴일)**: 소정근로일에서 뺀다는 급여 정책이 확정된 요구가
   아니라 보류. 필요해지면 저장 계층 재도입과 함께 그때 설계한다
 
-## 3. 소정근로시간 개인화 — 실질 임금 오류
+## 3. 리포트 대상자 정합
 
-현재 소정근로시간(근무일 × 8h)을 전 직원에게 일괄 적용한다.
+(구 제목: "소정근로시간 개인화 — 실질 임금 오류". 5번에서 월 소정근로시간 차감 방식 자체가
+제거되면서 아래 두 왜곡은 구조적으로 해소됐다 — 기준선이 "실근로 일 8h·주 40h"로 바뀌어
+근무하지 않은 날이 결손을 만들지 않는다.)
 
-- [ ] **연차가 초과근무를 잡아먹는다.** `CommuteHistory.registerAnnualLeave`는 `workingMinutes=0`인데
-      소정근로시간은 차감되지 않는다 → 연차 1일 쓴 직원은 8시간 결손을 깔고 시작하므로
-      실제로 야근해도 초과근무 0으로 집계된다
-- [ ] 월 중 입사자도 같은 방식으로 왜곡된다 (`Employee.workStartDate` 활용)
+- [x] **연차가 초과근무를 잡아먹던 문제** — 소정근로시간 차감이 사라져 해소. 연차는 실근로 0으로
+      주 40h 산정에 들어가지 않을 뿐이고, 연차 주간의 야근은 일 8h 초과로 그대로 잡힌다
+      (`MonthlyOverTimeCalculatorTest.annualLeaveWeekStillAccruesDailyExcess` 고정)
+- [x] 월 중 입사자 왜곡 — 같은 이유로 해소. 입사 전 날짜는 기록이 없을 뿐 결손이 아니다
 - [ ] `Employee`에 퇴사 상태가 없어 `findAllWithTeam()`이 퇴사자까지 0으로 리포트에 싣는다
 
 ## 4. 매월 1일 배치 — 이번 작업의 본체
@@ -127,17 +129,29 @@
 
 ## 5. 법정 산정 방식 정합
 
-- [ ] **월 합계 상계는 근로기준법 산정 방식이 아니다.** 가산은 1일 8시간 초과 / 1주 40시간 초과 기준.
-      어떤 날 4h 야근하고 다른 날 4h 조퇴하면 현재는 0이지만 법적으로는 4h 가산수당 지급 의무가 남는다.
-      `DailyWorkDuration`이 이미 있어 일별 계산 기반은 갖춰져 있다
+- [x] **월 합계 상계 → 주 단위 법정 산정으로 교체** (2026-08-09, `MonthlyOverTimeCalculator`).
+      1주(월~일)의 연장근로 = Σ일별 max(0, 실근로−8h) + max(0, Σ일별 min(실근로, 8h) − 40h) —
+      두 항은 겹치지 않아 이중가산 없음. 확정한 정책:
+      - **실근로 기준**: 연차는 주 40h 산정에 불포함, 기준선도 40h 유지 (법정 최소.
+        연차를 8h 근로로 간주하는 우대 정책은 채택하지 않음)
+      - **월 경계에 걸친 주**: 일별 초과분은 그 날이 속한 달, 주 40h 잔여분은 주가 끝나는 달에
+        귀속 — 매월 1일 배치 시점에 걸친 주가 아직 끝나지 않아 데이터 가용성상으로도 강제되는 선택.
+        이를 위해 조회 범위를 "월 1일이 속한 주의 월요일"까지 확장 (`OverTimeService`)
+      - 산정 근거 사례는 전부 `MonthlyOverTimeCalculatorTest`가 고정
+- [x] **휴일근로 분리** (같은 커밋): 일요일(주휴일)·공휴일 근무는 주 40h 산정 기반에서 제외하고
+      별도 트랙으로 — 8h 이내 1.5 / 초과 2.0 (제56조②, 연장가산과 중복 없음).
+      토요일은 무급휴무일로 보아 휴일이 아니며 주 40h 초과 경로로 잡힌다.
+      응답·엑셀·`openapi.yml`에 연장/휴일(이내·초과) 구분 필드 추가.
+      `StandardWorkingTimeService`(소정근로일 개념)·`WeekendCalculator`·월 SUM 쿼리는 퇴역
 - [ ] 직원별 통상시급 (현재 `OverTimeReportService.HOURLY_ORDINARY_WAGE = 15000` 전 직원 하드코딩)
-- [ ] 휴일근로(8h 이내 1.5 / 초과 2.0)·야간근로(22~06시 +0.5)가 단일 `1.5`로 뭉쳐 있다
+- [ ] 야간근로(22~06시 +0.5) 미반영 — `workStartTime`/`workEndTime` Instant가 있어 계산 가능하지만
+      휴게시간 미모델링과 함께 봐야 한다. 주 시작 요일(월요일)은 취업규칙 확정 사항으로 코드와 일치 필요
 
 ## 6. 마이너
 
 - [ ] `OverTimeService.calculateOverTime`에 `@Transactional(readOnly = true)` 부재 —
-      두 쿼리 사이 비일관 스냅샷 가능. 붙일 때는 외부 API 호출(`StandardWorkingTimeService`
-      경유)을 트랜잭션 밖으로 빼야 한다
+      두 쿼리 사이 비일관 스냅샷 가능. 붙일 때는 외부 API 호출(`HolidayApiClient`)을
+      트랜잭션 밖으로 빼야 한다
 - [ ] 외부 API 타임아웃을 `application-*.yml`로 분리 (`RestTemplateConfig`의 기존 TODO)
 - [x] `HolidayResponse.Item.setLocDate` 오타 수정 (`setLocdate`, 필드와 일치 — 클라이언트
       분리에 딸려 처리)

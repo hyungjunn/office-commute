@@ -5,6 +5,8 @@ public record OverTimeCalculateResponse(
         String employeeCode,
         String name,
         String teamName,
-        long overTimeMinutes
+        long overTimeMinutes,
+        long holidayWithin8HoursMinutes,
+        long holidayExceeding8HoursMinutes
 ) {
 }

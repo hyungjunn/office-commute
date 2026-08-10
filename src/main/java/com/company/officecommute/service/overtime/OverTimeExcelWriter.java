@@ -28,9 +28,16 @@ public class OverTimeExcelWriter {
     private static final int COL_EMPLOYEE_NAME = 1;
     private static final int COL_TEAM_NAME = 2;
     private static final int COL_OVERTIME = 3;
-    private static final int COL_PAY = 4;
+    private static final int COL_HOLIDAY_WITHIN = 4;
+    private static final int COL_HOLIDAY_EXCESS = 5;
+    private static final int COL_PAY = 6;
 
-    private static final String[] HEADERS = {"사번", "직원명", "부서명", "초과근무시간", "초과근무수당"};
+    private static final String[] HEADERS = {
+            "사번", "직원명", "부서명",
+            "연장근무시간", "휴일근무(8시간 이내)", "휴일근무(8시간 초과)", "초과근무수당"
+    };
+
+    private static final int[] TIME_COLUMNS = {COL_OVERTIME, COL_HOLIDAY_WITHIN, COL_HOLIDAY_EXCESS};
 
     // 신뢰성 알림은 헤더 위에 고정한다. 건수가 0이어도 행을 유지해야 달마다 레이아웃이 같고,
     // "확인했고 문제없음"과 "확인 자체를 안 함"이 구분된다.
@@ -68,6 +75,8 @@ public class OverTimeExcelWriter {
         sheet.setColumnWidth(COL_EMPLOYEE_NAME, 4000);
         sheet.setColumnWidth(COL_TEAM_NAME, 4000);
         sheet.setColumnWidth(COL_OVERTIME, 5000);
+        sheet.setColumnWidth(COL_HOLIDAY_WITHIN, 5500);
+        sheet.setColumnWidth(COL_HOLIDAY_EXCESS, 5500);
         sheet.setColumnWidth(COL_PAY, 6000);
     }
 
@@ -129,19 +138,21 @@ public class OverTimeExcelWriter {
             row.createCell(COL_EMPLOYEE_NAME).setCellValue(data.employeeName());
             row.createCell(COL_TEAM_NAME).setCellValue(data.teamName());
 
-            // 분 단위를 엑셀 시간으로 변환
-            // excel에서는 1이 하루(24시간)이다.
-            // excelTime을 x라고 할 때,
-            // 24 * 60 : date.overTimeMinutes() = 1 : x
-            double excelTime = data.overTimeMinutes() / (24d * 60d);
-            Cell timeCell = row.createCell(COL_OVERTIME);
-            timeCell.setCellValue(excelTime);
-            timeCell.setCellStyle(timeCellStyle);
+            createTimeCell(row, COL_OVERTIME, data.overTimeMinutes(), timeCellStyle);
+            createTimeCell(row, COL_HOLIDAY_WITHIN, data.holidayWithin8HoursMinutes(), timeCellStyle);
+            createTimeCell(row, COL_HOLIDAY_EXCESS, data.holidayExceeding8HoursMinutes(), timeCellStyle);
 
             Cell payCell = row.createCell(COL_PAY);
             payCell.setCellValue(data.overTimePay());
             payCell.setCellStyle(currencyCellStyle);
         }
+    }
+
+    // 분 단위를 엑셀 시간으로 변환 — excel에서는 1이 하루(24시간)이다
+    private void createTimeCell(Row row, int columnIndex, long minutes, CellStyle timeCellStyle) {
+        Cell timeCell = row.createCell(columnIndex);
+        timeCell.setCellValue(minutes / (24d * 60d));
+        timeCell.setCellStyle(timeCellStyle);
     }
 
     private void createTotalRow(Sheet sheet, int dataRowCount, CellStyle timeCellStyle, CellStyle currencyCellStyle) {
@@ -150,15 +161,17 @@ public class OverTimeExcelWriter {
         Cell totalLabel = totalRow.createCell(COL_EMPLOYEE_CODE);
         totalLabel.setCellValue("합계");
 
-        Cell totalTime = totalRow.createCell(COL_OVERTIME);
-        totalTime.setCellStyle(timeCellStyle);
-
+        for (int timeColumn : TIME_COLUMNS) {
+            totalRow.createCell(timeColumn).setCellStyle(timeCellStyle);
+        }
         Cell totalPay = totalRow.createCell(COL_PAY);
         totalPay.setCellStyle(currencyCellStyle);
 
         // 데이터 행이 없으면 SUM(D3:D2) 같은 역전 범위가 되어 헤더 행을 끌어들인다.
         if (dataRowCount == 0) {
-            totalTime.setCellValue(0);
+            for (int timeColumn : TIME_COLUMNS) {
+                totalRow.getCell(timeColumn).setCellValue(0);
+            }
             totalPay.setCellValue(0);
             return;
         }
@@ -166,7 +179,9 @@ public class OverTimeExcelWriter {
         // 엑셀 행 번호는 1부터 시작하므로 POI 인덱스 + 1
         int firstExcelRow = FIRST_DATA_ROW + 1;
         int lastExcelRow = FIRST_DATA_ROW + dataRowCount;
-        totalTime.setCellFormula(sumFormula(COL_OVERTIME, firstExcelRow, lastExcelRow));
+        for (int timeColumn : TIME_COLUMNS) {
+            totalRow.getCell(timeColumn).setCellFormula(sumFormula(timeColumn, firstExcelRow, lastExcelRow));
+        }
         totalPay.setCellFormula(sumFormula(COL_PAY, firstExcelRow, lastExcelRow));
     }
 

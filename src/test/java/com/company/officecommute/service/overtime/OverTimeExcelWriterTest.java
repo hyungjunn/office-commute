@@ -48,17 +48,19 @@ class OverTimeExcelWriterTest {
             assertThat(header.getCell(0).getStringCellValue()).isEqualTo("사번");
             assertThat(header.getCell(1).getStringCellValue()).isEqualTo("직원명");
             assertThat(header.getCell(2).getStringCellValue()).isEqualTo("부서명");
-            assertThat(header.getCell(3).getStringCellValue()).isEqualTo("초과근무시간");
-            assertThat(header.getCell(4).getStringCellValue()).isEqualTo("초과근무수당");
+            assertThat(header.getCell(3).getStringCellValue()).isEqualTo("연장근무시간");
+            assertThat(header.getCell(4).getStringCellValue()).isEqualTo("휴일근무(8시간 이내)");
+            assertThat(header.getCell(5).getStringCellValue()).isEqualTo("휴일근무(8시간 초과)");
+            assertThat(header.getCell(6).getStringCellValue()).isEqualTo("초과근무수당");
         }
     }
 
     @Test
-    @DisplayName("데이터 행이 올바르게 생성된다")
+    @DisplayName("데이터 행이 올바르게 생성된다 — 연장·휴일(8h 이내/초과) 트랙이 각자 컬럼에 실린다")
     void dataRows() throws IOException {
         List<OverTimeReportData> data = List.of(
-                new OverTimeReportData("EMP001", "임형준", "백엔드팀", 300L, 75000L),
-                new OverTimeReportData("EMP002", "김개발", "프론트엔드팀", 120L, 30000L)
+                new OverTimeReportData("EMP001", "임형준", "백엔드팀", 300L, 480L, 120L, 315000L),
+                new OverTimeReportData("EMP002", "김개발", "프론트엔드팀", 120L, 0L, 0L, 30000L)
         );
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -72,13 +74,15 @@ class OverTimeExcelWriterTest {
             assertThat(row1.getCell(1).getStringCellValue()).isEqualTo("임형준");
             assertThat(row1.getCell(2).getStringCellValue()).isEqualTo("백엔드팀");
             assertThat(row1.getCell(3).getNumericCellValue()).isCloseTo(300d / (24 * 60), withinPercentage(0.01));
-            assertThat(row1.getCell(4).getNumericCellValue()).isEqualTo(75000d);
+            assertThat(row1.getCell(4).getNumericCellValue()).isCloseTo(480d / (24 * 60), withinPercentage(0.01));
+            assertThat(row1.getCell(5).getNumericCellValue()).isCloseTo(120d / (24 * 60), withinPercentage(0.01));
+            assertThat(row1.getCell(6).getNumericCellValue()).isEqualTo(315000d);
 
             Row row2 = sheet.getRow(3);
             assertThat(row2.getCell(0).getStringCellValue()).isEqualTo("EMP002");
             assertThat(row2.getCell(1).getStringCellValue()).isEqualTo("김개발");
             assertThat(row2.getCell(2).getStringCellValue()).isEqualTo("프론트엔드팀");
-            assertThat(row2.getCell(4).getNumericCellValue()).isEqualTo(30000d);
+            assertThat(row2.getCell(6).getNumericCellValue()).isEqualTo(30000d);
         }
     }
 
@@ -86,7 +90,7 @@ class OverTimeExcelWriterTest {
     @DisplayName("합계 행에 SUM 수식이 존재한다")
     void totalRowFormulas() throws IOException {
         List<OverTimeReportData> data = List.of(
-                new OverTimeReportData("EMP001", "임형준", "백엔드팀", 300L, 75000L)
+                new OverTimeReportData("EMP001", "임형준", "백엔드팀", 300L, 0L, 0L, 75000L)
         );
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -99,8 +103,10 @@ class OverTimeExcelWriterTest {
             assertThat(totalRow.getCell(0).getStringCellValue()).isEqualTo("합계");
             assertThat(totalRow.getCell(3).getCellType()).isEqualTo(CellType.FORMULA);
             assertThat(totalRow.getCell(3).getCellFormula()).isEqualTo("SUM(D3:D3)");
-            assertThat(totalRow.getCell(4).getCellType()).isEqualTo(CellType.FORMULA);
             assertThat(totalRow.getCell(4).getCellFormula()).isEqualTo("SUM(E3:E3)");
+            assertThat(totalRow.getCell(5).getCellFormula()).isEqualTo("SUM(F3:F3)");
+            assertThat(totalRow.getCell(6).getCellType()).isEqualTo(CellType.FORMULA);
+            assertThat(totalRow.getCell(6).getCellFormula()).isEqualTo("SUM(G3:G3)");
         }
     }
 
@@ -108,8 +114,8 @@ class OverTimeExcelWriterTest {
     @DisplayName("합계 수식에 계산된 값이 함께 저장된다")
     void totalRowCachedValues() throws IOException {
         List<OverTimeReportData> data = List.of(
-                new OverTimeReportData("EMP001", "임형준", "백엔드팀", 300L, 75000L),
-                new OverTimeReportData("EMP002", "김개발", "프론트엔드팀", 120L, 30000L)
+                new OverTimeReportData("EMP001", "임형준", "백엔드팀", 300L, 0L, 0L, 75000L),
+                new OverTimeReportData("EMP002", "김개발", "프론트엔드팀", 120L, 0L, 0L, 30000L)
         );
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -120,7 +126,7 @@ class OverTimeExcelWriterTest {
 
             // 재계산하지 않는 뷰어도 값을 볼 수 있어야 한다 (getNumericCellValue 는 캐시된 계산값을 읽는다)
             assertThat(totalRow.getCell(3).getNumericCellValue()).isCloseTo(420d / (24 * 60), withinPercentage(0.01));
-            assertThat(totalRow.getCell(4).getNumericCellValue()).isEqualTo(105000d);
+            assertThat(totalRow.getCell(6).getNumericCellValue()).isEqualTo(105000d);
         }
     }
 
@@ -138,10 +144,10 @@ class OverTimeExcelWriterTest {
             assertThat(totalRow.getCell(0).getStringCellValue()).isEqualTo("합계");
 
             // SUM(D3:D2) 같은 역전 범위를 만들지 않는다
-            assertThat(totalRow.getCell(3).getCellType()).isEqualTo(CellType.NUMERIC);
-            assertThat(totalRow.getCell(3).getNumericCellValue()).isZero();
-            assertThat(totalRow.getCell(4).getCellType()).isEqualTo(CellType.NUMERIC);
-            assertThat(totalRow.getCell(4).getNumericCellValue()).isZero();
+            for (int column = 3; column <= 6; column++) {
+                assertThat(totalRow.getCell(column).getCellType()).isEqualTo(CellType.NUMERIC);
+                assertThat(totalRow.getCell(column).getNumericCellValue()).isZero();
+            }
         }
     }
 
@@ -149,7 +155,7 @@ class OverTimeExcelWriterTest {
     @DisplayName("퇴근 미마감 기록이 있으면 건수와 과소 집계 경고를 첫 행에 남긴다")
     void noticeRowWarnsAboutUnclosedCommutes() throws IOException {
         List<OverTimeReportData> data = List.of(
-                new OverTimeReportData("EMP001", "임형준", "백엔드팀", 300L, 75000L)
+                new OverTimeReportData("EMP001", "임형준", "백엔드팀", 300L, 0L, 0L, 75000L)
         );
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();

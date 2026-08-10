@@ -11,6 +11,8 @@ public record OverTimeReportData(
         String employeeName,
         String teamName,
         long overTimeMinutes,
+        long holidayWithin8HoursMinutes,
+        long holidayExceeding8HoursMinutes,
         long overTimePay
 ) {
     public OverTimeReportData {

@@ -2,13 +2,7 @@ package com.company.officecommute.repository.commute;
 
 import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.domain.commute.CommuteHistoryFixture;
-import com.company.officecommute.domain.employee.Employee;
-import com.company.officecommute.domain.employee.EmployeeBuilder;
-import com.company.officecommute.domain.employee.Role;
-import com.company.officecommute.domain.team.Team;
-import com.company.officecommute.repository.employee.EmployeeRepository;
-import com.company.officecommute.repository.team.TeamRepository;
-import com.company.officecommute.service.overtime.TotalWorkingMinutes;
+import com.company.officecommute.service.overtime.DailyWorkingMinutes;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,67 +22,34 @@ class CommuteHistoryRepositoryTest {
 
     @Autowired
     private CommuteHistoryRepository commuteHistoryRepository;
-    @Autowired
-    private EmployeeRepository employeeRepository;
-    @Autowired
-    private TeamRepository teamRepository;
 
     @Test
-    @DisplayName("월별 근무 시간 조회 시 팀 미배정 직원은 '미배정'으로 반환된다")
-    void findTotalWorkingMinutesByWorkDateBetween_includesUnassignedTeamWithDefaultName() {
-        // given
+    @DisplayName("findDailyWorkingMinutesByWorkDateBetween — 직원·일자별로 한 행씩 근무 분을 반환한다")
+    void findDailyWorkingMinutesByWorkDateBetween_returnsOneRowPerEmployeeDay() {
+        // given — 초과근무는 일 8h·주 40h 기준 계산이라 SUM이 아니라 일별 행이 필요하다
         ZoneId zoneId = ZoneId.of("Asia/Seoul");
-        LocalDate startDate = LocalDate.of(2024, 8, 1);
-        LocalDate endDate = LocalDate.of(2024, 8, 31);
-
-        Team backendTeam = teamRepository.save(Team.register("백엔드팀", null, 0));
-
-        Employee assignedEmployee = employee("배정된직원", backendTeam, "EMP001", "assigned@company.com");
-
-        Employee unassignedEmployee = employee("미배정직원", null, "EMP002", "unassigned@company.com");
-
-        employeeRepository.saveAll(List.of(assignedEmployee, unassignedEmployee));
-
-        CommuteHistory assignedDay1 = CommuteHistoryFixture.ended(
-                null,
-                assignedEmployee.getEmployeeId(),
-                ZonedDateTime.of(2024, 8, 5, 9, 0, 0, 0, zoneId),
-                ZonedDateTime.of(2024, 8, 5, 18, 0, 0, 0, zoneId)
-        );
-        CommuteHistory assignedDay2 = CommuteHistoryFixture.ended(
-                null,
-                assignedEmployee.getEmployeeId(),
-                ZonedDateTime.of(2024, 8, 6, 9, 0, 0, 0, zoneId),
-                ZonedDateTime.of(2024, 8, 6, 17, 0, 0, 0, zoneId)
-        );
-        CommuteHistory unassignedDay = CommuteHistoryFixture.ended(
-                null,
-                unassignedEmployee.getEmployeeId(),
-                ZonedDateTime.of(2024, 8, 7, 9, 0, 0, 0, zoneId),
-                ZonedDateTime.of(2024, 8, 7, 19, 0, 0, 0, zoneId)
-        );
-
-        commuteHistoryRepository.saveAll(List.of(assignedDay1, assignedDay2, unassignedDay));
+        commuteHistoryRepository.saveAll(List.of(
+                CommuteHistoryFixture.ended(null, 1L,
+                        ZonedDateTime.of(2024, 8, 5, 9, 0, 0, 0, zoneId),
+                        ZonedDateTime.of(2024, 8, 5, 18, 0, 0, 0, zoneId)),
+                CommuteHistoryFixture.ended(null, 1L,
+                        ZonedDateTime.of(2024, 8, 6, 9, 0, 0, 0, zoneId),
+                        ZonedDateTime.of(2024, 8, 6, 17, 0, 0, 0, zoneId)),
+                CommuteHistoryFixture.ended(null, 2L,
+                        ZonedDateTime.of(2024, 8, 7, 9, 0, 0, 0, zoneId),
+                        ZonedDateTime.of(2024, 8, 7, 19, 0, 0, 0, zoneId))
+        ));
 
         // when
-        List<TotalWorkingMinutes> result = commuteHistoryRepository.findTotalWorkingMinutesByWorkDateBetween(startDate, endDate);
+        List<DailyWorkingMinutes> result = commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(
+                LocalDate.of(2024, 8, 1), LocalDate.of(2024, 8, 31));
 
-        // then
-        assertThat(result).hasSize(2);
-
-        assertThat(result).anySatisfy(total -> {
-            if (total.getEmployeeId().equals(assignedEmployee.getEmployeeId())) {
-                assertThat(total.getTeamName()).isEqualTo("백엔드팀");
-                assertThat(total.calculateOverTime(0)).isEqualTo(1020); // 540 + 480
-            }
-        });
-
-        assertThat(result).anySatisfy(total -> {
-            if (total.getEmployeeId().equals(unassignedEmployee.getEmployeeId())) {
-                assertThat(total.getTeamName()).isEqualTo("미배정");
-                assertThat(total.calculateOverTime(0)).isEqualTo(600);
-            }
-        });
+        // then — 합산 없이 날짜별로 그대로 남는다
+        assertThat(result).containsExactlyInAnyOrder(
+                new DailyWorkingMinutes(1L, LocalDate.of(2024, 8, 5), 540L),
+                new DailyWorkingMinutes(1L, LocalDate.of(2024, 8, 6), 480L),
+                new DailyWorkingMinutes(2L, LocalDate.of(2024, 8, 7), 600L)
+        );
     }
 
     @Test
@@ -124,38 +85,25 @@ class CommuteHistoryRepositoryTest {
     }
 
     @Test
-    @DisplayName("findTotalWorkingMinutesByWorkDateBetween — 연차 레코드는 annualLeaveDate가 속한 월에 집계된다")
-    void findTotalWorkingMinutesByWorkDateBetween_aggregatesAnnualLeaveByWorkDate() {
-        // given — 연차만(8/1). 연차는 work_date 기준으로 8월에 잡혀야 한다.
+    @DisplayName("findDailyWorkingMinutesByWorkDateBetween — 연차·퇴근 미마감 기록은 0분 행으로 나타난다")
+    void findDailyWorkingMinutesByWorkDateBetween_returnsZeroMinuteRowsForLeaveAndOpenCommute() {
+        // given — 연차는 실근로 0으로 주 40h 산정에 포함되지 않아야 하고(기준선은 40h 유지),
+        // 미마감 기록은 0분으로 잡혀 과소 집계 신호(countBy...)와 짝을 이룬다.
         ZoneId zone = ZoneId.of("Asia/Seoul");
-        Team team = teamRepository.save(Team.register("백엔드팀", null, 0));
-        Employee employee = employee("연차직원", team, "EMP100", "leave@company.com");
-        employeeRepository.save(employee);
-        CommuteHistory annualLeave = CommuteHistoryFixture.annualLeave(
-                employee.getEmployeeId(), LocalDate.of(2024, 8, 1), zone);
-        commuteHistoryRepository.save(annualLeave);
+        commuteHistoryRepository.saveAll(List.of(
+                CommuteHistoryFixture.annualLeave(1L, LocalDate.of(2024, 8, 1), zone),
+                CommuteHistoryFixture.open(null, 2L, ZonedDateTime.of(2024, 8, 2, 9, 0, 0, 0, zone), zone)
+        ));
 
         // when
-        List<TotalWorkingMinutes> result = commuteHistoryRepository.findTotalWorkingMinutesByWorkDateBetween(
+        List<DailyWorkingMinutes> result = commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(
                 LocalDate.of(2024, 8, 1), LocalDate.of(2024, 8, 31));
 
-        // then — 연차가 8월 집계에 포함되어 직원이 결과에 나타난다(근무분은 0)
-        assertThat(result).hasSize(1);
-        assertThat(result.getFirst().getEmployeeId()).isEqualTo(employee.getEmployeeId());
-        assertThat(result.getFirst().calculateOverTime(0)).isEqualTo(0);
-    }
-
-    private Employee employee(String name, Team team, String employeeCode, String email) {
-        return new EmployeeBuilder()
-                .withTeam(team)
-                .withName(name)
-                .withRole(Role.MEMBER)
-                .withBirthday(LocalDate.of(1990, 1, 1))
-                .withStartDate(LocalDate.of(2020, 1, 1))
-                .withEmployeeCode(employeeCode)
-                .withEmail(email)
-                .withPassword("password123")
-                .build();
+        // then
+        assertThat(result).containsExactlyInAnyOrder(
+                new DailyWorkingMinutes(1L, LocalDate.of(2024, 8, 1), 0L),
+                new DailyWorkingMinutes(2L, LocalDate.of(2024, 8, 2), 0L)
+        );
     }
 
     @Test
