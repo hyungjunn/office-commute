@@ -97,7 +97,7 @@
       (`MonthlyOverTimeCalculatorTest.annualLeaveWeekStillAccruesDailyExcess` 고정)
 - [x] 월 중 입사자 왜곡 — 같은 이유로 해소. 입사 전 날짜는 기록이 없을 뿐 결손이 아니다
 - [x] `Employee`에 퇴사 상태가 없어 `findAllWithTeam()`이 퇴사자까지 0으로 리포트에 싣던 문제
-      (2026-08-10, ADR 2 Step 0.3 선행 조치). `workEndDate`(nullable 퇴사일) 도입 —
+      (2026-08-10, ADR 3 Step 0.3 선행 조치). `workEndDate`(nullable 퇴사일) 도입 —
       boolean이 아닌 날짜인 이유: 월 중 퇴사자의 그 달 초과근무는 지급 대상이라
       "월과 재직 기간이 겹침"을 표현해야 한다. 리포트 대상 = 재직 기간이 월 경계(1일~말일)와
       겹치는 직원(`findAllWithTeamEmployedBetween`) — 스필오버 주는 대상 판정에 쓰지 않는다
