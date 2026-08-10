@@ -13,6 +13,7 @@ import com.company.officecommute.domain.commute.InvalidCommuteRangeException;
 import com.company.officecommute.domain.commute.PreviousCommuteNotEndedException;
 import com.company.officecommute.domain.employee.EmployeeAlreadyExistsException;
 import com.company.officecommute.domain.employee.EmployeeNotFoundException;
+import com.company.officecommute.domain.employee.InvalidRetirementDateException;
 import com.company.officecommute.domain.team.TeamAlreadyExistsException;
 import com.company.officecommute.domain.team.TeamNotFoundException;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -141,6 +142,13 @@ public class GlobalExceptionHandler {
     public ErrorResult handleEmployeeNotFound(EmployeeNotFoundException e) {
         log.warn("Employee not found: {}", e.getMessage());
         return new ErrorResult("EMPLOYEE_NOT_FOUND", e.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(InvalidRetirementDateException.class)
+    public ErrorResult handleInvalidRetirementDate(InvalidRetirementDateException e) {
+        log.warn("Invalid retirement date: {}", e.getMessage());
+        return new ErrorResult("INVALID_RETIREMENT_DATE", e.getMessage());
     }
 
     @ResponseStatus(HttpStatus.NOT_FOUND)

@@ -52,6 +52,8 @@ public class Employee {
     @Column(nullable = false)
     private LocalDate workStartDate;
 
+    private LocalDate workEndDate;
+
     @Column(unique = true, nullable = false)
     private String employeeCode;
 
@@ -171,6 +173,13 @@ public class Employee {
         this.team = newTeam;
     }
 
+    public void changeWorkEndDate(LocalDate workEndDate) {
+        if (workEndDate != null && workEndDate.isBefore(workStartDate)) {
+            throw new InvalidRetirementDateException(workEndDate, workStartDate);
+        }
+        this.workEndDate = workEndDate;
+    }
+
     public List<AnnualLeave> enrollAnnualLeave(List<LocalDate> wantedDates, List<AnnualLeave> existingAnnualLeaves) {
         if (team == null) {
             throw new EmployeeWithoutTeamException();
@@ -213,6 +222,10 @@ public class Employee {
 
     public LocalDate getWorkStartDate() {
         return workStartDate;
+    }
+
+    public LocalDate getWorkEndDate() {
+        return workEndDate;
     }
 
     public String getEmployeeCode() {
