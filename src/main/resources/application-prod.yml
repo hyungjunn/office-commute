@@ -66,3 +66,12 @@ public:
 # 서버 포트 설정
 server:
   port: ${SERVER_PORT:8080}
+  # HTTPS 종료를 Nginx 가 하므로 X-Forwarded-* 를 신뢰해야
+  # 세션 쿠키 Secure 판단과 리다이렉트 스킴이 올바르다 (docs/DEPLOYMENT.md §2)
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      cookie:
+        secure: true
+        http-only: true
+        same-site: lax
