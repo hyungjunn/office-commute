@@ -57,7 +57,8 @@ public class OverTimeService {
                                 Collectors.toMap(DailyWorkingMinutes::workDate, DailyWorkingMinutes::workingMinutes)
                         ));
 
-        return employeeRepository.findAllWithTeam().stream()
+        // 대상자 판정은 월 경계 기준 — 스필오버 주(전월 말)의 근무는 그 직원의 전월 리포트가 이미 집계했다
+        return employeeRepository.findAllWithTeamEmployedBetween(yearMonth.atDay(1), rangeEnd).stream()
                 .map(employee -> {
                     MonthlyOverTime overTime = MonthlyOverTimeCalculator.calculate(
                             yearMonth,

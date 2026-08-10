@@ -53,7 +53,8 @@ class OverTimeServiceTest {
         Team backend = new Team(1L, "백엔드팀", "팀장", 0);
         Employee recordedEmployee = employee(1L, "임형준", backend, "EMP001", "hyungjun@company.com");
         Employee noHistoryEmployee = employee(2L, "김개발", backend, "EMP002", "dev@company.com");
-        given(employeeRepository.findAllWithTeam()).willReturn(List.of(recordedEmployee, noHistoryEmployee));
+        given(employeeRepository.findAllWithTeamEmployedBetween(LocalDate.of(2024, 7, 1), LocalDate.of(2024, 7, 31)))
+                .willReturn(List.of(recordedEmployee, noHistoryEmployee));
         given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
         // 7/1(월) 12시간 근무 — 일별 8시간 초과 4시간
         given(commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
@@ -81,7 +82,8 @@ class OverTimeServiceTest {
     @DisplayName("미배정 직원은 근무 기록이 없어도 팀명을 미배정으로 표시한다")
     void calculateOverTime_usesUnassignedTeamNameForEmployeeWithoutTeam() {
         Employee employee = employee(1L, "임형준", null, "EMP001", "hyungjun@company.com");
-        given(employeeRepository.findAllWithTeam()).willReturn(List.of(employee));
+        given(employeeRepository.findAllWithTeamEmployedBetween(LocalDate.of(2024, 7, 1), LocalDate.of(2024, 7, 31)))
+                .willReturn(List.of(employee));
         given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
         given(commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
                 .willReturn(List.of());
@@ -96,7 +98,8 @@ class OverTimeServiceTest {
     @Test
     @DisplayName("월 1일이 속한 주가 전월에 걸치면 조회 범위를 그 주의 월요일로 넓히고 전월 공휴일도 함께 가져온다")
     void calculateOverTime_extendsRangeAndHolidaysToStraddlingWeek() {
-        given(employeeRepository.findAllWithTeam()).willReturn(List.of());
+        given(employeeRepository.findAllWithTeamEmployedBetween(any(LocalDate.class), any(LocalDate.class)))
+                .willReturn(List.of());
         given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
         given(commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
                 .willReturn(List.of());
@@ -111,9 +114,27 @@ class OverTimeServiceTest {
     }
 
     @Test
+    @DisplayName("리포트 대상자는 스필오버 주가 아니라 월 경계(1일~말일)의 재직 겹침으로 조회한다")
+    void calculateOverTime_queriesEmployeesByMonthBoundsNotSpilloverStart() {
+        // 7/31 퇴사자는 8월 리포트 대상이 아니다 — 스필오버 주(7/29~)의 근무는 7월 리포트가 이미 집계했다.
+        // 대상자 조회까지 7/29로 넓히면 그 퇴사자가 8월 리포트에 0분 행으로 되살아난다.
+        given(employeeRepository.findAllWithTeamEmployedBetween(any(LocalDate.class), any(LocalDate.class)))
+                .willReturn(List.of());
+        given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
+        given(commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
+                .willReturn(List.of());
+
+        overTimeService.calculateOverTime(AUGUST);
+
+        then(employeeRepository).should()
+                .findAllWithTeamEmployedBetween(LocalDate.of(2024, 8, 1), LocalDate.of(2024, 8, 31));
+    }
+
+    @Test
     @DisplayName("월 1일이 월요일이면 조회 범위 확장 없이 해당 월 공휴일만 가져온다")
     void calculateOverTime_singleMonthHolidaysWhenWeekAlignsWithMonth() {
-        given(employeeRepository.findAllWithTeam()).willReturn(List.of());
+        given(employeeRepository.findAllWithTeamEmployedBetween(any(LocalDate.class), any(LocalDate.class)))
+                .willReturn(List.of());
         given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
         given(commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
                 .willReturn(List.of());
@@ -142,7 +163,8 @@ class OverTimeServiceTest {
     void calculateOverTime_populatesHolidayTracks() {
         Team backend = new Team(1L, "백엔드팀", "팀장", 0);
         Employee employee = employee(1L, "임형준", backend, "EMP001", "hyungjun@company.com");
-        given(employeeRepository.findAllWithTeam()).willReturn(List.of(employee));
+        given(employeeRepository.findAllWithTeamEmployedBetween(LocalDate.of(2024, 7, 1), LocalDate.of(2024, 7, 31)))
+                .willReturn(List.of(employee));
         given(holidayApiClient.getHolidays(JULY)).willReturn(Set.of(LocalDate.of(2024, 7, 3)));
         given(commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
                 .willReturn(List.of(
