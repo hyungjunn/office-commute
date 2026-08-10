@@ -7,6 +7,7 @@ import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
+import com.company.officecommute.web.HolidayApiClient;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,16 +18,22 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class OverTimeServiceTest {
 
-    private static final YearMonth YEAR_MONTH = YearMonth.of(2024, 8);
+    // 2024-08-01은 목요일 — 1일이 속한 주가 7월에 걸친다
+    private static final YearMonth AUGUST = YearMonth.of(2024, 8);
+    // 2024-07-01은 월요일 — 주 경계와 월 경계가 일치한다
+    private static final YearMonth JULY = YearMonth.of(2024, 7);
 
     @InjectMocks
     private OverTimeService overTimeService;
@@ -38,20 +45,21 @@ class OverTimeServiceTest {
     private EmployeeRepository employeeRepository;
 
     @Mock
-    private StandardWorkingTimeService standardWorkingTimeService;
+    private HolidayApiClient holidayApiClient;
 
     @Test
-    @DisplayName("근무 기록 없는 직원도 초과근무 0분으로 포함한다")
+    @DisplayName("근무 기록 없는 직원도 모든 트랙 0분으로 포함한다")
     void calculateOverTime_includesEmployeeWithoutCommuteHistory() {
         Team backend = new Team(1L, "백엔드팀", "팀장", 0);
         Employee recordedEmployee = employee(1L, "임형준", backend, "EMP001", "hyungjun@company.com");
         Employee noHistoryEmployee = employee(2L, "김개발", backend, "EMP002", "dev@company.com");
         given(employeeRepository.findAllWithTeam()).willReturn(List.of(recordedEmployee, noHistoryEmployee));
-        given(commuteHistoryRepository.findTotalWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
-                .willReturn(List.of(new TotalWorkingMinutes(1L, "EMP001", "임형준", "백엔드팀", 9_700L)));
-        givenStandardWorkingMinutes(9_600L);
+        given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
+        // 7/1(월) 12시간 근무 — 일별 8시간 초과 4시간
+        given(commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
+                .willReturn(List.of(new DailyWorkingMinutes(1L, LocalDate.of(2024, 7, 1), 720L)));
 
-        List<OverTimeCalculateResponse> responses = overTimeService.calculateOverTime(YEAR_MONTH);
+        List<OverTimeCalculateResponse> responses = overTimeService.calculateOverTime(JULY);
 
         assertThat(responses)
                 .extracting(
@@ -59,28 +67,14 @@ class OverTimeServiceTest {
                         OverTimeCalculateResponse::employeeCode,
                         OverTimeCalculateResponse::name,
                         OverTimeCalculateResponse::teamName,
-                        OverTimeCalculateResponse::overTimeMinutes
+                        OverTimeCalculateResponse::overTimeMinutes,
+                        OverTimeCalculateResponse::holidayWithin8HoursMinutes,
+                        OverTimeCalculateResponse::holidayExceeding8HoursMinutes
                 )
                 .containsExactly(
-                        tuple(1L, "EMP001", "임형준", "백엔드팀", 100L),
-                        tuple(2L, "EMP002", "김개발", "백엔드팀", 0L)
+                        tuple(1L, "EMP001", "임형준", "백엔드팀", 240L, 0L, 0L),
+                        tuple(2L, "EMP002", "김개발", "백엔드팀", 0L, 0L, 0L)
                 );
-    }
-
-    @Test
-    @DisplayName("근무 기록 있는 직원의 기존 초과근무 계산을 유지한다")
-    void calculateOverTime_keepsExistingCalculationForEmployeeWithCommuteHistory() {
-        Team backend = new Team(1L, "백엔드팀", "팀장", 0);
-        Employee employee = employee(1L, "임형준", backend, "EMP001", "hyungjun@company.com");
-        given(employeeRepository.findAllWithTeam()).willReturn(List.of(employee));
-        given(commuteHistoryRepository.findTotalWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
-                .willReturn(List.of(new TotalWorkingMinutes(1L, "EMP001", "임형준", "백엔드팀", 10_000L)));
-        givenStandardWorkingMinutes(9_600L);
-
-        List<OverTimeCalculateResponse> responses = overTimeService.calculateOverTime(YEAR_MONTH);
-
-        assertThat(responses).hasSize(1);
-        assertThat(responses.getFirst().overTimeMinutes()).isEqualTo(400L);
     }
 
     @Test
@@ -88,20 +82,79 @@ class OverTimeServiceTest {
     void calculateOverTime_usesUnassignedTeamNameForEmployeeWithoutTeam() {
         Employee employee = employee(1L, "임형준", null, "EMP001", "hyungjun@company.com");
         given(employeeRepository.findAllWithTeam()).willReturn(List.of(employee));
-        given(commuteHistoryRepository.findTotalWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
+        given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
+        given(commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
                 .willReturn(List.of());
-        givenStandardWorkingMinutes(9_600L);
 
-        List<OverTimeCalculateResponse> responses = overTimeService.calculateOverTime(YEAR_MONTH);
+        List<OverTimeCalculateResponse> responses = overTimeService.calculateOverTime(JULY);
 
         assertThat(responses).hasSize(1);
         assertThat(responses.getFirst().teamName()).isEqualTo("미배정");
         assertThat(responses.getFirst().overTimeMinutes()).isZero();
     }
 
-    private void givenStandardWorkingMinutes(long standardWorkingMinutes) {
-        given(standardWorkingTimeService.countNumberOfStandardWorkingDays(YEAR_MONTH)).willReturn(20L);
-        given(standardWorkingTimeService.calculateStandardWorkingMinutes(20L)).willReturn(standardWorkingMinutes);
+    @Test
+    @DisplayName("월 1일이 속한 주가 전월에 걸치면 조회 범위를 그 주의 월요일로 넓히고 전월 공휴일도 함께 가져온다")
+    void calculateOverTime_extendsRangeAndHolidaysToStraddlingWeek() {
+        given(employeeRepository.findAllWithTeam()).willReturn(List.of());
+        given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
+        given(commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
+                .willReturn(List.of());
+
+        overTimeService.calculateOverTime(AUGUST);
+
+        // 8/1(목)이 속한 주의 월요일은 7/29 — 그 주의 40시간 판정에 전월 기록·공휴일이 필요하다
+        then(commuteHistoryRepository).should()
+                .findDailyWorkingMinutesByWorkDateBetween(LocalDate.of(2024, 7, 29), LocalDate.of(2024, 8, 31));
+        then(holidayApiClient).should().getHolidays(AUGUST);
+        then(holidayApiClient).should().getHolidays(JULY);
+    }
+
+    @Test
+    @DisplayName("월 1일이 월요일이면 조회 범위 확장 없이 해당 월 공휴일만 가져온다")
+    void calculateOverTime_singleMonthHolidaysWhenWeekAlignsWithMonth() {
+        given(employeeRepository.findAllWithTeam()).willReturn(List.of());
+        given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
+        given(commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
+                .willReturn(List.of());
+
+        overTimeService.calculateOverTime(JULY);
+
+        then(commuteHistoryRepository).should()
+                .findDailyWorkingMinutesByWorkDateBetween(LocalDate.of(2024, 7, 1), LocalDate.of(2024, 7, 31));
+        then(holidayApiClient).should().getHolidays(JULY);
+        then(holidayApiClient).should(never()).getHolidays(YearMonth.of(2024, 6));
+    }
+
+    @Test
+    @DisplayName("퇴근 미마감 검사는 계산이 소비하는 범위와 같다 — 전월 스필오버 일자의 미마감도 잡힌다")
+    void countUnclosedCommutes_coversSpilloverWeek() {
+        // 전월 말(7/29) 미마감 기록은 0분으로 8월 첫 주의 40시간 기반을 깎아 과소 집계를 만든다.
+        // 검사 범위가 8/1~8/31이면 이 기록을 놓쳐 "미마감 0건"이라는 거짓 완결 보증이 나간다.
+        given(commuteHistoryRepository.countByWorkDateBetweenAndWorkEndTimeIsNull(
+                LocalDate.of(2024, 7, 29), LocalDate.of(2024, 8, 31))).willReturn(1L);
+
+        assertThat(overTimeService.countUnclosedCommutes(AUGUST)).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("일요일·공휴일 근무는 휴일근로 트랙으로 응답에 실린다")
+    void calculateOverTime_populatesHolidayTracks() {
+        Team backend = new Team(1L, "백엔드팀", "팀장", 0);
+        Employee employee = employee(1L, "임형준", backend, "EMP001", "hyungjun@company.com");
+        given(employeeRepository.findAllWithTeam()).willReturn(List.of(employee));
+        given(holidayApiClient.getHolidays(JULY)).willReturn(Set.of(LocalDate.of(2024, 7, 3)));
+        given(commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
+                .willReturn(List.of(
+                        new DailyWorkingMinutes(1L, LocalDate.of(2024, 7, 3), 600L), // 공휴일 10h
+                        new DailyWorkingMinutes(1L, LocalDate.of(2024, 7, 7), 360L)  // 일요일 6h
+                ));
+
+        List<OverTimeCalculateResponse> responses = overTimeService.calculateOverTime(JULY);
+
+        assertThat(responses.getFirst().overTimeMinutes()).isZero();
+        assertThat(responses.getFirst().holidayWithin8HoursMinutes()).isEqualTo(840L); // 480 + 360
+        assertThat(responses.getFirst().holidayExceeding8HoursMinutes()).isEqualTo(120L);
     }
 
     private Employee employee(Long id, String name, Team team, String employeeCode, String email) {

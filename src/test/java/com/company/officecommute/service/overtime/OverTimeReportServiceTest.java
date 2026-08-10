@@ -41,8 +41,8 @@ class OverTimeReportServiceTest {
     void generateExcelReport_correctReportData() throws IOException {
         YearMonth yearMonth = YearMonth.of(2024, 8);
         List<OverTimeCalculateResponse> mockOverTimeData = Arrays.asList(
-                new OverTimeCalculateResponse(1L, "EMP001", "임형준", "백엔드팀", 300L), // 5시간 초과근무
-                new OverTimeCalculateResponse(2L, "EMP002", "김개발", "프론트엔드팀", 120L)  // 2시간 초과근무
+                new OverTimeCalculateResponse(1L, "EMP001", "임형준", "백엔드팀", 300L, 0L, 0L), // 5시간 초과근무
+                new OverTimeCalculateResponse(2L, "EMP002", "김개발", "프론트엔드팀", 120L, 0L, 0L)  // 2시간 초과근무
         );
 
         BDDMockito.given(overTimeService.calculateOverTime(yearMonth))
@@ -75,10 +75,10 @@ class OverTimeReportServiceTest {
         YearMonth yearMonth = YearMonth.of(2024, 8);
         // DB 반환 순서를 흉내낸 뒤섞인 입력 (동명이인 포함)
         List<OverTimeCalculateResponse> mockOverTimeData = Arrays.asList(
-                new OverTimeCalculateResponse(1L, "EMP004", "김철수", "프론트엔드팀", 10L),
-                new OverTimeCalculateResponse(2L, "EMP003", "임형준", "백엔드팀", 20L),
-                new OverTimeCalculateResponse(3L, "EMP002", "김철수", "백엔드팀", 30L),
-                new OverTimeCalculateResponse(4L, "EMP001", "김철수", "백엔드팀", 40L)
+                new OverTimeCalculateResponse(1L, "EMP004", "김철수", "프론트엔드팀", 10L, 0L, 0L),
+                new OverTimeCalculateResponse(2L, "EMP003", "임형준", "백엔드팀", 20L, 0L, 0L),
+                new OverTimeCalculateResponse(3L, "EMP002", "김철수", "백엔드팀", 30L, 0L, 0L),
+                new OverTimeCalculateResponse(4L, "EMP001", "김철수", "백엔드팀", 40L, 0L, 0L)
         );
 
         BDDMockito.given(overTimeService.calculateOverTime(yearMonth))
@@ -101,7 +101,7 @@ class OverTimeReportServiceTest {
     void generateReport_carriesUnclosedCommuteCount() {
         YearMonth yearMonth = YearMonth.of(2024, 8);
         BDDMockito.given(overTimeService.calculateOverTime(yearMonth))
-                .willReturn(List.of(new OverTimeCalculateResponse(1L, "EMP001", "임형준", "백엔드팀", 300L)));
+                .willReturn(List.of(new OverTimeCalculateResponse(1L, "EMP001", "임형준", "백엔드팀", 300L, 0L, 0L)));
         BDDMockito.given(overTimeService.countUnclosedCommutes(yearMonth)).willReturn(3L);
 
         OverTimeReport report = overTimeReportService.generateReport(yearMonth);
@@ -115,7 +115,7 @@ class OverTimeReportServiceTest {
     void generateOverTimeReportData_rejectsMissingIdentity() {
         YearMonth yearMonth = YearMonth.of(2024, 8);
         BDDMockito.given(overTimeService.calculateOverTime(yearMonth))
-                .willReturn(List.of(new OverTimeCalculateResponse(1L, null, "임형준", "백엔드팀", 300L)));
+                .willReturn(List.of(new OverTimeCalculateResponse(1L, null, "임형준", "백엔드팀", 300L, 0L, 0L)));
 
         assertThatThrownBy(() -> overTimeReportService.generateReport(yearMonth))
                 .isInstanceOf(NullPointerException.class)
@@ -123,11 +123,30 @@ class OverTimeReportServiceTest {
     }
 
     @Test
+    @DisplayName("휴일근로는 8시간 이내 1.5배, 초과분 2.0배로 가산한다 (근로기준법 제56조②)")
+    void generateExcelReport_holidayWorkPaidAtLegalMultipliers() throws IOException {
+        YearMonth yearMonth = YearMonth.of(2024, 8);
+        // 연장 1h + 휴일 8h + 휴일 초과 2h
+        BDDMockito.given(overTimeService.calculateOverTime(yearMonth))
+                .willReturn(List.of(new OverTimeCalculateResponse(1L, "EMP001", "임형준", "백엔드팀", 60L, 480L, 120L)));
+
+        overTimeReportService.generateExcelReport(yearMonth, OutputStream.nullOutputStream());
+
+        then(overTimeExcelWriter).should().write(reportCaptor.capture(), any(OutputStream.class));
+        OverTimeReportData reportData = reportCaptor.getValue().rows().getFirst();
+        assertThat(reportData.overTimeMinutes()).isEqualTo(60L);
+        assertThat(reportData.holidayWithin8HoursMinutes()).isEqualTo(480L);
+        assertThat(reportData.holidayExceeding8HoursMinutes()).isEqualTo(120L);
+        // (60+480)분 × 1.5 + 120분 × 2.0 = 1050분 상당 × 15000원/60
+        assertThat(reportData.overTimePay()).isEqualTo(262500L);
+    }
+
+    @Test
     @DisplayName("초과근무 시간이 0분인 경우 수당도 0원이다")
     void generateExcelReport_zeroOvertime() throws IOException {
         YearMonth yearMonth = YearMonth.of(2024, 8);
         List<OverTimeCalculateResponse> mockOverTimeData = List.of(
-                new OverTimeCalculateResponse(1L, "EMP001", "임형준", "백엔드팀", 0L)
+                new OverTimeCalculateResponse(1L, "EMP001", "임형준", "백엔드팀", 0L, 0L, 0L)
         );
 
         BDDMockito.given(overTimeService.calculateOverTime(yearMonth))
@@ -146,7 +165,7 @@ class OverTimeReportServiceTest {
     void generateExcelReport_minutesProRatedNotTruncatedToHours() throws IOException {
         YearMonth yearMonth = YearMonth.of(2024, 8);
         List<OverTimeCalculateResponse> mockOverTimeData = List.of(
-                new OverTimeCalculateResponse(1L, "EMP001", "임형준", "백엔드팀", 90L) // 90분 (1.5시간)
+                new OverTimeCalculateResponse(1L, "EMP001", "임형준", "백엔드팀", 90L, 0L, 0L) // 90분 (1.5시간)
         );
 
         BDDMockito.given(overTimeService.calculateOverTime(yearMonth))
@@ -165,7 +184,7 @@ class OverTimeReportServiceTest {
     void generateExcelReport_subHourMinutesNotTruncated() throws IOException {
         YearMonth yearMonth = YearMonth.of(2024, 8);
         List<OverTimeCalculateResponse> mockOverTimeData = List.of(
-                new OverTimeCalculateResponse(1L, "EMP001", "임형준", "백엔드팀", 59L) // 59분 (1시간 미만)
+                new OverTimeCalculateResponse(1L, "EMP001", "임형준", "백엔드팀", 59L, 0L, 0L) // 59분 (1시간 미만)
         );
 
         BDDMockito.given(overTimeService.calculateOverTime(yearMonth))

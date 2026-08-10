@@ -329,7 +329,7 @@ paths:
         - $ref: '#/components/parameters/YearMonthQuery'
       responses:
         '200':
-          description: 직원별 초과근무 분
+          description: 직원별 연장·휴일근로 분 (근로기준법 기준 — 일 8시간·주 40시간 초과, 휴일근로 별도 트랙)
           content:
             application/json:
               schema:
@@ -613,10 +613,21 @@ components:
     # ---- OverTime ----
     OverTimeCalculateResponse:
       type: object
-      required: [id, employeeCode, name, teamName, overTimeMinutes]
+      required: [id, employeeCode, name, teamName, overTimeMinutes, holidayWithin8HoursMinutes, holidayExceeding8HoursMinutes]
       properties:
         id: { type: integer, format: int64 }
         employeeCode: { type: string }
         name: { type: string }
         teamName: { type: string, nullable: true }
-        overTimeMinutes: { type: integer, format: int64 }
+        overTimeMinutes:
+          type: integer
+          format: int64
+          description: 연장근로 분 — 1일 8시간 초과분 + 1주(월~일) 40시간 초과 잔여분, 가산 1.5배
+        holidayWithin8HoursMinutes:
+          type: integer
+          format: int64
+          description: 휴일근로(일요일·공휴일) 중 1일 8시간 이내 분, 가산 1.5배
+        holidayExceeding8HoursMinutes:
+          type: integer
+          format: int64
+          description: 휴일근로 중 1일 8시간 초과 분, 가산 2.0배
