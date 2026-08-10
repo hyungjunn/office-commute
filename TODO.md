@@ -96,7 +96,17 @@
       주 40h 산정에 들어가지 않을 뿐이고, 연차 주간의 야근은 일 8h 초과로 그대로 잡힌다
       (`MonthlyOverTimeCalculatorTest.annualLeaveWeekStillAccruesDailyExcess` 고정)
 - [x] 월 중 입사자 왜곡 — 같은 이유로 해소. 입사 전 날짜는 기록이 없을 뿐 결손이 아니다
-- [ ] `Employee`에 퇴사 상태가 없어 `findAllWithTeam()`이 퇴사자까지 0으로 리포트에 싣는다
+- [x] `Employee`에 퇴사 상태가 없어 `findAllWithTeam()`이 퇴사자까지 0으로 리포트에 싣던 문제
+      (2026-08-10, ADR 2 Step 0.3 선행 조치). `workEndDate`(nullable 퇴사일) 도입 —
+      boolean이 아닌 날짜인 이유: 월 중 퇴사자의 그 달 초과근무는 지급 대상이라
+      "월과 재직 기간이 겹침"을 표현해야 한다. 리포트 대상 = 재직 기간이 월 경계(1일~말일)와
+      겹치는 직원(`findAllWithTeamEmployedBetween`) — 스필오버 주는 대상 판정에 쓰지 않는다
+      (전월 말 퇴사자의 그 주 근무는 전월 리포트가 이미 집계). 입사 예정자도 같은 필터로 제외.
+      기록은 `PUT /employee/{id}/retirement` (ManagerOnly, null = 취소)
+- [ ] 퇴사자 로그인·출퇴근 등록 차단 — `workEndDate`가 지나도 로그인과 출근 체크가 가능하다
+      (리포트에서만 제외). `AuthInterceptor`는 세션만 읽고 DB를 안 타므로 가장 싼 지점은
+      `authenticate()`의 로그인 거부. "오늘"의 기준 시간대(직원 timezone? KST?)와
+      퇴사일 당일 마지막 퇴근 처리 허용 정책을 정한 뒤 별도 작업으로
 
 ## 4. 매월 1일 배치 — 이번 작업의 본체
 

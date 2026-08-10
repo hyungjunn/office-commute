@@ -354,6 +354,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/employee/{employeeId}/retirement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * 직원 퇴사 처리 (Manager Only)
+         * @description `workEndDate`가 null이면 퇴사 취소(재직 상태로 복귀).
+         *     퇴사한 달까지는 초과근무 리포트에 포함된다 — 그 달의 초과근무는 지급 대상.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    employeeId: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EmployeeRetirementRequest"];
+                };
+            };
+            responses: {
+                /** @description 변경됨 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description 퇴사일이 입사일 이전 (INVALID_RETIREMENT_DATE) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                /** @description employeeId 미존재 (EMPLOYEE_NOT_FOUND) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/commute": {
         parameters: {
             query?: never;
@@ -846,6 +910,11 @@ export interface components {
             /** Format: date */
             workStartDate: string;
             /**
+             * Format: date
+             * @description 퇴사일. null = 재직 중.
+             */
+            workEndDate?: string | null;
+            /**
              * @description IANA ZoneId — 직원의 기본 시간대.
              * @example Asia/Seoul
              */
@@ -857,6 +926,13 @@ export interface components {
              * @description null이면 미배정 상태로 변경.
              */
             teamId?: number | null;
+        };
+        EmployeeRetirementRequest: {
+            /**
+             * Format: date
+             * @description 퇴사일. null이면 퇴사 취소. 입사일 이전이면 400.
+             */
+            workEndDate?: string | null;
         };
         AnnualLeaveEnrollRequest: {
             /** @description 미래 날짜 목록. */

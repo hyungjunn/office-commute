@@ -2,6 +2,7 @@ package com.company.officecommute.controller.employee;
 
 import com.company.officecommute.domain.employee.EmployeeAlreadyExistsException;
 import com.company.officecommute.domain.employee.EmployeeNotFoundException;
+import com.company.officecommute.domain.employee.InvalidRetirementDateException;
 import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.domain.team.TeamNotFoundException;
 import com.company.officecommute.dto.employee.response.EmployeeFindResponse;
@@ -292,9 +293,10 @@ class EmployeeControllerTest {
         void responseShape() {
             BDDMockito.given(employeeService.findAllEmployee()).willReturn(List.of(
                     new EmployeeFindResponse(1L, 10L, "백엔드팀", "임형준", "ABC123", "hj@company.com", "MEMBER",
-                            LocalDate.of(1998, 8, 18), LocalDate.of(2024, 1, 1), "Asia/Seoul"),
+                            LocalDate.of(1998, 8, 18), LocalDate.of(2024, 1, 1), null, "Asia/Seoul"),
                     new EmployeeFindResponse(2L, null, null, "미배정직원", "XYZ789", "unassigned@company.com", "MEMBER",
-                            LocalDate.of(1990, 1, 1), LocalDate.of(2024, 3, 1), "America/Los_Angeles")
+                            LocalDate.of(1990, 1, 1), LocalDate.of(2024, 3, 1), LocalDate.of(2026, 7, 31),
+                            "America/Los_Angeles")
             ));
 
             assertThat(mockMvcTester.get().uri("/api/employee").session(managerSession()))
@@ -306,13 +308,15 @@ class EmployeeControllerTest {
                                     "employeeId": 1, "teamId": 10, "teamName": "백엔드팀",
                                     "name": "임형준", "employeeCode": "ABC123", "email": "hj@company.com",
                                     "role": "MEMBER",
-                                    "birthday": "1998-08-18", "workStartDate": "2024-01-01"
+                                    "birthday": "1998-08-18", "workStartDate": "2024-01-01",
+                                    "workEndDate": null
                                 },
                                 {
                                     "employeeId": 2, "teamId": null, "teamName": null,
                                     "name": "미배정직원", "employeeCode": "XYZ789", "email": "unassigned@company.com",
                                     "role": "MEMBER",
-                                    "birthday": "1990-01-01", "workStartDate": "2024-03-01"
+                                    "birthday": "1990-01-01", "workStartDate": "2024-03-01",
+                                    "workEndDate": "2026-07-31"
                                 }
                             ]
                             """);
@@ -385,6 +389,76 @@ class EmployeeControllerTest {
                     .hasStatus(HttpStatus.NOT_FOUND)
                     .bodyJson()
                     .extractingPath("$.code").isEqualTo("TEAM_NOT_FOUND");
+        }
+    }
+
+    @Nested
+    @DisplayName("PUT /employee/{employeeId}/retirement")
+    class ChangeWorkEndDate {
+
+        @Test
+        @DisplayName("MANAGER 권한이 없으면 403")
+        void unauthorized() {
+            assertThat(mockMvcTester.put().uri("/api/employee/1/retirement")
+                    .session(memberSession())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"workEndDate\": \"2026-07-31\"}"))
+                    .hasStatus(HttpStatus.FORBIDDEN);
+        }
+
+        @Test
+        @DisplayName("퇴사일 설정 성공 시 200")
+        void retire() {
+            assertThat(mockMvcTester.put().uri("/api/employee/1/retirement")
+                    .session(managerSession())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"workEndDate\": \"2026-07-31\"}"))
+                    .hasStatus(HttpStatus.OK);
+
+            BDDMockito.verify(employeeService).changeWorkEndDate(eq(1L), eq(LocalDate.of(2026, 7, 31)));
+        }
+
+        @Test
+        @DisplayName("workEndDate가 null이면 퇴사 취소")
+        void cancelRetirement() {
+            assertThat(mockMvcTester.put().uri("/api/employee/1/retirement")
+                    .session(managerSession())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"workEndDate\": null}"))
+                    .hasStatus(HttpStatus.OK);
+
+            BDDMockito.verify(employeeService).changeWorkEndDate(eq(1L), eq(null));
+        }
+
+        @Test
+        @DisplayName("입사일 이전 퇴사일은 400 + INVALID_RETIREMENT_DATE")
+        void invalidRetirementDate() {
+            BDDMockito.willThrow(new InvalidRetirementDateException(
+                            LocalDate.of(2020, 1, 1), LocalDate.of(2024, 1, 1)))
+                    .given(employeeService).changeWorkEndDate(eq(1L), eq(LocalDate.of(2020, 1, 1)));
+
+            assertThat(mockMvcTester.put().uri("/api/employee/1/retirement")
+                    .session(managerSession())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"workEndDate\": \"2020-01-01\"}"))
+                    .hasStatus(HttpStatus.BAD_REQUEST)
+                    .bodyJson()
+                    .extractingPath("$.code").isEqualTo("INVALID_RETIREMENT_DATE");
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 employeeId는 404 + EMPLOYEE_NOT_FOUND")
+        void employeeNotFound() {
+            BDDMockito.willThrow(new EmployeeNotFoundException(99L))
+                    .given(employeeService).changeWorkEndDate(eq(99L), eq(LocalDate.of(2026, 7, 31)));
+
+            assertThat(mockMvcTester.put().uri("/api/employee/99/retirement")
+                    .session(managerSession())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"workEndDate\": \"2026-07-31\"}"))
+                    .hasStatus(HttpStatus.NOT_FOUND)
+                    .bodyJson()
+                    .extractingPath("$.code").isEqualTo("EMPLOYEE_NOT_FOUND");
         }
     }
 

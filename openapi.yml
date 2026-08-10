@@ -192,6 +192,38 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResult' }
 
+  /api/employee/{employeeId}/retirement:
+    put:
+      tags: [Employee]
+      summary: 직원 퇴사 처리 (Manager Only)
+      description: |
+        `workEndDate`가 null이면 퇴사 취소(재직 상태로 복귀).
+        퇴사한 달까지는 초과근무 리포트에 포함된다 — 그 달의 초과근무는 지급 대상.
+      parameters:
+        - in: path
+          name: employeeId
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmployeeRetirementRequest' }
+      responses:
+        '200': { description: 변경됨 }
+        '400':
+          description: 퇴사일이 입사일 이전 (INVALID_RETIREMENT_DATE)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: employeeId 미존재 (EMPLOYEE_NOT_FOUND)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResult' }
+
   /api/commute:
     post:
       tags: [Commute]
@@ -552,6 +584,7 @@ components:
         role: { $ref: '#/components/schemas/Role' }
         birthday: { type: string, format: date }
         workStartDate: { type: string, format: date }
+        workEndDate: { type: string, format: date, nullable: true, description: '퇴사일. null = 재직 중.' }
         timezone: { type: string, example: 'Asia/Seoul', description: 'IANA ZoneId — 직원의 기본 시간대.' }
     EmployeeChangeTeamRequest:
       type: object
@@ -561,6 +594,14 @@ components:
           format: int64
           nullable: true
           description: null이면 미배정 상태로 변경.
+    EmployeeRetirementRequest:
+      type: object
+      properties:
+        workEndDate:
+          type: string
+          format: date
+          nullable: true
+          description: 퇴사일. null이면 퇴사 취소. 입사일 이전이면 400.
 
     # ---- AnnualLeave ----
     AnnualLeaveEnrollRequest:

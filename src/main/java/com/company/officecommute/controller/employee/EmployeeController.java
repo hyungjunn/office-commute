@@ -2,6 +2,7 @@ package com.company.officecommute.controller.employee;
 
 import com.company.officecommute.auth.ManagerOnly;
 import com.company.officecommute.dto.employee.request.EmployeeChangeTeamRequest;
+import com.company.officecommute.dto.employee.request.EmployeeRetirementRequest;
 import com.company.officecommute.dto.employee.request.EmployeeSaveRequest;
 import com.company.officecommute.dto.employee.response.EmployeeFindResponse;
 import com.company.officecommute.dto.employee.response.EmployeeRegisterResponse;
@@ -49,5 +50,14 @@ public class EmployeeController {
             @RequestBody EmployeeChangeTeamRequest request
     ) {
         employeeService.changeTeam(employeeId, request.teamId());
+    }
+
+    @ManagerOnly
+    @PutMapping("/employee/{employeeId}/retirement")
+    public void changeWorkEndDate(
+            @PathVariable Long employeeId,
+            @RequestBody EmployeeRetirementRequest request
+    ) {
+        employeeService.changeWorkEndDate(employeeId, request.workEndDate());
     }
 }

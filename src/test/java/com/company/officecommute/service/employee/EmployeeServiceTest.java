@@ -238,6 +238,42 @@ class EmployeeServiceTest {
     }
 
     @Nested
+    @DisplayName("changeWorkEndDate")
+    class ChangeWorkEndDate {
+
+        @Test
+        @DisplayName("퇴사일이 도메인에 반영된다")
+        void setsWorkEndDate() {
+            BDDMockito.given(employeeRepository.findById(1L)).willReturn(Optional.of(employee));
+
+            employeeService.changeWorkEndDate(1L, LocalDate.of(2026, 7, 31));
+
+            assertThat(employee.getWorkEndDate()).isEqualTo(LocalDate.of(2026, 7, 31));
+        }
+
+        @Test
+        @DisplayName("null이면 퇴사가 취소된다")
+        void clearsWorkEndDateWithNull() {
+            employee.changeWorkEndDate(LocalDate.of(2026, 7, 31));
+            BDDMockito.given(employeeRepository.findById(1L)).willReturn(Optional.of(employee));
+
+            employeeService.changeWorkEndDate(1L, null);
+
+            assertThat(employee.getWorkEndDate()).isNull();
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 employeeId면 EMPLOYEE_NOT_FOUND")
+        void employeeNotFound() {
+            BDDMockito.given(employeeRepository.findById(99L)).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> employeeService.changeWorkEndDate(99L, LocalDate.of(2026, 7, 31)))
+                    .isInstanceOf(EmployeeNotFoundException.class)
+                    .hasMessageContaining("99");
+        }
+    }
+
+    @Nested
     @DisplayName("findAllEmployee")
     class FindAll {
 
@@ -257,6 +293,7 @@ class EmployeeServiceTest {
             assertThat(first.role()).isEqualTo("MEMBER");
             assertThat(first.birthday()).isEqualTo(LocalDate.of(1998, 8, 18));
             assertThat(first.workStartDate()).isEqualTo(LocalDate.of(2024, 1, 1));
+            assertThat(first.workEndDate()).isNull();
         }
     }
 

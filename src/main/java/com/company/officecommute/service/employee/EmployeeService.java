@@ -17,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -73,6 +74,13 @@ public class EmployeeService {
                 .orElseThrow(() -> new EmployeeNotFoundException(employeeId));
         Team team = resolveTeam(teamId);
         employee.changeTeam(team);
+    }
+
+    @Transactional
+    public void changeWorkEndDate(Long employeeId, LocalDate workEndDate) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new EmployeeNotFoundException(employeeId));
+        employee.changeWorkEndDate(workEndDate);
     }
 
     @Transactional(readOnly = true)
