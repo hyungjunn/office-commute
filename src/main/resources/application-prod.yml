@@ -31,6 +31,9 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
+    placeholders:
+      # 배포 전 운영자가 생성한 BCrypt 해시 (V11) — 기본값 없음: 미설정 시 부팅 실패가 정상
+      admin_password_hash: ${ADMIN_PASSWORD_HASH}
 
 # P6Spy 비활성화 (운영 성능을 위해)
 decorator:

@@ -3,7 +3,7 @@
 # 사용법 (서버에서):
 #   1. frontend 빌드 산출물(dist/)을 이 파일 옆의 ./dist 로 배치 (rsync)
 #   2. 시크릿은 이 파일 옆의 .env (gitignored) 로만 주입:
-#      APP_IMAGE, DB_URL, DB_USERNAME, DB_PASSWORD, PUBLIC_API_SERVICE_KEY
+#      APP_IMAGE, DB_URL, DB_USERNAME, DB_PASSWORD, PUBLIC_API_SERVICE_KEY, ADMIN_PASSWORD_HASH
 #      — 로컬용 고정 비밀번호(office_password 등)를 운영에 재사용하지 않는다 (§4)
 #   3. docker compose -f docker-compose.prod.yml up -d
 #
@@ -36,6 +36,7 @@ services:
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       PUBLIC_API_SERVICE_KEY: ${PUBLIC_API_SERVICE_KEY}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
     volumes:
       - app-logs:/app/logs
 

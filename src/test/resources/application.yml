@@ -3,6 +3,9 @@ spring:
     active: test
   flyway:
     enabled: false
+    placeholders:
+      # Flyway 를 켜는 테스트(MySQL Testcontainers)에서 V11 이 요구하는 값
+      admin_password_hash: $2a$10$jg1.5WoxGYRAvXMnQbjuzO00fqODW80lysuhA0an2vD/VqgHY6MDm
   jpa:
     hibernate:
       ddl-auto: create-drop
