@@ -1,5 +1,6 @@
 package com.company.officecommute.config;
 
+import com.company.officecommute.web.HolidayApiProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -10,18 +11,25 @@ import org.springframework.web.client.RestTemplate;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 유일한 소비자는 {@code HolidayApiClient} 다. 따라서 타임아웃도 그 API 의 설정
+ * ({@code public.data.api.*}) 에서 읽는다 — 값이 yml/환경변수로 나와 있어 운영에서
+ * 재배포 없이 조정할 수 있다.
+ */
 @Configuration
 public class RestTemplateConfig {
 
-    // TODO: 운영에서는 외부 API 타임아웃 값을 application-*.yml 설정으로 분리해 배포 없이 조정할 수 있게 한다.
-    private static final int CONNECT_TIMEOUT_MS = 3000;
-    private static final int READ_TIMEOUT_MS = 5000;
+    private final HolidayApiProperties holidayApiProperties;
+
+    public RestTemplateConfig(HolidayApiProperties holidayApiProperties) {
+        this.holidayApiProperties = holidayApiProperties;
+    }
 
     @Bean
     public RestTemplate restTemplate() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(CONNECT_TIMEOUT_MS);
-        factory.setReadTimeout(READ_TIMEOUT_MS);
+        factory.setConnectTimeout(holidayApiProperties.getConnectTimeout());
+        factory.setReadTimeout(holidayApiProperties.getReadTimeout());
 
         RestTemplate restTemplate = new RestTemplate(factory);
 
