@@ -60,7 +60,7 @@ class EmployeeControllerTest {
         @Test
         @DisplayName("MANAGER 권한이 없으면 403")
         void unauthorized() {
-            assertThat(mockMvcTester.post().uri("/employee")
+            assertThat(mockMvcTester.post().uri("/api/employee")
                     .session(memberSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(VALID_BODY))
@@ -70,7 +70,7 @@ class EmployeeControllerTest {
         @Test
         @DisplayName("로그인 세션이 없으면 401")
         void unauthenticated() {
-            assertThat(mockMvcTester.post().uri("/employee")
+            assertThat(mockMvcTester.post().uri("/api/employee")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(VALID_BODY))
                     .hasStatus(HttpStatus.UNAUTHORIZED);
@@ -82,7 +82,7 @@ class EmployeeControllerTest {
             BDDMockito.given(employeeService.registerEmployee(any()))
                     .willReturn(new EmployeeRegisterResponse(42L));
 
-            assertThat(mockMvcTester.post().uri("/employee")
+            assertThat(mockMvcTester.post().uri("/api/employee")
                     .session(managerSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(VALID_BODY))
@@ -108,7 +108,7 @@ class EmployeeControllerTest {
                     }
                     """;
 
-            assertThat(mockMvcTester.post().uri("/employee")
+            assertThat(mockMvcTester.post().uri("/api/employee")
                     .session(managerSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(invalid))
@@ -143,7 +143,7 @@ class EmployeeControllerTest {
                     }
                     """;
 
-            assertThat(mockMvcTester.post().uri("/employee")
+            assertThat(mockMvcTester.post().uri("/api/employee")
                     .session(managerSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(invalid))
@@ -179,7 +179,7 @@ class EmployeeControllerTest {
                     }
                     """;
 
-            assertThat(mockMvcTester.post().uri("/employee")
+            assertThat(mockMvcTester.post().uri("/api/employee")
                     .session(managerSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
@@ -198,7 +198,7 @@ class EmployeeControllerTest {
                     }
                     """;
 
-            assertThat(mockMvcTester.post().uri("/employee")
+            assertThat(mockMvcTester.post().uri("/api/employee")
                     .session(managerSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(invalid))
@@ -221,7 +221,7 @@ class EmployeeControllerTest {
                         "role": "MEMBER"
                     """;
 
-            assertThat(mockMvcTester.post().uri("/employee")
+            assertThat(mockMvcTester.post().uri("/api/employee")
                     .session(managerSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(invalid))
@@ -238,7 +238,7 @@ class EmployeeControllerTest {
             BDDMockito.given(employeeService.registerEmployee(any()))
                     .willThrow(EmployeeAlreadyExistsException.ofEmployeeCode("E00001"));
 
-            assertThat(mockMvcTester.post().uri("/employee")
+            assertThat(mockMvcTester.post().uri("/api/employee")
                     .session(managerSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(VALID_BODY))
@@ -266,7 +266,7 @@ class EmployeeControllerTest {
                     }
                     """;
 
-            assertThat(mockMvcTester.post().uri("/employee")
+            assertThat(mockMvcTester.post().uri("/api/employee")
                     .session(managerSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
@@ -283,7 +283,7 @@ class EmployeeControllerTest {
         @Test
         @DisplayName("MANAGER 권한이 없으면 403")
         void unauthorized() {
-            assertThat(mockMvcTester.get().uri("/employee").session(memberSession()))
+            assertThat(mockMvcTester.get().uri("/api/employee").session(memberSession()))
                     .hasStatus(HttpStatus.FORBIDDEN);
         }
 
@@ -297,7 +297,7 @@ class EmployeeControllerTest {
                             LocalDate.of(1990, 1, 1), LocalDate.of(2024, 3, 1), "America/Los_Angeles")
             ));
 
-            assertThat(mockMvcTester.get().uri("/employee").session(managerSession()))
+            assertThat(mockMvcTester.get().uri("/api/employee").session(managerSession()))
                     .hasStatus(HttpStatus.OK)
                     .bodyJson()
                     .isLenientlyEqualTo("""
@@ -326,7 +326,7 @@ class EmployeeControllerTest {
         @Test
         @DisplayName("MANAGER 권한이 없으면 403")
         void unauthorized() {
-            assertThat(mockMvcTester.put().uri("/employee/1/team")
+            assertThat(mockMvcTester.put().uri("/api/employee/1/team")
                     .session(memberSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"teamId\": 2}"))
@@ -336,7 +336,7 @@ class EmployeeControllerTest {
         @Test
         @DisplayName("teamId로 팀 변경 성공 시 200")
         void changeToTeam() {
-            assertThat(mockMvcTester.put().uri("/employee/1/team")
+            assertThat(mockMvcTester.put().uri("/api/employee/1/team")
                     .session(managerSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"teamId\": 2}"))
@@ -348,7 +348,7 @@ class EmployeeControllerTest {
         @Test
         @DisplayName("teamId가 null이면 미배정 상태로 변경 가능")
         void changeToUnassigned() {
-            assertThat(mockMvcTester.put().uri("/employee/1/team")
+            assertThat(mockMvcTester.put().uri("/api/employee/1/team")
                     .session(managerSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"teamId\": null}"))
@@ -363,7 +363,7 @@ class EmployeeControllerTest {
             BDDMockito.willThrow(new EmployeeNotFoundException(99L))
                     .given(employeeService).changeTeam(eq(99L), eq(2L));
 
-            assertThat(mockMvcTester.put().uri("/employee/99/team")
+            assertThat(mockMvcTester.put().uri("/api/employee/99/team")
                     .session(managerSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"teamId\": 2}"))
@@ -378,7 +378,7 @@ class EmployeeControllerTest {
             BDDMockito.willThrow(new TeamNotFoundException(99L))
                     .given(employeeService).changeTeam(eq(1L), eq(99L));
 
-            assertThat(mockMvcTester.put().uri("/employee/1/team")
+            assertThat(mockMvcTester.put().uri("/api/employee/1/team")
                     .session(managerSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"teamId\": 99}"))

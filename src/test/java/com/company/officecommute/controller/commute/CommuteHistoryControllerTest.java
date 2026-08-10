@@ -41,7 +41,7 @@ class CommuteHistoryControllerTest {
 
         assertThat(mockMvcTester
                 .post()
-                .uri("/commute")
+                .uri("/api/commute")
                 .session(memberSession()))
                 .hasStatus(HttpStatus.CONFLICT)
                 .bodyJson()
@@ -63,7 +63,7 @@ class CommuteHistoryControllerTest {
         // when / then
         assertThat(mockMvcTester
                 .get()
-                .uri("/commute?yearMonth=2026-07")
+                .uri("/api/commute?yearMonth=2026-07")
                 .session(memberSession()))
                 .hasStatus(HttpStatus.OK)
                 .bodyJson()
@@ -81,7 +81,7 @@ class CommuteHistoryControllerTest {
         // when / then
         assertThat(mockMvcTester
                 .get()
-                .uri("/commute")
+                .uri("/api/commute")
                 .session(memberSession()))
                 .hasStatus(HttpStatus.BAD_REQUEST)
                 .bodyJson()
@@ -101,7 +101,7 @@ class CommuteHistoryControllerTest {
         // when / then
         assertThat(mockMvcTester
                 .get()
-                .uri("/commute?yearMonth=2026-13")
+                .uri("/api/commute?yearMonth=2026-13")
                 .session(memberSession()))
                 .hasStatus(HttpStatus.BAD_REQUEST)
                 .bodyJson()

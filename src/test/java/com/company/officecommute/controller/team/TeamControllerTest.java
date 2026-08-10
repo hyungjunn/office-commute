@@ -46,7 +46,7 @@ class TeamControllerTest {
                     """;
             assertThat(mockMvcTester
                     .post()
-                    .uri("/team")
+                    .uri("/api/team")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
                     .hasStatus(HttpStatus.UNAUTHORIZED);
@@ -60,7 +60,7 @@ class TeamControllerTest {
                     """;
             assertThat(mockMvcTester
                     .post()
-                    .uri("/team")
+                    .uri("/api/team")
                     .session(memberSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
@@ -78,7 +78,7 @@ class TeamControllerTest {
                     """;
             assertThat(mockMvcTester
                     .post()
-                    .uri("/team")
+                    .uri("/api/team")
                     .session(managerSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
@@ -105,7 +105,7 @@ class TeamControllerTest {
                     """;
             assertThat(mockMvcTester
                     .post()
-                    .uri("/team")
+                    .uri("/api/team")
                     .session(managerSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
@@ -123,7 +123,7 @@ class TeamControllerTest {
                     """;
             assertThat(mockMvcTester
                     .post()
-                    .uri("/team")
+                    .uri("/api/team")
                     .session(managerSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
@@ -138,7 +138,7 @@ class TeamControllerTest {
                     """;
             assertThat(mockMvcTester
                     .post()
-                    .uri("/team")
+                    .uri("/api/team")
                     .session(managerSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
@@ -163,7 +163,7 @@ class TeamControllerTest {
                     """;
             assertThat(mockMvcTester
                     .post()
-                    .uri("/team")
+                    .uri("/api/team")
                     .session(managerSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
@@ -196,7 +196,7 @@ class TeamControllerTest {
                     """;
             assertThat(mockMvcTester
                     .post()
-                    .uri("/team")
+                    .uri("/api/team")
                     .session(managerSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
@@ -218,7 +218,7 @@ class TeamControllerTest {
         @Test
         @DisplayName("비인증 요청은 401")
         void unauthenticated() {
-            assertThat(mockMvcTester.get().uri("/team"))
+            assertThat(mockMvcTester.get().uri("/api/team"))
                     .hasStatus(HttpStatus.UNAUTHORIZED);
         }
 
@@ -232,7 +232,7 @@ class TeamControllerTest {
 
             assertThat(mockMvcTester
                     .get()
-                    .uri("/team")
+                    .uri("/api/team")
                     .session(memberSession()))
                     .hasStatus(HttpStatus.OK)
                     .bodyJson()
@@ -251,7 +251,7 @@ class TeamControllerTest {
 
             assertThat(mockMvcTester
                     .get()
-                    .uri("/team")
+                    .uri("/api/team")
                     .session(memberSession()))
                     .hasStatus(HttpStatus.OK)
                     .bodyJson()

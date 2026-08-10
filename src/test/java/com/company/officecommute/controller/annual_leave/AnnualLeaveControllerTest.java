@@ -57,7 +57,7 @@ class AnnualLeaveControllerTest {
                     ));
 
             // when / then
-            assertThat(mockMvcTester.post().uri("/annual-leave")
+            assertThat(mockMvcTester.post().uri("/api/annual-leave")
                     .session(memberSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(VALID_BODY))
@@ -75,7 +75,7 @@ class AnnualLeaveControllerTest {
         @DisplayName("wantedDates가 없으면 400 VALIDATION_ERROR")
         void missingWantedDatesReturns400() {
             // when / then
-            assertThat(mockMvcTester.post().uri("/annual-leave")
+            assertThat(mockMvcTester.post().uri("/api/annual-leave")
                     .session(memberSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{}"))
@@ -97,7 +97,7 @@ class AnnualLeaveControllerTest {
         @DisplayName("wantedDates가 빈 배열이면 400 VALIDATION_ERROR")
         void emptyWantedDatesReturns400() {
             // when / then
-            assertThat(mockMvcTester.post().uri("/annual-leave")
+            assertThat(mockMvcTester.post().uri("/api/annual-leave")
                     .session(memberSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""
@@ -121,7 +121,7 @@ class AnnualLeaveControllerTest {
         @DisplayName("wantedDates 원소가 null이면 400 VALIDATION_ERROR")
         void nullElementReturns400() {
             // when / then
-            assertThat(mockMvcTester.post().uri("/annual-leave")
+            assertThat(mockMvcTester.post().uri("/api/annual-leave")
                     .session(memberSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""
@@ -144,7 +144,7 @@ class AnnualLeaveControllerTest {
         @Test
         @DisplayName("잘못된 날짜 형식은 해당 필드를 안내하는 INVALID_JSON을 반환한다")
         void invalidDateReturns400() {
-            assertThat(mockMvcTester.post().uri("/annual-leave")
+            assertThat(mockMvcTester.post().uri("/api/annual-leave")
                     .session(memberSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""
@@ -177,7 +177,7 @@ class AnnualLeaveControllerTest {
                     )));
 
             // when / then
-            assertThat(mockMvcTester.get().uri("/annual-leave")
+            assertThat(mockMvcTester.get().uri("/api/annual-leave")
                     .session(memberSession()))
                     .hasStatus(HttpStatus.OK)
                     .bodyJson()

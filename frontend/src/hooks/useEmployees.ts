@@ -8,7 +8,7 @@ const KEY = ['employees'];
 export function useEmployees() {
   return useQuery({
     queryKey: KEY,
-    queryFn: async () => unwrap(await api.GET('/employee', {})),
+    queryFn: async () => unwrap(await api.GET('/api/employee', {})),
   });
 }
 
@@ -16,7 +16,7 @@ export function useCreateEmployee() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: schemas['EmployeeSaveRequest']) =>
-      unwrap(await api.POST('/employee', { body })),
+      unwrap(await api.POST('/api/employee', { body })),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   });
 }
@@ -25,7 +25,7 @@ export function useChangeEmployeeTeam() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (vars: { employeeId: number; teamId: number | null }) =>
-      unwrap(await api.PUT('/employee/{employeeId}/team', {
+      unwrap(await api.PUT('/api/employee/{employeeId}/team', {
         params: { path: { employeeId: vars.employeeId } },
         body: { teamId: vars.teamId },
       })),

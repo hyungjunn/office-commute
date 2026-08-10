@@ -18,7 +18,7 @@ export function OvertimePage() {
   async function onDownload() {
     setDownloading(true);
     try {
-      await downloadFile(`/overtime/report/excel?yearMonth=${ym}`, `${ym}_초과근무보고서.xlsx`);
+      await downloadFile(`/api/overtime/report/excel?yearMonth=${ym}`, `${ym}_초과근무보고서.xlsx`);
       notifySuccess('리포트를 내려받았습니다.');
     } catch (e) {
       notifyError(e, '리포트를 내려받지 못했습니다.');
