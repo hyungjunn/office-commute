@@ -16,7 +16,7 @@ Admin SPA for the office-commute backend. Root-level rules (spec-first, error en
 - `unwrap()` throws `ApiError`, which maps the backend error envelope: `ErrorResult { code, message }` and `ValidationErrorResult.fieldErrorResults` → `fieldErrors` for Mantine form field errors. Map new domain error codes to user-facing copy where they surface.
 
 ## Auth / networking
-- Session-cookie auth (`JSESSIONID`), same-origin by design: dev via the Vite proxy (`API_PATHS` in `vite.config.ts` → `localhost:8080`), deploy by serving `dist/` from Spring static. **No CORS setup, no absolute API base URLs** — keep `baseUrl: ''`. A new backend path prefix must be added to `API_PATHS`.
+- Session-cookie auth (`JSESSIONID`), same-origin by design: dev via the Vite proxy (`/api` → `localhost:8080` in `vite.config.ts`), deploy by serving `dist/` behind the same origin as the backend. **No CORS setup, no absolute API base URLs** — keep `baseUrl: ''`. All backend endpoints live under `/api/**`; keep it that way (SPA routes must never collide with API paths).
 - Session/role restore on boot via `GET /api/auth/me` (`src/auth/AuthContext.tsx`); role-based route guards in `src/routes/guards.tsx` (manager: teams/employees/overtime; member: my commute/annual leave).
 - TanStack Query is configured not to retry 401/403.
 

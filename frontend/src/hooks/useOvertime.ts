@@ -6,6 +6,6 @@ export function useOvertime(yearMonth: string) {
   return useQuery({
     queryKey: ['overtime', yearMonth],
     queryFn: async () =>
-      unwrap(await api.GET('/overtime', { params: { query: { yearMonth } } })),
+      unwrap(await api.GET('/api/overtime', { params: { query: { yearMonth } } })),
   });
 }

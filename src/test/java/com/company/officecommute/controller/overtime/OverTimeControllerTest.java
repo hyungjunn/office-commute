@@ -54,7 +54,7 @@ class OverTimeControllerTest {
         void calculateOverTime_unauthorized() {
             assertThat(mockMvcTester
                     .get()
-                    .uri("/overtime?yearMonth=2024-08")
+                    .uri("/api/overtime?yearMonth=2024-08")
                     .session(memberSession()))
                     .hasStatus(HttpStatus.FORBIDDEN)
                     .bodyJson()
@@ -80,7 +80,7 @@ class OverTimeControllerTest {
 
             assertThat(mockMvcTester
                     .get()
-                    .uri("/overtime?yearMonth=2024-08")
+                    .uri("/api/overtime?yearMonth=2024-08")
                     .session(managerSession()))
                     .hasStatus(HttpStatus.OK)
                     .bodyJson()
@@ -111,7 +111,7 @@ class OverTimeControllerTest {
         void calculateOverTime_invalidYearMonth() {
             assertThat(mockMvcTester
                     .get()
-                    .uri("/overtime?yearMonth=invalid-date")
+                    .uri("/api/overtime?yearMonth=invalid-date")
                     .session(managerSession()))
                     .hasStatus(HttpStatus.BAD_REQUEST)
                     .bodyJson()
@@ -123,7 +123,7 @@ class OverTimeControllerTest {
         void calculateOverTime_missingYearMonth() {
             assertThat(mockMvcTester
                     .get()
-                    .uri("/overtime")
+                    .uri("/api/overtime")
                     .session(managerSession()))
                     .hasStatus(HttpStatus.BAD_REQUEST)
                     .bodyJson()
@@ -138,7 +138,7 @@ class OverTimeControllerTest {
 
             assertThat(mockMvcTester
                     .get()
-                    .uri("/overtime?yearMonth=2024-08")
+                    .uri("/api/overtime?yearMonth=2024-08")
                     .session(managerSession()))
                     .hasStatus(HttpStatus.SERVICE_UNAVAILABLE)
                     .bodyJson()
@@ -155,7 +155,7 @@ class OverTimeControllerTest {
         void downloadOverTimeReport_unauthorized() {
             assertThat(mockMvcTester
                     .get()
-                    .uri("/overtime/report/excel?yearMonth=2024-08")
+                    .uri("/api/overtime/report/excel?yearMonth=2024-08")
                     .session(memberSession()))
                     .hasStatus(HttpStatus.FORBIDDEN);
         }
@@ -170,7 +170,7 @@ class OverTimeControllerTest {
 
             assertThat(mockMvcTester
                     .get()
-                    .uri("/overtime/report/excel?yearMonth=2024-08")
+                    .uri("/api/overtime/report/excel?yearMonth=2024-08")
                     .session(managerSession()))
                     .hasStatus(HttpStatus.OK)
                     .headers()
@@ -190,7 +190,7 @@ class OverTimeControllerTest {
         void downloadOverTimeReport_invalidYearMonth() {
             assertThat(mockMvcTester
                     .get()
-                    .uri("/overtime/report/excel?yearMonth=invalid-date")
+                    .uri("/api/overtime/report/excel?yearMonth=invalid-date")
                     .session(managerSession()))
                     .hasStatus(HttpStatus.BAD_REQUEST)
                     .bodyJson()
@@ -202,7 +202,7 @@ class OverTimeControllerTest {
         void downloadOverTimeReport_missingYearMonth() {
             assertThat(mockMvcTester
                     .get()
-                    .uri("/overtime/report/excel")
+                    .uri("/api/overtime/report/excel")
                     .session(managerSession()))
                     .hasStatus(HttpStatus.BAD_REQUEST)
                     .bodyJson()
@@ -218,7 +218,7 @@ class OverTimeControllerTest {
 
             assertThat(mockMvcTester
                     .get()
-                    .uri("/overtime/report/excel?yearMonth=2024-08")
+                    .uri("/api/overtime/report/excel?yearMonth=2024-08")
                     .session(managerSession()))
                     .hasStatus(HttpStatus.SERVICE_UNAVAILABLE)
                     .bodyJson()
@@ -237,7 +237,7 @@ class OverTimeControllerTest {
 
             assertThat(mockMvcTester
                     .get()
-                    .uri("/overtime/report/excel?yearMonth=2024-08")
+                    .uri("/api/overtime/report/excel?yearMonth=2024-08")
                     .session(managerSession()))
                     .failure()
                     .hasRootCauseMessage("엑셀 생성 실패");
@@ -253,7 +253,7 @@ class OverTimeControllerTest {
         void noSession() {
             assertThat(mockMvcTester
                     .get()
-                    .uri("/overtime?yearMonth=2024-08"))
+                    .uri("/api/overtime?yearMonth=2024-08"))
                     .hasStatus(HttpStatus.UNAUTHORIZED)
                     .bodyJson()
                     .isLenientlyEqualTo("""

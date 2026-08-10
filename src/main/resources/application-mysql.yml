@@ -21,6 +21,9 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
+    placeholders:
+      # 로컬 검증용 기본값 = V5 의 dev 해시(평문 admin1234) — 로컬 로그인 흐름 유지 (V11)
+      admin_password_hash: ${ADMIN_PASSWORD_HASH:$2a$10$jg1.5WoxGYRAvXMnQbjuzO00fqODW80lysuhA0an2vD/VqgHY6MDm}
 
 decorator:
   datasource:

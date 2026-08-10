@@ -8,7 +8,7 @@ const KEY = ['teams'];
 export function useTeams() {
   return useQuery({
     queryKey: KEY,
-    queryFn: async () => unwrap(await api.GET('/team', {})),
+    queryFn: async () => unwrap(await api.GET('/api/team', {})),
   });
 }
 
@@ -16,7 +16,7 @@ export function useCreateTeam() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: schemas['TeamRegisterRequest']) =>
-      unwrap(await api.POST('/team', { body })),
+      unwrap(await api.POST('/api/team', { body })),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   });
 }

@@ -81,7 +81,7 @@ paths:
       responses:
         '200': { description: 로그아웃 처리됨. 응답 본문 없음. }
 
-  /team:
+  /api/team:
     post:
       tags: [Team]
       summary: 팀 등록 (Manager Only)
@@ -119,7 +119,7 @@ paths:
                 items: { $ref: '#/components/schemas/TeamFindResponse' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
-  /employee:
+  /api/employee:
     post:
       tags: [Employee]
       summary: 직원 등록 (Manager Only)
@@ -164,7 +164,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
-  /employee/{employeeId}/team:
+  /api/employee/{employeeId}/team:
     put:
       tags: [Employee]
       summary: 직원 팀 변경 (Manager Only)
@@ -192,7 +192,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResult' }
 
-  /commute:
+  /api/commute:
     post:
       tags: [Commute]
       summary: 출근 등록
@@ -269,7 +269,7 @@ paths:
               schema: { $ref: '#/components/schemas/ErrorResult' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
-  /annual-leave:
+  /api/annual-leave:
     post:
       tags: [AnnualLeave]
       summary: 연차 신청 (현재 로그인 직원)
@@ -321,7 +321,7 @@ paths:
               schema: { $ref: '#/components/schemas/AnnualLeaveGetRemainingResponse' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
-  /overtime:
+  /api/overtime:
     get:
       tags: [OverTime]
       summary: 월별 초과근무 계산 (Manager Only)
@@ -343,7 +343,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResult' }
 
-  /overtime/report/excel:
+  /api/overtime/report/excel:
     get:
       tags: [OverTime]
       summary: 월별 초과근무 Excel 리포트 다운로드 (Manager Only)

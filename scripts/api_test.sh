@@ -93,7 +93,7 @@ create_team() {
   team_name=$1
   # --print=b : 응답 본문만 stdout → jq로 깔끔히 파싱 가능
   local response
-  response=$(http --print=b --session="$SESSION" POST "$base_url/team" teamName="$team_name") || return 1
+  response=$(http --print=b --session="$SESSION" POST "$base_url/api/team" teamName="$team_name") || return 1
   echo "$response"
   LAST_TEAM_ID=$(echo "$response" | jq -r '.teamId')
   [ "$LAST_TEAM_ID" != "null" ] && [ -n "$LAST_TEAM_ID" ]
@@ -108,7 +108,7 @@ create_employee() {
   email=$6
   password=$7
   local response
-  response=$(http --print=b --session="$SESSION" POST "$base_url/employee" \
+  response=$(http --print=b --session="$SESSION" POST "$base_url/api/employee" \
     name="$name" \
     role="$role" \
     birthday="$birthday" \
@@ -124,12 +124,12 @@ create_employee() {
 assign_employee_to_team() {
   employee_id=$1
   team_id=$2
-  http -v --session="$SESSION" PUT "$base_url/employee/$employee_id/team" teamId:="$team_id"
+  http -v --session="$SESSION" PUT "$base_url/api/employee/$employee_id/team" teamId:="$team_id"
 }
 
 get_teams() {
   local response
-  response=$(http --print=b --session="$SESSION" GET "$base_url/team") || return 1
+  response=$(http --print=b --session="$SESSION" GET "$base_url/api/team") || return 1
   echo "$response"
   echo "$response" | jq -e --argjson teamId "$backend_team_id" --arg teamName "$team_name" \
     'any(.[]; .teamId == $teamId and .name == $teamName)' > /dev/null
@@ -137,7 +137,7 @@ get_teams() {
 
 get_employees() {
   local response
-  response=$(http --print=b --session="$SESSION" GET "$base_url/employee") || return 1
+  response=$(http --print=b --session="$SESSION" GET "$base_url/api/employee") || return 1
   echo "$response"
   echo "$response" | jq -e \
     --argjson employeeId1 "$hyungjun_employee_id" \
@@ -156,32 +156,32 @@ login_employee() {
 }
 
 register_work_start_time() {
-  http -v --session="$SESSION" POST "$base_url/commute"
+  http -v --session="$SESSION" POST "$base_url/api/commute"
 }
 
 register_work_end_time() {
-  http -v --session="$SESSION" PUT "$base_url/commute"
+  http -v --session="$SESSION" PUT "$base_url/api/commute"
 }
 
 request_annual_leave() {
   # JSON 배열을 직접 인라인으로 전달합니다.
   wanted_dates=$1
-  http -v --session="$SESSION" POST "$base_url/annual-leave" wantedDates:="$wanted_dates"
+  http -v --session="$SESSION" POST "$base_url/api/annual-leave" wantedDates:="$wanted_dates"
 }
 
 get_remaining_annual_leave() {
-  http -v --session="$SESSION" GET "$base_url/annual-leave"
+  http -v --session="$SESSION" GET "$base_url/api/annual-leave"
 }
 
 get_work_duration_per_date() {
   year_month=$1
-  http -v --session="$SESSION" GET "$base_url/commute?yearMonth=$year_month"
+  http -v --session="$SESSION" GET "$base_url/api/commute?yearMonth=$year_month"
 }
 
 get_overtime() {
   year_month=$1
   local response
-  response=$(http --print=b --session="$SESSION" GET "$base_url/overtime?yearMonth=$year_month") || return 1
+  response=$(http --print=b --session="$SESSION" GET "$base_url/api/overtime?yearMonth=$year_month") || return 1
   echo "$response"
   echo "$response" | jq -e --argjson employeeId "$hyungjun_employee_id" \
     'any(.[]; .id == $employeeId)' > /dev/null
@@ -189,7 +189,7 @@ get_overtime() {
 
 download_overtime_report() {
   year_month=$1
-  http --print=h --session="$SESSION" GET "$base_url/overtime/report/excel?yearMonth=$year_month"
+  http --print=h --session="$SESSION" GET "$base_url/api/overtime/report/excel?yearMonth=$year_month"
 }
 
 logout() {

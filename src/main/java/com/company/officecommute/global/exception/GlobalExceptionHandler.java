@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.List;
 
@@ -52,6 +53,13 @@ public class GlobalExceptionHandler {
     public ErrorResult handleSystemError(Exception e) {
         log.error("Unexpected system error", e);
         return new ErrorResult("INTERNAL_SERVER_ERROR", "내부 서버 오류가 발생했습니다");
+    }
+
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ErrorResult handleNoResourceFound(NoResourceFoundException e) {
+        log.warn("No resource for path: {}", e.getResourcePath());
+        return new ErrorResult("NOT_FOUND", "요청한 리소스를 찾을 수 없습니다");
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)

@@ -134,7 +134,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/team": {
+    "/api/team": {
         parameters: {
             query?: never;
             header?: never;
@@ -210,7 +210,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/employee": {
+    "/api/employee": {
         parameters: {
             query?: never;
             header?: never;
@@ -297,7 +297,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/employee/{employeeId}/team": {
+    "/api/employee/{employeeId}/team": {
         parameters: {
             query?: never;
             header?: never;
@@ -354,7 +354,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/commute": {
+    "/api/commute": {
         parameters: {
             query?: never;
             header?: never;
@@ -516,7 +516,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/annual-leave": {
+    "/api/annual-leave": {
         parameters: {
             query?: never;
             header?: never;
@@ -615,7 +615,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/overtime": {
+    "/api/overtime": {
         parameters: {
             query?: never;
             header?: never;
@@ -635,7 +635,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description 직원별 초과근무 분 */
+                /** @description 직원별 연장·휴일근로 분 (근로기준법 기준 — 일 8시간·주 40시간 초과, 휴일근로 별도 트랙) */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -665,7 +665,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/overtime/report/excel": {
+    "/api/overtime/report/excel": {
         parameters: {
             query?: never;
             header?: never;
@@ -897,8 +897,21 @@ export interface components {
             employeeCode: string;
             name: string;
             teamName: string | null;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description 연장근로 분 — 1일 8시간 초과분 + 1주(월~일) 40시간 초과 잔여분, 가산 1.5배
+             */
             overTimeMinutes: number;
+            /**
+             * Format: int64
+             * @description 휴일근로(일요일·공휴일) 중 1일 8시간 이내 분, 가산 1.5배
+             */
+            holidayWithin8HoursMinutes: number;
+            /**
+             * Format: int64
+             * @description 휴일근로 중 1일 8시간 초과 분, 가산 2.0배
+             */
+            holidayExceeding8HoursMinutes: number;
         };
     };
     responses: {
