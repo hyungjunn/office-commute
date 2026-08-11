@@ -1,6 +1,12 @@
 spring:
   profiles:
     active: test
+  # 이 파일이 메인 application.yml 을 가리므로 메일 설정도 여기 있어야 한다.
+  # spring.mail.host 가 없으면 JavaMailSender 빈이 만들어지지 않아 ReportMailer 주입이 깨진다.
+  # 테스트에서 실제로 발송하는 경로는 없다(수신자 주소는 일부러 비워 둔다).
+  mail:
+    host: localhost
+    port: 25
   flyway:
     enabled: false
     placeholders:

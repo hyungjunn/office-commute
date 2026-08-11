@@ -22,6 +22,22 @@ spring:
   jackson:
     default-property-inclusion: non_null
 
+  # 메일 — 여기 기본값은 dev/test 컨텍스트가 뜨게 하는 용도다.
+  # spring.mail.host 가 없으면 JavaMailSender 빈 자체가 만들어지지 않아 ReportMailer 주입이 깨진다.
+  # 실제 발송이 일어나는 prod 는 application-prod.yml 에서 환경변수로 덮어쓴다(기본값 없음 = 미설정 시 부팅 실패).
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:25}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+
+# 리포트 수신자 — 실값은 prod 환경변수로만 들어온다
+report:
+  mail:
+    from: ${REPORT_MAIL_FROM:}
+    ceo: ${REPORT_MAIL_CEO:}
+    managers: ${REPORT_MAIL_MANAGERS:}
+
 # 서버 공통 설정
 server:
   servlet:

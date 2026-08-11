@@ -35,6 +35,28 @@ spring:
       # 배포 전 운영자가 생성한 BCrypt 해시 (V11) — 기본값 없음: 미설정 시 부팅 실패가 정상
       admin_password_hash: ${ADMIN_PASSWORD_HASH}
 
+  # 메일 — 기본값을 두지 않는다. 미설정 시 부팅이 실패하는 편이,
+  # 매월 1일에야 "발송이 안 된다"를 발견하는 것보다 싸다 (ADMIN_PASSWORD_HASH 와 같은 방침).
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS:true}
+
+# 리포트 수신자 (운영 필수)
+report:
+  mail:
+    from: ${REPORT_MAIL_FROM}
+    ceo: ${REPORT_MAIL_CEO}
+    # 복수 지정은 쉼표 구분: a@company.com,b@company.com
+    managers: ${REPORT_MAIL_MANAGERS}
+
 # P6Spy 비활성화 (운영 성능을 위해)
 decorator:
   datasource:
