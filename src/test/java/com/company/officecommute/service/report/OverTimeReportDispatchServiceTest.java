@@ -176,6 +176,44 @@ class OverTimeReportDispatchServiceTest {
         then(reportMailer).should(times(1)).sendMonthlyReport(any(), any());
     }
 
+    @Test
+    @DisplayName("최종 점검에서 이미 발송된 달은 조용히 넘어간다")
+    void alertIfNotSent_silentWhenSent() {
+        ReportDispatch sent = ReportDispatch.claim(JULY, NOW);
+        sent.markSent(NOW);
+        given(reportDispatchRepository.findByTargetYearMonth(JULY)).willReturn(Optional.of(sent));
+
+        dispatchService.alertIfNotSent(JULY);
+
+        then(reportMailer).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("최종 점검에서 미발송이면 기록된 사유 분류로 관리자에게 알린다")
+    void alertIfNotSent_reportsRecordedReason() {
+        ReportDispatch failed = ReportDispatch.claim(JULY, NOW);
+        failed.markFailed(DispatchFailureReason.UNCLOSED_COMMUTES.name() + ": 미마감 3건", NOW);
+        given(reportDispatchRepository.findByTargetYearMonth(JULY)).willReturn(Optional.of(failed));
+
+        dispatchService.alertIfNotSent(JULY);
+
+        then(reportMailer).should().sendDispatchFailure(
+                eq(JULY), eq(DispatchFailureReason.UNCLOSED_COMMUTES), any());
+    }
+
+    @Test
+    @DisplayName("이력 자체가 없으면 스케줄러 미동작으로 보고 알린다 — 가장 조용한 실패다")
+    void alertIfNotSent_noHistoryAtAll() {
+        given(reportDispatchRepository.findByTargetYearMonth(JULY)).willReturn(Optional.empty());
+
+        dispatchService.alertIfNotSent(JULY);
+
+        ArgumentCaptor<String> detail = ArgumentCaptor.forClass(String.class);
+        then(reportMailer).should().sendDispatchFailure(
+                eq(JULY), eq(DispatchFailureReason.UNEXPECTED), detail.capture());
+        assertThat(detail.getValue()).contains("스케줄러");
+    }
+
     private void givenNoPriorDispatch() {
         given(reportDispatchRepository.findByTargetYearMonth(JULY)).willReturn(Optional.empty());
         given(reportDispatchRepository.saveAndFlush(any())).willAnswer(invocation -> invocation.getArgument(0));
