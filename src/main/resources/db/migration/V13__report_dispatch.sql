@@ -8,7 +8,7 @@
 CREATE TABLE report_dispatch
 (
     report_dispatch_id  BIGINT       NOT NULL AUTO_INCREMENT,
-    target_year_month   CHAR(7)      NOT NULL, -- 'yyyy-MM'
+    target_year_month   VARCHAR(7)   NOT NULL, -- 'yyyy-MM'
     status              VARCHAR(20)  NOT NULL, -- IN_PROGRESS | SENT | FAILED
     attempt_count       INT          NOT NULL,
     last_attempted_at   DATETIME(6)  NOT NULL,
