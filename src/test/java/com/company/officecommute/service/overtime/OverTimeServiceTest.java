@@ -6,13 +6,14 @@ import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
-import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.web.HolidayApiClient;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
@@ -42,7 +43,7 @@ class OverTimeServiceTest {
     private CommuteHistoryRepository commuteHistoryRepository;
 
     @Mock
-    private EmployeeRepository employeeRepository;
+    private OverTimeSnapshotReader overTimeSnapshotReader;
 
     @Mock
     private HolidayApiClient holidayApiClient;
@@ -53,12 +54,12 @@ class OverTimeServiceTest {
         Team backend = new Team(1L, "백엔드팀", "팀장", 0);
         Employee recordedEmployee = employee(1L, "임형준", backend, "EMP001", "hyungjun@company.com");
         Employee noHistoryEmployee = employee(2L, "김개발", backend, "EMP002", "dev@company.com");
-        given(employeeRepository.findAllWithTeamEmployedBetween(LocalDate.of(2024, 7, 1), LocalDate.of(2024, 7, 31)))
-                .willReturn(List.of(recordedEmployee, noHistoryEmployee));
         given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
         // 7/1(월) 12시간 근무 — 일별 8시간 초과 4시간
-        given(commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
-                .willReturn(List.of(new DailyWorkingMinutes(1L, LocalDate.of(2024, 7, 1), 720L)));
+        given(overTimeSnapshotReader.read(JULY)).willReturn(new OverTimeSnapshot(
+                List.of(recordedEmployee, noHistoryEmployee),
+                List.of(new DailyWorkingMinutes(1L, LocalDate.of(2024, 7, 1), 720L))
+        ));
 
         List<OverTimeCalculateResponse> responses = overTimeService.calculateOverTime(JULY);
 
@@ -82,11 +83,9 @@ class OverTimeServiceTest {
     @DisplayName("미배정 직원은 근무 기록이 없어도 팀명을 미배정으로 표시한다")
     void calculateOverTime_usesUnassignedTeamNameForEmployeeWithoutTeam() {
         Employee employee = employee(1L, "임형준", null, "EMP001", "hyungjun@company.com");
-        given(employeeRepository.findAllWithTeamEmployedBetween(LocalDate.of(2024, 7, 1), LocalDate.of(2024, 7, 31)))
-                .willReturn(List.of(employee));
         given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
-        given(commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
-                .willReturn(List.of());
+        given(overTimeSnapshotReader.read(JULY))
+                .willReturn(new OverTimeSnapshot(List.of(employee), List.of()));
 
         List<OverTimeCalculateResponse> responses = overTimeService.calculateOverTime(JULY);
 
@@ -96,55 +95,41 @@ class OverTimeServiceTest {
     }
 
     @Test
-    @DisplayName("월 1일이 속한 주가 전월에 걸치면 조회 범위를 그 주의 월요일로 넓히고 전월 공휴일도 함께 가져온다")
-    void calculateOverTime_extendsRangeAndHolidaysToStraddlingWeek() {
-        given(employeeRepository.findAllWithTeamEmployedBetween(any(LocalDate.class), any(LocalDate.class)))
-                .willReturn(List.of());
+    @DisplayName("월 1일이 속한 주가 전월에 걸치면 전월 공휴일도 함께 가져온다")
+    void calculateOverTime_fetchesStraddlingMonthHolidays() {
         given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
-        given(commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
-                .willReturn(List.of());
+        given(overTimeSnapshotReader.read(AUGUST)).willReturn(emptySnapshot());
 
         overTimeService.calculateOverTime(AUGUST);
 
-        // 8/1(목)이 속한 주의 월요일은 7/29 — 그 주의 40시간 판정에 전월 기록·공휴일이 필요하다
-        then(commuteHistoryRepository).should()
-                .findDailyWorkingMinutesByWorkDateBetween(LocalDate.of(2024, 7, 29), LocalDate.of(2024, 8, 31));
+        // 8/1(목)이 속한 주의 월요일은 7/29 — 그 주의 휴일근로 분류에 전월 공휴일이 필요하다
         then(holidayApiClient).should().getHolidays(AUGUST);
         then(holidayApiClient).should().getHolidays(JULY);
     }
 
     @Test
-    @DisplayName("리포트 대상자는 스필오버 주가 아니라 월 경계(1일~말일)의 재직 겹침으로 조회한다")
-    void calculateOverTime_queriesEmployeesByMonthBoundsNotSpilloverStart() {
-        // 7/31 퇴사자는 8월 리포트 대상이 아니다 — 스필오버 주(7/29~)의 근무는 7월 리포트가 이미 집계했다.
-        // 대상자 조회까지 7/29로 넓히면 그 퇴사자가 8월 리포트에 0분 행으로 되살아난다.
-        given(employeeRepository.findAllWithTeamEmployedBetween(any(LocalDate.class), any(LocalDate.class)))
-                .willReturn(List.of());
-        given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
-        given(commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
-                .willReturn(List.of());
-
-        overTimeService.calculateOverTime(AUGUST);
-
-        then(employeeRepository).should()
-                .findAllWithTeamEmployedBetween(LocalDate.of(2024, 8, 1), LocalDate.of(2024, 8, 31));
-    }
-
-    @Test
-    @DisplayName("월 1일이 월요일이면 조회 범위 확장 없이 해당 월 공휴일만 가져온다")
+    @DisplayName("월 1일이 월요일이면 해당 월 공휴일만 가져온다")
     void calculateOverTime_singleMonthHolidaysWhenWeekAlignsWithMonth() {
-        given(employeeRepository.findAllWithTeamEmployedBetween(any(LocalDate.class), any(LocalDate.class)))
-                .willReturn(List.of());
         given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
-        given(commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
-                .willReturn(List.of());
+        given(overTimeSnapshotReader.read(JULY)).willReturn(emptySnapshot());
 
         overTimeService.calculateOverTime(JULY);
 
-        then(commuteHistoryRepository).should()
-                .findDailyWorkingMinutesByWorkDateBetween(LocalDate.of(2024, 7, 1), LocalDate.of(2024, 7, 31));
         then(holidayApiClient).should().getHolidays(JULY);
         then(holidayApiClient).should(never()).getHolidays(YearMonth.of(2024, 6));
+    }
+
+    @Test
+    @DisplayName("공휴일 외부 호출은 DB 읽기 스냅샷보다 먼저 끝난다 — 트랜잭션이 외부 API를 기다리지 않는다")
+    void calculateOverTime_callsHolidayApiBeforeOpeningSnapshot() {
+        given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
+        given(overTimeSnapshotReader.read(JULY)).willReturn(emptySnapshot());
+
+        overTimeService.calculateOverTime(JULY);
+
+        InOrder inOrder = Mockito.inOrder(holidayApiClient, overTimeSnapshotReader);
+        inOrder.verify(holidayApiClient).getHolidays(JULY);
+        inOrder.verify(overTimeSnapshotReader).read(JULY);
     }
 
     @Test
@@ -156,27 +141,6 @@ class OverTimeServiceTest {
                 LocalDate.of(2024, 7, 29), LocalDate.of(2024, 8, 31))).willReturn(1L);
 
         assertThat(overTimeService.countUnclosedCommutes(AUGUST)).isEqualTo(1L);
-    }
-
-    @Test
-    @DisplayName("일요일·공휴일 근무는 휴일근로 트랙으로 응답에 실린다")
-    void calculateOverTime_populatesHolidayTracks() {
-        Team backend = new Team(1L, "백엔드팀", "팀장", 0);
-        Employee employee = employee(1L, "임형준", backend, "EMP001", "hyungjun@company.com");
-        given(employeeRepository.findAllWithTeamEmployedBetween(LocalDate.of(2024, 7, 1), LocalDate.of(2024, 7, 31)))
-                .willReturn(List.of(employee));
-        given(holidayApiClient.getHolidays(JULY)).willReturn(Set.of(LocalDate.of(2024, 7, 3)));
-        given(commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
-                .willReturn(List.of(
-                        new DailyWorkingMinutes(1L, LocalDate.of(2024, 7, 3), 600L), // 공휴일 10h
-                        new DailyWorkingMinutes(1L, LocalDate.of(2024, 7, 7), 360L)  // 일요일 6h
-                ));
-
-        List<OverTimeCalculateResponse> responses = overTimeService.calculateOverTime(JULY);
-
-        assertThat(responses.getFirst().overTimeMinutes()).isZero();
-        assertThat(responses.getFirst().holidayWithin8HoursMinutes()).isEqualTo(840L); // 480 + 360
-        assertThat(responses.getFirst().holidayExceeding8HoursMinutes()).isEqualTo(120L);
     }
 
     @Test
@@ -195,6 +159,31 @@ class OverTimeServiceTest {
         // 두 스텁이 같은 인자로 걸려 있으므로, 범위가 갈라지면 둘 중 하나가 기본값(0/빈 목록)으로 떨어진다
         assertThat(count).isEqualTo(1L);
         assertThat(unclosed).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("일요일·공휴일 근무는 휴일근로 트랙으로 응답에 실린다")
+    void calculateOverTime_populatesHolidayTracks() {
+        Team backend = new Team(1L, "백엔드팀", "팀장", 0);
+        Employee employee = employee(1L, "임형준", backend, "EMP001", "hyungjun@company.com");
+        given(holidayApiClient.getHolidays(JULY)).willReturn(Set.of(LocalDate.of(2024, 7, 3)));
+        given(overTimeSnapshotReader.read(JULY)).willReturn(new OverTimeSnapshot(
+                List.of(employee),
+                List.of(
+                        new DailyWorkingMinutes(1L, LocalDate.of(2024, 7, 3), 600L), // 공휴일 10h
+                        new DailyWorkingMinutes(1L, LocalDate.of(2024, 7, 7), 360L)  // 일요일 6h
+                )
+        ));
+
+        List<OverTimeCalculateResponse> responses = overTimeService.calculateOverTime(JULY);
+
+        assertThat(responses.getFirst().overTimeMinutes()).isZero();
+        assertThat(responses.getFirst().holidayWithin8HoursMinutes()).isEqualTo(840L); // 480 + 360
+        assertThat(responses.getFirst().holidayExceeding8HoursMinutes()).isEqualTo(120L);
+    }
+
+    private OverTimeSnapshot emptySnapshot() {
+        return new OverTimeSnapshot(List.of(), List.of());
     }
 
     private Employee employee(Long id, String name, Team team, String employeeCode, String email) {

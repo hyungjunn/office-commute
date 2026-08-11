@@ -2,7 +2,6 @@ package com.company.officecommute.service.overtime;
 
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
-import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.web.HolidayApiClient;
 import org.springframework.stereotype.Service;
 
@@ -20,16 +19,16 @@ public class OverTimeService {
     private static final String UNASSIGNED_TEAM_NAME = "미배정";
 
     private final CommuteHistoryRepository commuteHistoryRepository;
-    private final EmployeeRepository employeeRepository;
+    private final OverTimeSnapshotReader overTimeSnapshotReader;
     private final HolidayApiClient holidayApiClient;
 
     public OverTimeService(
             CommuteHistoryRepository commuteHistoryRepository,
-            EmployeeRepository employeeRepository,
+            OverTimeSnapshotReader overTimeSnapshotReader,
             HolidayApiClient holidayApiClient
     ) {
         this.commuteHistoryRepository = commuteHistoryRepository;
-        this.employeeRepository = employeeRepository;
+        this.overTimeSnapshotReader = overTimeSnapshotReader;
         this.holidayApiClient = holidayApiClient;
     }
 
@@ -55,21 +54,23 @@ public class OverTimeService {
         );
     }
 
+    /**
+     * 공휴일 조회는 외부 API 라이브 호출이라 <b>읽기 트랜잭션 밖</b>에 둔다.
+     * DB 스냅샷 안에 넣으면 외부 API 응답 시간만큼 커넥션을 붙잡고, 그 API 가 느려지는 날
+     * 커넥션 풀이 먼저 마른다. 두 DB 조회의 일관성은
+     * {@link OverTimeSnapshotReader}가 하나의 읽기 트랜잭션으로 보장한다.
+     */
     public List<OverTimeCalculateResponse> calculateOverTime(YearMonth yearMonth) {
-        // 대상 월 1일이 속한 주(월~일)의 월요일부터 조회 — 그 주의 40시간 판정에 전월 말 기록이 필요하다
-        LocalDate rangeStart = MonthlyOverTimeCalculator.requiredRangeStart(yearMonth);
-        LocalDate rangeEnd = yearMonth.atEndOfMonth();
+        Set<LocalDate> holidays = findHolidays(yearMonth);
+        OverTimeSnapshot snapshot = overTimeSnapshotReader.read(yearMonth);
 
-        Set<LocalDate> holidays = findHolidays(yearMonth, rangeStart);
-        Map<Long, Map<LocalDate, Long>> workingMinutesByEmployee =
-                commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(rangeStart, rangeEnd).stream()
-                        .collect(Collectors.groupingBy(
-                                DailyWorkingMinutes::employeeId,
-                                Collectors.toMap(DailyWorkingMinutes::workDate, DailyWorkingMinutes::workingMinutes)
-                        ));
+        Map<Long, Map<LocalDate, Long>> workingMinutesByEmployee = snapshot.dailyWorkingMinutes().stream()
+                .collect(Collectors.groupingBy(
+                        DailyWorkingMinutes::employeeId,
+                        Collectors.toMap(DailyWorkingMinutes::workDate, DailyWorkingMinutes::workingMinutes)
+                ));
 
-        // 대상자 판정은 월 경계 기준 — 스필오버 주(전월 말)의 근무는 그 직원의 전월 리포트가 이미 집계했다
-        return employeeRepository.findAllWithTeamEmployedBetween(yearMonth.atDay(1), rangeEnd).stream()
+        return snapshot.employees().stream()
                 .map(employee -> {
                     MonthlyOverTime overTime = MonthlyOverTimeCalculator.calculate(
                             yearMonth,
@@ -89,9 +90,12 @@ public class OverTimeService {
                 .toList();
     }
 
-    private Set<LocalDate> findHolidays(YearMonth yearMonth, LocalDate rangeStart) {
+    /**
+     * 대상 월 1일이 속한 주가 전월에 걸치면 전월 공휴일도 필요하다 — 그 주의 휴일근로 분류에 쓰인다.
+     */
+    private Set<LocalDate> findHolidays(YearMonth yearMonth) {
         Set<LocalDate> holidays = new HashSet<>(holidayApiClient.getHolidays(yearMonth));
-        YearMonth firstWeekMonth = YearMonth.from(rangeStart);
+        YearMonth firstWeekMonth = YearMonth.from(MonthlyOverTimeCalculator.requiredRangeStart(yearMonth));
         if (!firstWeekMonth.equals(yearMonth)) {
             holidays.addAll(holidayApiClient.getHolidays(firstWeekMonth));
         }
