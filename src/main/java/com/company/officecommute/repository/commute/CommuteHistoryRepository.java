@@ -2,6 +2,7 @@ package com.company.officecommute.repository.commute;
 
 import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.service.overtime.DailyWorkingMinutes;
+import com.company.officecommute.service.overtime.UnclosedCommute;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -32,6 +33,26 @@ public interface CommuteHistoryRepository extends JpaRepository<CommuteHistory, 
      * 연차 기록({@code registerAnnualLeave})은 {@code workEndTime}이 채워지므로 여기 잡히지 않는다.
      */
     long countByWorkDateBetweenAndWorkEndTimeIsNull(LocalDate startDate, LocalDate endDate);
+
+    /**
+     * 위 건수와 <b>같은 범위</b>의 미마감 기록 목록. 관리자에게 "무엇을 마감해야 하는지"를
+     * 알리려면 건수만으로는 부족하다.
+     * <p>
+     * 범위가 {@link #countByWorkDateBetweenAndWorkEndTimeIsNull}와 어긋나면
+     * "건수는 3건인데 목록은 2건" 같은 모순이 나오므로, 두 호출의 인자는 한 곳
+     * ({@code OverTimeService})에서만 만든다.
+     */
+    @Query("""
+            SELECT new com.company.officecommute.service.overtime.UnclosedCommute(
+                        e.employeeCode, e.name, ch.workDate
+                    )
+            FROM CommuteHistory ch, Employee e
+            WHERE e.employeeId = ch.employeeId
+                AND ch.workDate BETWEEN :startDate AND :endDate
+                AND ch.workEndTime IS NULL
+            ORDER BY ch.workDate, e.employeeCode
+            """)
+    List<UnclosedCommute> findUnclosedByWorkDateBetween(LocalDate startDate, LocalDate endDate);
 
     /**
      * 퇴근 처리. {@code workEndTime IS NULL} 조건으로 상태 확인과 변경을 단일 UPDATE로 묶어,
