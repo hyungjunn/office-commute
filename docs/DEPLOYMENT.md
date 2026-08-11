@@ -107,10 +107,8 @@ server:
 
 ## 3. 빌드·배포 파이프라인 (GitHub Actions 권장)
 
-현재 CI가 없다(`.github/`에 이슈 템플릿뿐). 최소 파이프라인:
-
-1. **CI (PR/main push)**: `./gradlew check` (테스트 + openApiValidate) + `cd frontend && pnpm install --frozen-lockfile && pnpm build` (tsc 포함). Testcontainers 사용하므로 러너에 Docker 필요 (Testcontainers 1.21.4 핀 유지).
-2. **CD (main 태그/수동 트리거)**:
+1. **CI (PR/main push)** — `.github/workflows/ci.yml` 로 구현됨. `backend` 잡이 `./gradlew check`(테스트 + openApiValidate), `frontend` 잡이 `pnpm install --frozen-lockfile && pnpm lint && pnpm build`(tsc 포함)를 돈다. Testcontainers 사용하므로 러너에 Docker 필요 — `ubuntu-latest`는 기본 제공 (Testcontainers 1.21.4 핀 유지). 잡 이름 `backend`/`frontend`를 `main` 브랜치 보호의 required status check 로 등록해야 실제로 머지를 막는다.
+2. **CD (main 태그/수동 트리거)** — 미구현:
    - 백엔드: `./gradlew bootJar` → Dockerfile(eclipse-temurin:21-jre)로 이미지 빌드 → 레지스트리 push → 서버에서 `docker compose pull && up -d app`.
    - 프론트: `pnpm build` → `dist/`를 서버 정적 경로로 rsync → `nginx -s reload`.
 3. **롤백**: 이미지 태그를 커밋 SHA로 지정해 이전 태그로 `up -d`. 프론트는 이전 dist 디렉토리 심볼릭 링크 전환.
