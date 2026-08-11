@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# 같은 브랜치에 연속 푸시하면 이전 실행을 취소한다 (러너 시간 절약)
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # 잡 이름은 브랜치 보호의 required status check 로 등록되므로 함부로 바꾸지 않는다.
+  # (바꾸면 보호 규칙에 등록된 옛 이름이 영원히 pending 으로 남아 머지가 막힌다.)
+  backend:
+    name: backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Gradle 배포판 + 의존성 캐싱 (main 에서 캐시 저장, PR 에서 읽기)
+      - uses: gradle/actions/setup-gradle@v4
+
+      # check 에 openApiValidate 가 물려 있어 테스트 + openapi.yml 검증을 함께 돈다.
+      # ubuntu-latest 러너에는 Docker 가 있으므로, 로컬에서 스킵되던
+      # @Testcontainers(disabledWithoutDocker = true) 테스트도 여기서는 실제로 실행된다.
+      - run: ./gradlew check
+
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-report
+          path: build/reports/tests/test
+          retention-days: 7
+
+  frontend:
+    name: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm-workspace.yaml 의 allowBuilds 는 pnpm 10 문법이다.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          # 프론트가 서브디렉토리에 있어 lockfile 경로를 명시해야 캐시가 붙는다.
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm build # tsc --noEmit && vite build
