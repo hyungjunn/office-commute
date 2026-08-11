@@ -729,6 +729,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/overtime/report/dispatch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 월별 초과근무 리포트 수동 발송 (Manager Only)
+         * @description 매월 1~3일 배치와 **완전히 같은** 멱등 경로를 즉시 실행한다.
+         *     이미 발송된 달(`SENT`)에는 아무 일도 일어나지 않으며 강제 발송 플래그는 없다.
+         *     퇴근 미마감이 있으면 대표에게 보내지 않고 근태 관리자에게 교정 요청 메일이 나가며,
+         *     응답의 `status`는 `FAILED`, `lastFailureReason`은 `UNCLOSED_COMMUTES...`가 된다.
+         */
+        post: {
+            parameters: {
+                query: {
+                    /** @description ISO yyyy-MM */
+                    yearMonth: components["parameters"]["YearMonthQuery"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 실행 후 현재 발송 상태 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OverTimeReportDispatchResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/overtime/report/excel": {
         parameters: {
             query?: never;
@@ -966,6 +1013,34 @@ export interface components {
             details: components["schemas"]["CommuteDetail"][];
             /** Format: int64 */
             sumWorkingMinutes: number;
+        };
+        OverTimeReportDispatchResponse: {
+            /**
+             * @description ISO yyyy-MM
+             * @example 2026-07
+             */
+            yearMonth: string;
+            /**
+             * @description IN_PROGRESS = 다른 실행이 선점 중, SENT = 대표에게 발송 완료(종착),
+             *     FAILED = 시도했으나 실패 — 재시도 창(1~3일) 안이면 다음 시도가 다시 집어간다
+             * @enum {string}
+             */
+            status: "IN_PROGRESS" | "SENT" | "FAILED";
+            /**
+             * Format: int32
+             * @description 결과가 기록된 시도 횟수
+             */
+            attemptCount: number;
+            /**
+             * Format: date-time
+             * @description 발송 완료 시각(SENT 일 때만)
+             */
+            sentAt?: string | null;
+            /**
+             * @description "분류: 상세" 형식. 분류는 UNCLOSED_COMMUTES / HOLIDAY_DATA_UNAVAILABLE /
+             *     MAIL_SEND_FAILED / UNEXPECTED
+             */
+            lastFailureReason?: string | null;
         };
         OverTimeCalculateResponse: {
             /** Format: int64 */

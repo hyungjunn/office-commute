@@ -4,9 +4,12 @@ import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.dto.overtime.response.OverTimeReport;
 import com.company.officecommute.dto.overtime.response.OverTimeReportData;
+import com.company.officecommute.dto.report.response.OverTimeReportDispatchResponse;
+import com.company.officecommute.domain.report.DispatchStatus;
 import com.company.officecommute.global.exception.HolidayDataUnavailableException;
 import com.company.officecommute.service.overtime.OverTimeReportService;
 import com.company.officecommute.service.overtime.OverTimeService;
+import com.company.officecommute.service.report.OverTimeReportDispatchService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,6 +25,7 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import java.io.OutputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.List;
@@ -30,6 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 
 @SpringBootTest
@@ -44,6 +49,9 @@ class OverTimeControllerTest {
 
     @MockitoBean
     private OverTimeReportService overTimeReportService;
+
+    @MockitoBean
+    private OverTimeReportDispatchService overTimeReportDispatchService;
 
     @Nested
     @DisplayName("초과근무 조회 API 테스트")
@@ -241,6 +249,69 @@ class OverTimeControllerTest {
                     .session(managerSession()))
                     .failure()
                     .hasRootCauseMessage("엑셀 생성 실패");
+        }
+    }
+
+    @Nested
+    @DisplayName("리포트 수동 발송 API 테스트")
+    class DispatchReportTests {
+
+        @Test
+        @DisplayName("MANAGER가 수동 발송하면 실행 후 현재 발송 상태를 돌려준다")
+        void dispatch_returnsCurrentStatus() {
+            given(overTimeReportDispatchService.dispatchAndDescribe(YearMonth.of(2026, 7)))
+                    .willReturn(new OverTimeReportDispatchResponse(
+                            YearMonth.of(2026, 7), DispatchStatus.SENT, 1,
+                            Instant.parse("2026-08-01T06:00:00Z"), null));
+
+            assertThat(mockMvcTester
+                    .post()
+                    .uri("/api/overtime/report/dispatch?yearMonth=2026-07")
+                    .session(managerSession()))
+                    .hasStatus(HttpStatus.OK)
+                    .bodyJson()
+                    .isLenientlyEqualTo("""
+                            {
+                                "yearMonth": "2026-07",
+                                "status": "SENT",
+                                "attemptCount": 1
+                            }
+                            """);
+        }
+
+        @Test
+        @DisplayName("미마감으로 보류되면 FAILED와 사유가 그대로 노출된다 — 관리자가 즉시 확인할 수 있어야 한다")
+        void dispatch_exposesFailureReason() {
+            given(overTimeReportDispatchService.dispatchAndDescribe(YearMonth.of(2026, 7)))
+                    .willReturn(new OverTimeReportDispatchResponse(
+                            YearMonth.of(2026, 7), DispatchStatus.FAILED, 2, null,
+                            "UNCLOSED_COMMUTES: 미마감 3건"));
+
+            assertThat(mockMvcTester
+                    .post()
+                    .uri("/api/overtime/report/dispatch?yearMonth=2026-07")
+                    .session(managerSession()))
+                    .hasStatus(HttpStatus.OK)
+                    .bodyJson()
+                    .isLenientlyEqualTo("""
+                            {
+                                "status": "FAILED",
+                                "attemptCount": 2,
+                                "lastFailureReason": "UNCLOSED_COMMUTES: 미마감 3건"
+                            }
+                            """);
+        }
+
+        @Test
+        @DisplayName("MEMBER는 수동 발송할 수 없다 — 대표에게 메일을 보내는 경로다")
+        void dispatch_forbiddenForMember() {
+            assertThat(mockMvcTester
+                    .post()
+                    .uri("/api/overtime/report/dispatch?yearMonth=2026-07")
+                    .session(memberSession()))
+                    .hasStatus(HttpStatus.FORBIDDEN);
+
+            then(overTimeReportDispatchService).shouldHaveNoInteractions();
         }
     }
 
