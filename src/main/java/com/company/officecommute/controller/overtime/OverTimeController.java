@@ -3,6 +3,7 @@ package com.company.officecommute.controller.overtime;
 import com.company.officecommute.auth.ManagerOnly;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.dto.overtime.response.OverTimeReport;
+import com.company.officecommute.service.overtime.OverTimeReportFileName;
 import com.company.officecommute.service.overtime.OverTimeReportService;
 import com.company.officecommute.service.overtime.OverTimeService;
 import org.springframework.http.ContentDisposition;
@@ -51,7 +52,7 @@ public class OverTimeController {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
-        headers.setContentDisposition(ContentDisposition.attachment().filename(yearMonth.getYear() + "년" + yearMonth.getMonthValue() + "월_초과근무보고서.xlsx", UTF_8).build());
+        headers.setContentDisposition(ContentDisposition.attachment().filename(OverTimeReportFileName.of(yearMonth), UTF_8).build());
         return ResponseEntity.ok()
                 .headers(headers)
                 .body(body);
