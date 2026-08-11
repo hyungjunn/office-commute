@@ -59,12 +59,13 @@ class HolidayApiClientWireTest {
 
     @BeforeEach
     void setUp() {
-        restTemplate = new RestTemplateConfig().restTemplate();
-        server = MockRestServiceServer.bindTo(restTemplate).build();
-
         HolidayApiProperties properties = new HolidayApiProperties();
         properties.setUrl("https://fake-api.com/getRestDeInfo");
         properties.setServiceKey("service%2Bkey");
+
+        restTemplate = new RestTemplateConfig(properties).restTemplate();
+        server = MockRestServiceServer.bindTo(restTemplate).build();
+
         client = new HolidayApiClient(restTemplate, properties);
     }
 
