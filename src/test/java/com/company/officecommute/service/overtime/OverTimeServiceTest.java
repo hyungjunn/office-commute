@@ -179,6 +179,24 @@ class OverTimeServiceTest {
         assertThat(responses.getFirst().holidayExceeding8HoursMinutes()).isEqualTo(120L);
     }
 
+    @Test
+    @DisplayName("미마감 목록 조회 범위는 건수 조회 범위와 정확히 같다 — 어긋나면 '건수 3건, 목록 2건'이 된다")
+    void findUnclosedCommutes_usesSameRangeAsCount() {
+        LocalDate rangeStart = LocalDate.of(2024, 7, 29); // 8/1(목)이 속한 주의 월요일
+        LocalDate rangeEnd = LocalDate.of(2024, 8, 31);
+        given(commuteHistoryRepository.countByWorkDateBetweenAndWorkEndTimeIsNull(rangeStart, rangeEnd))
+                .willReturn(1L);
+        given(commuteHistoryRepository.findUnclosedByWorkDateBetween(rangeStart, rangeEnd))
+                .willReturn(List.of(new UnclosedCommute("EMP001", "임형준", LocalDate.of(2024, 8, 31))));
+
+        long count = overTimeService.countUnclosedCommutes(AUGUST);
+        List<UnclosedCommute> unclosed = overTimeService.findUnclosedCommutes(AUGUST);
+
+        // 두 스텁이 같은 인자로 걸려 있으므로, 범위가 갈라지면 둘 중 하나가 기본값(0/빈 목록)으로 떨어진다
+        assertThat(count).isEqualTo(1L);
+        assertThat(unclosed).hasSize(1);
+    }
+
     private Employee employee(Long id, String name, Team team, String employeeCode, String email) {
         return new EmployeeBuilder()
                 .withId(id)

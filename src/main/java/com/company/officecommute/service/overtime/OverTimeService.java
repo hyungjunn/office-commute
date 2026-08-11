@@ -44,6 +44,17 @@ public class OverTimeService {
         );
     }
 
+    /**
+     * {@link #countUnclosedCommutes}와 <b>정확히 같은 범위</b>의 미마감 기록 목록.
+     * 관리자에게 교정을 요청하려면 건수가 아니라 "무엇을"이 필요하다.
+     * 두 메서드가 범위를 각자 계산하면 "건수는 3건인데 목록은 2건"이 되므로 한 곳에서만 만든다.
+     */
+    public List<UnclosedCommute> findUnclosedCommutes(YearMonth yearMonth) {
+        return commuteHistoryRepository.findUnclosedByWorkDateBetween(
+                MonthlyOverTimeCalculator.requiredRangeStart(yearMonth), yearMonth.atEndOfMonth()
+        );
+    }
+
     public List<OverTimeCalculateResponse> calculateOverTime(YearMonth yearMonth) {
         // 대상 월 1일이 속한 주(월~일)의 월요일부터 조회 — 그 주의 40시간 판정에 전월 말 기록이 필요하다
         LocalDate rangeStart = MonthlyOverTimeCalculator.requiredRangeStart(yearMonth);
