@@ -10,6 +10,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -20,7 +21,8 @@ import java.util.Objects;
  * 한 대상 월의 발송 이력. 상태 전이를 엔티티가 소유해, "어디선가 status 만 바꿔치기"가
  * 생기지 않게 한다.
  * <p>
- * {@code UNIQUE(target_year_month)}가 중복 발송 방지의 유일한 하드 보증이다.
+ * 최초 선점은 {@code UNIQUE(target_year_month)}, 기존 이력의 재선점은 낙관적 락이
+ * 중복 발송을 막는다.
  */
 @Entity
 @Table(uniqueConstraints = {
@@ -34,6 +36,11 @@ public class ReportDispatch {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long reportDispatchId;
+
+    /** 재시도/리스 회수의 read-check-write 경합을 DB update 시점에 판정한다. */
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     @Convert(converter = YearMonthAttributeConverter.class)
     @Column(name = "target_year_month", nullable = false, length = 7)
@@ -79,6 +86,15 @@ public class ReportDispatch {
         this.lastAttemptedAt = now;
     }
 
+    /**
+     * SMTP 호출 전에 발송 결정을 내구적으로 기록한다.
+     * 이 상태는 SENT 후처리 저장이 실패해도 동일 메일을 다시 보내지 않게 한다.
+     */
+    public void commitDelivery(Instant now) {
+        this.status = DispatchStatus.DELIVERY_COMMITTED;
+        this.lastAttemptedAt = now;
+    }
+
     public void markSent(Instant now) {
         this.status = DispatchStatus.SENT;
         this.sentAt = now;
@@ -96,6 +112,11 @@ public class ReportDispatch {
 
     public boolean isSent() {
         return status == DispatchStatus.SENT;
+    }
+
+    /** SMTP 발송을 이미 시작했으므로 자동 재시도하면 안 되는가. */
+    public boolean isDeliveryFinalized() {
+        return status == DispatchStatus.DELIVERY_COMMITTED || status == DispatchStatus.SENT;
     }
 
     /**

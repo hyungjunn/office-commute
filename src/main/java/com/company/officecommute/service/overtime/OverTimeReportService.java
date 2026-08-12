@@ -49,14 +49,37 @@ public class OverTimeReportService {
     }
 
     public OverTimeReport generateReport(YearMonth yearMonth) {
+        return generateReportSnapshot(yearMonth).report();
+    }
+
+    /**
+     * 발송 판단과 관리자 경고에 쓰는 미마감 정보를 한 번만 조회한다. 건수는 이 목록에서
+     * 도출하므로 경고 제목/본문/첨부 리포트와 상세 목록이 항상 같은 스냅샷을 가리킨다.
+     * <p>
+     * 미마감을 집계보다 <b>먼저</b> 읽는다. 대상 월(과거)의 기록은 이후 마감될 수만 있고 새로
+     * 열리지 않으므로, 집계가 미마감 행을 봤다면 이 목록에도 반드시 있다 — "게이트는 통과했는데
+     * 리포트는 과소 집계"인 조합이 나오지 않는다. 순서를 뒤집으면 두 읽기 사이의 마감이 그 조합을 만든다.
+     */
+    public OverTimeReportSnapshot generateReportSnapshot(YearMonth yearMonth) {
+        List<UnclosedCommute> unclosedCommutes = overTimeService.findUnclosedCommutes(yearMonth);
         List<OverTimeCalculateResponse> overTimeData = overTimeService.calculateOverTime(yearMonth);
+
+        OverTimeReport report = createReport(yearMonth, overTimeData, unclosedCommutes.size());
+        return new OverTimeReportSnapshot(report, unclosedCommutes);
+    }
+
+    private OverTimeReport createReport(
+            YearMonth yearMonth,
+            List<OverTimeCalculateResponse> overTimeData,
+            long unclosedCommuteCount
+    ) {
 
         List<OverTimeReportData> rows = overTimeData.stream()
                 .map(this::convertToReportData)
                 .sorted(REPORT_ORDER)
                 .toList();
 
-        return new OverTimeReport(yearMonth, rows, overTimeService.countUnclosedCommutes(yearMonth));
+        return new OverTimeReport(yearMonth, rows, unclosedCommuteCount);
     }
 
     private OverTimeReportData convertToReportData(OverTimeCalculateResponse response) {

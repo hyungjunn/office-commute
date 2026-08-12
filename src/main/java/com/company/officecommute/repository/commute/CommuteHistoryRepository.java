@@ -25,30 +25,21 @@ public interface CommuteHistoryRepository extends JpaRepository<CommuteHistory, 
     List<CommuteHistory> findAllByEmployeeIdAndWorkDateBetween(Long employeeId, LocalDate startDate, LocalDate endDate);
 
     /**
-     * 해당 기간에 퇴근이 찍히지 않은(마감되지 않은) 출근 기록 수.
+     * 해당 기간의 미마감 기록 목록. 관리자에게 "무엇을 마감해야 하는지"를 알리고,
+     * 미마감 건수도 이 목록의 크기로 계산한다.
      * <p>
-     * 이런 기록은 일별 {@code workingMinutes = 0} 행으로 나타나 주 40시간 산정 기반을 깎으므로,
-     * 해당 직원의 초과근무가 실제보다 적게 집계된다. 리포트가 "0분"과 "아직 안 찍음"을 구분해
-     * 보여줄 수 있도록 건수를 노출한다.<br>
-     * 연차 기록({@code registerAnnualLeave})은 {@code workEndTime}이 채워지므로 여기 잡히지 않는다.
-     */
-    long countByWorkDateBetweenAndWorkEndTimeIsNull(LocalDate startDate, LocalDate endDate);
-
-    /**
-     * 위 건수와 <b>같은 범위</b>의 미마감 기록 목록. 관리자에게 "무엇을 마감해야 하는지"를
-     * 알리려면 건수만으로는 부족하다.
-     * <p>
-     * 범위가 {@link #countByWorkDateBetweenAndWorkEndTimeIsNull}와 어긋나면
-     * "건수는 3건인데 목록은 2건" 같은 모순이 나오므로, 두 호출의 인자는 한 곳
-     * ({@code OverTimeService})에서만 만든다.
+     * LEFT JOIN인 이유: 이 목록은 대표 발송을 막는 게이트다. 직원 행이 없는(잘못된 데이터)
+     * 미마감 기록이 조인에서 탈락하면 게이트가 조용히 좁아진다 — 그런 기록일수록 드러나야 한다.
      */
     @Query("""
             SELECT new com.company.officecommute.service.overtime.UnclosedCommute(
-                        e.employeeCode, e.name, ch.workDate
+                        COALESCE(e.employeeCode, '(직원 정보 없음)'),
+                        COALESCE(e.name, '(직원 정보 없음)'),
+                        ch.workDate
                     )
-            FROM CommuteHistory ch, Employee e
-            WHERE e.employeeId = ch.employeeId
-                AND ch.workDate BETWEEN :startDate AND :endDate
+            FROM CommuteHistory ch
+                LEFT JOIN Employee e ON e.employeeId = ch.employeeId
+            WHERE ch.workDate BETWEEN :startDate AND :endDate
                 AND ch.workEndTime IS NULL
             ORDER BY ch.workDate, e.employeeCode
             """)

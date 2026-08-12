@@ -9,12 +9,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.BDDMockito;
 import org.mockito.Captor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.List;
@@ -102,12 +105,49 @@ class OverTimeReportServiceTest {
         YearMonth yearMonth = YearMonth.of(2024, 8);
         BDDMockito.given(overTimeService.calculateOverTime(yearMonth))
                 .willReturn(List.of(new OverTimeCalculateResponse(1L, "EMP001", "임형준", "백엔드팀", 300L, 0L, 0L)));
-        BDDMockito.given(overTimeService.countUnclosedCommutes(yearMonth)).willReturn(3L);
+        BDDMockito.given(overTimeService.findUnclosedCommutes(yearMonth)).willReturn(List.of(
+                new UnclosedCommute("EMP002", "김개발", LocalDate.of(2024, 8, 1)),
+                new UnclosedCommute("EMP003", "박서버", LocalDate.of(2024, 8, 2)),
+                new UnclosedCommute("EMP004", "최데브", LocalDate.of(2024, 8, 3))
+        ));
 
         OverTimeReport report = overTimeReportService.generateReport(yearMonth);
 
         assertThat(report.unclosedCommuteCount()).isEqualTo(3L);
         assertThat(report.hasUnclosedCommutes()).isTrue();
+    }
+
+    @Test
+    @DisplayName("발송용 리포트의 미마감 건수는 경고에 전달할 같은 목록에서 도출한다")
+    void generateReportSnapshot_usesOneUnclosedCommuteRead() {
+        YearMonth yearMonth = YearMonth.of(2024, 8);
+        List<UnclosedCommute> unclosed = List.of(
+                new UnclosedCommute("EMP001", "임형준", LocalDate.of(2024, 8, 1)),
+                new UnclosedCommute("EMP002", "김개발", LocalDate.of(2024, 8, 2))
+        );
+        BDDMockito.given(overTimeService.calculateOverTime(yearMonth)).willReturn(List.of());
+        BDDMockito.given(overTimeService.findUnclosedCommutes(yearMonth)).willReturn(unclosed);
+
+        OverTimeReportSnapshot snapshot = overTimeReportService.generateReportSnapshot(yearMonth);
+
+        assertThat(snapshot.report().unclosedCommuteCount()).isEqualTo(unclosed.size());
+        assertThat(snapshot.unclosedCommutes()).containsExactlyElementsOf(unclosed);
+    }
+
+    @Test
+    @DisplayName("미마감을 집계보다 먼저 읽는다 — 과거 기록은 마감될 수만 있어, 이 순서면 게이트 통과와 과소 집계가 공존할 수 없다")
+    void generateReportSnapshot_readsUnclosedBeforeAggregation() {
+        // 순서를 뒤집으면: 집계가 미마감 행을 0분으로 읽음 → 관리자가 그 기록을 마감 →
+        // 미마감 조회가 빈 목록을 봄 → 게이트가 열려 과소 집계 리포트가 대표에게 간다.
+        YearMonth yearMonth = YearMonth.of(2024, 8);
+        BDDMockito.given(overTimeService.calculateOverTime(yearMonth)).willReturn(List.of());
+        BDDMockito.given(overTimeService.findUnclosedCommutes(yearMonth)).willReturn(List.of());
+
+        overTimeReportService.generateReportSnapshot(yearMonth);
+
+        InOrder inOrder = Mockito.inOrder(overTimeService);
+        inOrder.verify(overTimeService).findUnclosedCommutes(yearMonth);
+        inOrder.verify(overTimeService).calculateOverTime(yearMonth);
     }
 
     @Test

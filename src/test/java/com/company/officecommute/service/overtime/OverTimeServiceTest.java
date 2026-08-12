@@ -149,13 +149,14 @@ class OverTimeServiceTest {
 
     @Test
     @DisplayName("퇴근 미마감 검사는 계산이 소비하는 범위와 같다 — 전월 스필오버 일자의 미마감도 잡힌다")
-    void countUnclosedCommutes_coversSpilloverWeek() {
+    void findUnclosedCommutes_coversSpilloverWeek() {
         // 전월 말(7/29) 미마감 기록은 0분으로 8월 첫 주의 40시간 기반을 깎아 과소 집계를 만든다.
         // 검사 범위가 8/1~8/31이면 이 기록을 놓쳐 "미마감 0건"이라는 거짓 완결 보증이 나간다.
-        given(commuteHistoryRepository.countByWorkDateBetweenAndWorkEndTimeIsNull(
-                LocalDate.of(2024, 7, 29), LocalDate.of(2024, 8, 31))).willReturn(1L);
+        given(commuteHistoryRepository.findUnclosedByWorkDateBetween(
+                LocalDate.of(2024, 7, 29), LocalDate.of(2024, 8, 31)))
+                .willReturn(List.of(new UnclosedCommute("EMP001", "임형준", LocalDate.of(2024, 7, 29))));
 
-        assertThat(overTimeService.countUnclosedCommutes(AUGUST)).isEqualTo(1L);
+        assertThat(overTimeService.findUnclosedCommutes(AUGUST)).hasSize(1);
     }
 
     @Test
@@ -177,24 +178,6 @@ class OverTimeServiceTest {
         assertThat(responses.getFirst().overTimeMinutes()).isZero();
         assertThat(responses.getFirst().holidayWithin8HoursMinutes()).isEqualTo(840L); // 480 + 360
         assertThat(responses.getFirst().holidayExceeding8HoursMinutes()).isEqualTo(120L);
-    }
-
-    @Test
-    @DisplayName("미마감 목록 조회 범위는 건수 조회 범위와 정확히 같다 — 어긋나면 '건수 3건, 목록 2건'이 된다")
-    void findUnclosedCommutes_usesSameRangeAsCount() {
-        LocalDate rangeStart = LocalDate.of(2024, 7, 29); // 8/1(목)이 속한 주의 월요일
-        LocalDate rangeEnd = LocalDate.of(2024, 8, 31);
-        given(commuteHistoryRepository.countByWorkDateBetweenAndWorkEndTimeIsNull(rangeStart, rangeEnd))
-                .willReturn(1L);
-        given(commuteHistoryRepository.findUnclosedByWorkDateBetween(rangeStart, rangeEnd))
-                .willReturn(List.of(new UnclosedCommute("EMP001", "임형준", LocalDate.of(2024, 8, 31))));
-
-        long count = overTimeService.countUnclosedCommutes(AUGUST);
-        List<UnclosedCommute> unclosed = overTimeService.findUnclosedCommutes(AUGUST);
-
-        // 두 스텁이 같은 인자로 걸려 있으므로, 범위가 갈라지면 둘 중 하나가 기본값(0/빈 목록)으로 떨어진다
-        assertThat(count).isEqualTo(1L);
-        assertThat(unclosed).hasSize(1);
     }
 
     private Employee employee(Long id, String name, Team team, String employeeCode, String email) {
