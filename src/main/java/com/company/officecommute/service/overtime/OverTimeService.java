@@ -35,11 +35,13 @@ public class OverTimeService {
 
     /**
      * {@link #calculateOverTime}이 소비하는 범위(스필오버 주 월요일 ~ 월 말일)에서 퇴근이 찍히지
-     * 않은 기록 수. 0이면 미마감으로 인한 과소 집계가 없음이 보장되고, 0이 아니면 과소 집계일 수 있다.
+     * 않은 기록 목록. 비어 있으면 미마감으로 인한 과소 집계가 없음이 보장된다.
      * 전월 말 스필오버 일자도 첫 주의 40시간 판정에 0분으로 들어가므로 검사 범위에 포함해야 한다.
+     * <p>
+     * 건수가 필요한 곳도 이 목록의 크기를 쓴다 — 별도 건수 쿼리를 두면 범위·조인 의미가 어긋날 수 있다.
      */
-    public long countUnclosedCommutes(YearMonth yearMonth) {
-        return commuteHistoryRepository.countByWorkDateBetweenAndWorkEndTimeIsNull(
+    public List<UnclosedCommute> findUnclosedCommutes(YearMonth yearMonth) {
+        return commuteHistoryRepository.findUnclosedByWorkDateBetween(
                 MonthlyOverTimeCalculator.requiredRangeStart(yearMonth), yearMonth.atEndOfMonth()
         );
     }

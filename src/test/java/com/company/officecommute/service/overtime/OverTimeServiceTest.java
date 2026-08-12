@@ -149,13 +149,14 @@ class OverTimeServiceTest {
 
     @Test
     @DisplayName("퇴근 미마감 검사는 계산이 소비하는 범위와 같다 — 전월 스필오버 일자의 미마감도 잡힌다")
-    void countUnclosedCommutes_coversSpilloverWeek() {
+    void findUnclosedCommutes_coversSpilloverWeek() {
         // 전월 말(7/29) 미마감 기록은 0분으로 8월 첫 주의 40시간 기반을 깎아 과소 집계를 만든다.
         // 검사 범위가 8/1~8/31이면 이 기록을 놓쳐 "미마감 0건"이라는 거짓 완결 보증이 나간다.
-        given(commuteHistoryRepository.countByWorkDateBetweenAndWorkEndTimeIsNull(
-                LocalDate.of(2024, 7, 29), LocalDate.of(2024, 8, 31))).willReturn(1L);
+        given(commuteHistoryRepository.findUnclosedByWorkDateBetween(
+                LocalDate.of(2024, 7, 29), LocalDate.of(2024, 8, 31)))
+                .willReturn(List.of(new UnclosedCommute("EMP001", "임형준", LocalDate.of(2024, 7, 29))));
 
-        assertThat(overTimeService.countUnclosedCommutes(AUGUST)).isEqualTo(1L);
+        assertThat(overTimeService.findUnclosedCommutes(AUGUST)).hasSize(1);
     }
 
     @Test
