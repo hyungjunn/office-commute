@@ -248,6 +248,44 @@ class OverTimeReportDispatchServiceTest {
     }
 
     @Test
+    @DisplayName("최종 점검에서 이미 발송된 달은 조용히 넘어간다")
+    void alertIfNotSent_silentWhenSent() {
+        ReportDispatch sent = ReportDispatch.claim(JULY, NOW);
+        sent.markSent(NOW);
+        given(reportDispatchRepository.findByTargetYearMonth(JULY)).willReturn(Optional.of(sent));
+
+        dispatchService.alertIfNotSent(JULY);
+
+        then(reportMailer).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("최종 점검에서 미발송이면 기록된 사유 분류로 관리자에게 알린다")
+    void alertIfNotSent_reportsRecordedReason() {
+        ReportDispatch failed = ReportDispatch.claim(JULY, NOW);
+        failed.markFailed(DispatchFailureReason.UNCLOSED_COMMUTES.name() + ": 미마감 3건", NOW);
+        given(reportDispatchRepository.findByTargetYearMonth(JULY)).willReturn(Optional.of(failed));
+
+        dispatchService.alertIfNotSent(JULY);
+
+        then(reportMailer).should().sendDispatchFailure(
+                eq(JULY), eq(DispatchFailureReason.UNCLOSED_COMMUTES), any());
+    }
+
+    @Test
+    @DisplayName("이력 자체가 없으면 스케줄러 미동작으로 보고 알린다 — 가장 조용한 실패다")
+    void alertIfNotSent_noHistoryAtAll() {
+        given(reportDispatchRepository.findByTargetYearMonth(JULY)).willReturn(Optional.empty());
+
+        dispatchService.alertIfNotSent(JULY);
+
+        ArgumentCaptor<String> detail = ArgumentCaptor.forClass(String.class);
+        then(reportMailer).should().sendDispatchFailure(
+                eq(JULY), eq(DispatchFailureReason.UNEXPECTED), detail.capture());
+        assertThat(detail.getValue()).contains("스케줄러");
+    }
+
+    @Test
     @DisplayName("SENT 기록은 발송 확정 flush가 돌려준 엔티티로 한다 — merge는 version을 반환 객체에만 반영한다")
     void recordSent_usesEntityReturnedByCommitFlush() {
         // 트랜잭션 없는 detached 저장에서 반환 엔티티를 버리면 로컬 version이 낡아

@@ -113,29 +113,37 @@
 잘못된 급여 자료가 대표에게 도착하는 것이 메일이 하루 늦는 것보다 비싸다.
 문제가 있으면 대표 메일 대신 근태 관리자에게 경고를 보낸다.
 
-**전제: 배치도 메일 발송도 아직 없다.** 스케줄러(`@Scheduled`)와 메일 의존성이
-프로젝트에 존재하지 않으므로, 이 절의 항목들은 기존 코드의 수정이 아니라
-발송 경로를 새로 만드는 작업이다. 리포트 생성부(`OverTimeReportService`)는 준비돼 있다.
+**구현 완료 (2026-08-11, ADR 3 Step 1~7).** 스케줄러도 메일도 프로젝트에 없었으므로
+이 절은 기존 코드 수정이 아니라 발송 경로 신설이었다. 설계 근거와 감수 사항은
+`src/test/docs/adr/2026_08_10_adr3.md` 참조.
 
-- [ ] 스케줄러 도입(프로젝트 첫 도입): `@EnableScheduling` + `@Scheduled`에
-      cron `zone = "Asia/Seoul"` 명시. "전월"은 주입된 `Clock`에서 파생 —
-      `LocalDate.now()` 직접 호출 금지
-- [ ] 배치는 `StreamingResponseBody` 컨트롤러를 타지 말고 서비스 계층을 직접 호출한다.
-      실패 시 부분 파일이 나가지 않도록 임시 파일에 다 쓴 뒤 첨부한다
-- [ ] **발송 이력 테이블 `UNIQUE(year_month)`** — 중복 발송 방지의 핵심.
-      배치 재시도와 수동 재실행이 겹쳐도 대표는 한 달에 한 번만 받는다
-- [ ] **재시도가 원장을 대체한다**: 1일 오전 시도가 실패하면(공휴일 API 다운 포함)
-      몇 시간 간격으로 1~3일 재시도. 발송 이력 유니크 덕에 성공 시 자동 중단, 멱등.
-      공휴일 프리플라이트는 별도 항목이 아니다 — 라이브 호출이 fail-closed라
-      데이터 문제가 곧 배치 실패로 드러나고, 재시도 대상이 된다
-- [ ] **조용한 실패 차단** — 재시도까지 소진한 최종 실패는 근태 관리자에게 알림으로
-      드러나야 한다 (메일이 안 온 것과 구분이 안 되면 안 된다)
-- [x] **퇴근 미처리 기록 — 탐지·노출 완료.** `workEndTime IS NULL`이면 `workingMinutes=0`으로 SUM에 들어간다.
-      1일 오전 배치면 전월 말일에 퇴근을 찍지 않은 직원이 그대로 0분 처리된다.
-      `countByWorkDateBetweenAndWorkEndTimeIsNull`로 건수를 세어 `OverTimeReport`에 싣고,
-      시트 첫 행에 경고로 남긴다(연차는 `workEndTime`이 채워지므로 오탐 없음).
-      → 남은 것은 **라우팅**: 건수가 0이 아닐 때 대표 발송을 막고 근태 관리자에게 보낼지 여부.
-      발송 경로가 생긴 뒤 결정한다
+- [x] 스케줄러 도입(프로젝트 첫 도입): `config/SchedulingConfig`(`@EnableScheduling`)와
+      `scheduler/OverTimeReportDispatchScheduler`(`@Profile("prod")`).
+      cron `zone = "Asia/Seoul"` 명시, "전월"은 주입된 `Clock`에서 파생.
+      `Clock` 빈이 `systemDefaultZone()`이라 cron zone 과 날짜 파생 zone 을 **둘 다** KST 로
+      못박아야 서버 TZ 가 UTC 일 때 대상 월이 한 달 밀리지 않는다(테스트가 고정)
+- [x] 배치는 컨트롤러를 타지 않고 서비스를 직접 호출한다.
+      **임시 파일 대신 메모리 버퍼**(`ByteArrayOutputStream`)로 바꿨다 — 지시의 의도인
+      "부분 파일 차단"은 동일하게 충족되고, 수백 KB 규모에 임시 파일은 잔여물·권한·정리
+      책임만 늘린다. 재검토 조건은 ADR 3 Step 3에 남겼다(첨부가 수 MB급이 되면 파일로 회귀)
+- [x] **발송 이력 테이블 `UNIQUE(target_year_month)`** — `V13__report_dispatch.sql`.
+      중복 발송 방지의 유일한 하드 보증이고 나머지는 그 위의 편의 계층이다
+- [x] **재시도가 원장을 대체한다**: 1~3일 × 하루 4회(06/10/14/18 KST) = 최대 12회.
+      이력 유니크와 `SENT` 종착 상태 덕에 성공 시 자동 중단, 멱등.
+      공휴일 프리플라이트는 두지 않았다 — 라이브 호출이 fail-closed 라 데이터 문제가
+      곧 `FAILED(HOLIDAY_DATA_UNAVAILABLE)`로 드러나고 재시도 대상이 된다
+- [x] **조용한 실패 차단** — 3일 20:00(마지막 시도 2시간 뒤) 별도 스케줄이 미발송을 점검해
+      근태 관리자에게 알린다. 이력이 아예 없으면 "스케줄러 미동작"으로 보고 알린다.
+      시도 로직에 "이번이 마지막인가" 조건을 섞지 않으려고 진입점을 분리했다
+- [x] **퇴근 미처리 기록 — 탐지·노출·라우팅 완료.** `workEndTime IS NULL`이면 `workingMinutes=0`으로
+      집계에 들어가 그 직원의 초과근무를 과소 집계한다(= 임금 미지급).
+      → **라우팅을 "막는 쪽"으로 확정**(ADR 3 Step 4): 미마감이 1건이라도 있으면 대표 발송을
+      보류하고, 근태 관리자에게 리포트 + 미마감 목록(`findUnclosedByWorkDateBetween`)을 보내
+      교정을 요청한다. 재시도 창 안에 마감하면 다음 시도에서 자동으로 대표에게 나간다.
+      엑셀 첫 행 경고만으로는 "대표가 경고를 읽었을 것"에 기대게 되므로 경고로 끝내지 않는다
+- [x] 수동 재실행 `POST /api/overtime/report/dispatch` (ManagerOnly) — 배치와 같은 멱등 경로.
+      강제 발송 플래그는 두지 않는다. 응답으로 현재 발송 상태를 돌려주어 관리자가 미마감을
+      고친 뒤 다음 재시도를 기다리지 않고 확인할 수 있다
 
 ## 5. 법정 산정 방식 정합
 
@@ -159,9 +167,15 @@
 
 ## 6. 마이너
 
-- [ ] `OverTimeService.calculateOverTime`에 `@Transactional(readOnly = true)` 부재 —
-      두 쿼리 사이 비일관 스냅샷 가능. 붙일 때는 외부 API 호출(`HolidayApiClient`)을
-      트랜잭션 밖으로 빼야 한다
-- [ ] 외부 API 타임아웃을 `application-*.yml`로 분리 (`RestTemplateConfig`의 기존 TODO)
+- [x] `OverTimeService.calculateOverTime`의 `@Transactional(readOnly = true)` (2026-08-11).
+      두 DB 조회를 `OverTimeSnapshotReader`(`@Transactional(readOnly = true)`)로 묶고
+      공휴일 라이브 호출은 그 밖에 남겼다. 별도 빈으로 뽑은 이유: 같은 클래스 안에서
+      `@Transactional` 메서드를 자기호출하면 프록시를 타지 않아 애초에 트랜잭션이 걸리지 않는다 —
+      트랜잭션 경계를 클래스 경계와 일치시켰다
+- [x] 외부 API 타임아웃을 `application-*.yml`로 분리 (2026-08-11).
+      `public.data.api.connectTimeout`/`readTimeout`(기본 3s/5s)으로 노출해
+      `PUBLIC_API_CONNECT_TIMEOUT`/`PUBLIC_API_READ_TIMEOUT`으로 재배포 없이 조정한다.
+      배치가 공휴일 API 에 매달리면 재시도 창을 통째로 잡아먹는다 — 온디맨드 조회와 달리
+      사람이 보고 있지 않다
 - [x] `HolidayResponse.Item.setLocDate` 오타 수정 (`setLocdate`, 필드와 일치 — 클라이언트
       분리에 딸려 처리)

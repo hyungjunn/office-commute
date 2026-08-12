@@ -126,6 +126,16 @@ server:
 | `PUBLIC_API_SERVICE_KEY` | 공공데이터포털 키 | 미설정 시 부팅 실패 — 배포 전 발급 확인 |
 | `ADMIN_PASSWORD_HASH` | BCrypt 해시 | **신규** (§1-4) |
 | `SERVER_PORT` | 8080 (컨테이너 내부) | |
+| `MAIL_HOST` / `MAIL_PORT` / `MAIL_USERNAME` / `MAIL_PASSWORD` | 사내 SMTP 또는 Gmail 앱 비밀번호 | **신규** (ADR 3). prod 기본값 없음 — 미설정 시 부팅 실패 |
+| `MAIL_SMTP_AUTH` / `MAIL_SMTP_STARTTLS` | `true` | **신규**. 선택 — 미설정 시 둘 다 true |
+| `REPORT_MAIL_FROM` | 발신 주소 | **신규**. prod 기본값 없음 |
+| `REPORT_MAIL_CEO` | 대표 메일 | **신규**. 정상 리포트의 유일한 수신자 |
+| `REPORT_MAIL_MANAGERS` | 근태 관리자 메일 | **신규**. 쉼표 구분 복수 가능. 미마감 보류·발송 실패 알림 수신자 |
+| `PUBLIC_API_CONNECT_TIMEOUT` / `PUBLIC_API_READ_TIMEOUT` | `3s` / `5s` | **신규**. 선택 — 배치가 공휴일 API 에 매달려 재시도 창을 잡아먹지 않도록 재배포 없이 조정 |
+
+> 메일 설정에 기본값을 두지 않는 이유: 배치는 매월 1일에만 돈다. 값이 비어 있어도 앱이
+> 뜨면 한 달 뒤 "리포트가 안 왔다"로 발견되고, 그 시점엔 이미 급여 정산이 지나 있다.
+> `ADMIN_PASSWORD_HASH`와 같은 방침으로 부팅 시점에 실패시킨다.
 
 시크릿은 서버의 `.env`(gitignored) 또는 GitHub Actions Secrets로만 관리한다. docker-compose.yml의 로컬용 고정 비밀번호(`office_password` 등)를 운영에 재사용하지 않는다.
 
@@ -140,6 +150,10 @@ server:
 7. SPA 라우트(`/teams`, `/employees`, `/overtime`) 직접 접속/새로고침 정상 확인.
 8. `scripts/api_test.sh`를 운영 오리진으로 스모크 실행 (admin 자격증명은 새 값으로).
 9. DB 백업 크론 + 로그 로테이션(`logs/office-commute.log`, 설정상 100MB/30일) 동작 확인.
+10. 메일 설정 주입 확인 → `POST /api/overtime/report/dispatch?yearMonth=<지난달>`을 MANAGER 로 한 번 호출해
+    응답의 `status`가 `SENT`(또는 미마감이 있으면 `FAILED` + `UNCLOSED_COMMUTES`)로 나오는지 확인.
+    배치 첫 발화(다음 달 1일 06:00 KST)를 기다리지 않고 발송 경로 전체를 검증하는 방법이다.
+    이미 발송된 달이면 아무 일도 일어나지 않으므로(멱등) 스모크로 안전하다.
 
 ## 6. 배포 후 개선 로드맵 (권고 — 차단 아님)
 

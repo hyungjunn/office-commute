@@ -375,6 +375,26 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResult' }
 
+  /api/overtime/report/dispatch:
+    post:
+      tags: [OverTime]
+      summary: 월별 초과근무 리포트 수동 발송 (Manager Only)
+      description: |
+        매월 1~3일 배치와 **완전히 같은** 멱등 경로를 즉시 실행한다.
+        이미 발송된 달(`SENT`)에는 아무 일도 일어나지 않으며 강제 발송 플래그는 없다.
+        퇴근 미마감이 있으면 대표에게 보내지 않고 근태 관리자에게 교정 요청 메일이 나가며,
+        응답의 `status`는 `FAILED`, `lastFailureReason`은 `UNCLOSED_COMMUTES...`가 된다.
+      parameters:
+        - $ref: '#/components/parameters/YearMonthQuery'
+      responses:
+        '200':
+          description: 실행 후 현재 발송 상태
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OverTimeReportDispatchResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
   /api/overtime/report/excel:
     get:
       tags: [OverTime]
@@ -652,6 +672,26 @@ components:
         sumWorkingMinutes: { type: integer, format: int64 }
 
     # ---- OverTime ----
+    OverTimeReportDispatchResponse:
+      type: object
+      required: [yearMonth, status, attemptCount]
+      properties:
+        yearMonth: { type: string, example: "2026-07", description: ISO yyyy-MM }
+        status:
+          type: string
+          enum: [IN_PROGRESS, SENT, FAILED]
+          description: |
+            IN_PROGRESS = 다른 실행이 선점 중, SENT = 대표에게 발송 완료(종착),
+            FAILED = 시도했으나 실패 — 재시도 창(1~3일) 안이면 다음 시도가 다시 집어간다
+        attemptCount: { type: integer, format: int32, description: 결과가 기록된 시도 횟수 }
+        sentAt: { type: string, format: date-time, nullable: true, description: 발송 완료 시각(SENT 일 때만) }
+        lastFailureReason:
+          type: string
+          nullable: true
+          description: |
+            "분류: 상세" 형식. 분류는 UNCLOSED_COMMUTES / HOLIDAY_DATA_UNAVAILABLE /
+            MAIL_SEND_FAILED / UNEXPECTED
+
     OverTimeCalculateResponse:
       type: object
       required: [id, employeeCode, name, teamName, overTimeMinutes, holidayWithin8HoursMinutes, holidayExceeding8HoursMinutes]

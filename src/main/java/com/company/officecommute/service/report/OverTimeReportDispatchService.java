@@ -3,6 +3,7 @@ package com.company.officecommute.service.report;
 import com.company.officecommute.domain.report.DispatchFailureReason;
 import com.company.officecommute.domain.report.ReportDispatch;
 import com.company.officecommute.dto.overtime.response.OverTimeReport;
+import com.company.officecommute.dto.report.response.OverTimeReportDispatchResponse;
 import com.company.officecommute.global.exception.HolidayDataUnavailableException;
 import com.company.officecommute.mail.ReportMailException;
 import com.company.officecommute.mail.ReportMailer;
@@ -92,6 +93,58 @@ public class OverTimeReportDispatchService {
             log.error("초과근무 리포트 발송 중 예상하지 못한 오류 — 대상 월 {}", target, e);
             recordFailureAndNotify(dispatch, DispatchFailureReason.UNEXPECTED, e.toString());
         }
+    }
+
+    /**
+     * 수동 재실행. 배치와 <b>완전히 같은</b> {@link #dispatch}를 부르고 현재 상태를 돌려준다.
+     * 강제 발송 플래그는 두지 않는다 — 이미 보낸 달을 한 번 더 보낸다는 요구가 아직 없고,
+     * 생긴다면 그때 별도 유스케이스로 설계한다.
+     */
+    public OverTimeReportDispatchResponse dispatchAndDescribe(YearMonth target) {
+        dispatch(target);
+        return reportDispatchRepository.findByTargetYearMonth(target)
+                .map(OverTimeReportDispatchResponse::from)
+                .orElseThrow(() -> new IllegalStateException(
+                        "발송을 시도했는데 이력이 없다 — 선점 경로가 깨졌다: " + target));
+    }
+
+    /**
+     * 재시도 창을 다 쓰고도 발송되지 않은 달을 관리자에게 드러낸다.
+     * "메일이 안 온 것"과 "발송이 실패한 것"이 구분되지 않으면 그것이 조용한 실패다.
+     * <p>
+     * 시도 로직에 "이번이 마지막인가" 조건을 섞지 않기 위해 별도 진입점으로 둔다.
+     */
+    public void alertIfNotSent(YearMonth target) {
+        Optional<ReportDispatch> found = reportDispatchRepository.findByTargetYearMonth(target);
+        if (found.isPresent() && found.get().isSent()) {
+            return;
+        }
+
+        String detail = found
+                .map(d -> "%d회 시도, 마지막 사유: %s".formatted(d.getAttemptCount(), d.getLastFailureReason()))
+                .orElse("발송이 한 번도 시도되지 않았습니다 — 스케줄러 미동작을 의심해야 합니다.");
+        log.error("초과근무 리포트 최종 미발송 — 대상 월 {} ({})", target, detail);
+
+        try {
+            reportMailer.sendDispatchFailure(target, found.map(this::recordedReason).orElse(DispatchFailureReason.UNEXPECTED), detail);
+        } catch (ReportMailException | MailException e) {
+            // 알림 경로 자체가 죽은 경우다. 메일로 알릴 방법이 없으니 로그가 마지막 방어선이다.
+            log.error("최종 미발송 알림 메일마저 실패했다 — 대상 월 {}", target, e);
+        }
+    }
+
+    /** {@code markFailed}가 남긴 "REASON: 상세" 문자열에서 분류를 되읽는다. */
+    private DispatchFailureReason recordedReason(ReportDispatch dispatch) {
+        String recorded = dispatch.getLastFailureReason();
+        if (recorded == null) {
+            return DispatchFailureReason.UNEXPECTED;
+        }
+        for (DispatchFailureReason reason : DispatchFailureReason.values()) {
+            if (recorded.startsWith(reason.name())) {
+                return reason;
+            }
+        }
+        return DispatchFailureReason.UNEXPECTED;
     }
 
     /**
