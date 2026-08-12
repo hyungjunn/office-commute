@@ -2,11 +2,16 @@ package com.company.officecommute.repository.commute;
 
 import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.domain.commute.CommuteHistoryFixture;
+import com.company.officecommute.domain.employee.Employee;
+import com.company.officecommute.domain.employee.EmployeeBuilder;
+import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.service.overtime.DailyWorkingMinutes;
+import com.company.officecommute.service.overtime.UnclosedCommute;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.LocalDate;
@@ -22,6 +27,9 @@ class CommuteHistoryRepositoryTest {
 
     @Autowired
     private CommuteHistoryRepository commuteHistoryRepository;
+
+    @Autowired
+    private TestEntityManager entityManager;
 
     @Test
     @DisplayName("findDailyWorkingMinutesByWorkDateBetween — 직원·일자별로 한 행씩 근무 분을 반환한다")
@@ -88,7 +96,7 @@ class CommuteHistoryRepositoryTest {
     @DisplayName("findDailyWorkingMinutesByWorkDateBetween — 연차·퇴근 미마감 기록은 0분 행으로 나타난다")
     void findDailyWorkingMinutesByWorkDateBetween_returnsZeroMinuteRowsForLeaveAndOpenCommute() {
         // given — 연차는 실근로 0으로 주 40h 산정에 포함되지 않아야 하고(기준선은 40h 유지),
-        // 미마감 기록은 0분으로 잡혀 과소 집계 신호(countBy...)와 짝을 이룬다.
+        // 미마감 기록은 0분으로 잡혀 과소 집계 신호와 짝을 이룬다.
         ZoneId zone = ZoneId.of("Asia/Seoul");
         commuteHistoryRepository.saveAll(List.of(
                 CommuteHistoryFixture.annualLeave(1L, LocalDate.of(2024, 8, 1), zone),
@@ -107,30 +115,66 @@ class CommuteHistoryRepositoryTest {
     }
 
     @Test
-    @DisplayName("countByWorkDateBetweenAndWorkEndTimeIsNull — 퇴근 미마감 기록만 세고 연차·마감 기록은 제외한다")
-    void countByWorkDateBetweenAndWorkEndTimeIsNull_countsOnlyOpenCommutes() {
-        // given
+    @DisplayName("findUnclosedByWorkDateBetween — 미마감만 근무일순으로 반환하고 연차·마감·범위 밖은 제외한다")
+    void findUnclosedByWorkDateBetween_returnsOnlyOpenCommutesInRange() {
+        // given — 이 목록은 대표 발송을 막는 게이트이자 관리자 교정 요청의 본문이다.
+        // 연차는 workEndTime이 채워지므로 미마감이 아니고, 범위 밖 기록은 다음 달 리포트 몫이다.
         ZoneId zone = ZoneId.of("Asia/Seoul");
+        Long open1 = persistEmployee("EMP001", "임형준");
+        Long open2 = persistEmployee("EMP002", "김사원");
+        Long closed = persistEmployee("EMP003", "박대리");
+        Long onLeave = persistEmployee("EMP004", "최과장");
+        Long nextMonth = persistEmployee("EMP005", "정부장");
         commuteHistoryRepository.saveAll(List.of(
-                // 말일에 퇴근을 찍지 않은 기록 — workingMinutes=0 으로 집계되어 초과근무가 과소 계산된다
-                CommuteHistoryFixture.open(null, 1L, ZonedDateTime.of(2024, 8, 31, 9, 0, 0, 0, zone), zone),
-                CommuteHistoryFixture.open(null, 2L, ZonedDateTime.of(2024, 8, 30, 9, 0, 0, 0, zone), zone),
-                // 정상 마감
-                CommuteHistoryFixture.ended(null, 3L,
+                CommuteHistoryFixture.open(null, open1, ZonedDateTime.of(2024, 8, 31, 9, 0, 0, 0, zone), zone),
+                CommuteHistoryFixture.open(null, open2, ZonedDateTime.of(2024, 8, 30, 9, 0, 0, 0, zone), zone),
+                CommuteHistoryFixture.ended(null, closed,
                         ZonedDateTime.of(2024, 8, 5, 9, 0, 0, 0, zone),
                         ZonedDateTime.of(2024, 8, 5, 18, 0, 0, 0, zone)),
-                // 연차는 workEndTime 이 채워지므로 미마감이 아니다
-                CommuteHistoryFixture.annualLeave(4L, LocalDate.of(2024, 8, 6), zone),
-                // 대상 월 밖의 미마감 기록
-                CommuteHistoryFixture.open(null, 5L, ZonedDateTime.of(2024, 9, 1, 9, 0, 0, 0, zone), zone)
+                CommuteHistoryFixture.annualLeave(onLeave, LocalDate.of(2024, 8, 6), zone),
+                CommuteHistoryFixture.open(null, nextMonth, ZonedDateTime.of(2024, 9, 1, 9, 0, 0, 0, zone), zone)
         ));
 
         // when
-        long unclosed = commuteHistoryRepository.countByWorkDateBetweenAndWorkEndTimeIsNull(
+        List<UnclosedCommute> unclosed = commuteHistoryRepository.findUnclosedByWorkDateBetween(
+                LocalDate.of(2024, 8, 1), LocalDate.of(2024, 8, 31));
+
+        // then — 사번·이름 프로젝션과 근무일 오름차순 정렬까지 SQL 레벨에서 고정한다
+        assertThat(unclosed).containsExactly(
+                new UnclosedCommute("EMP002", "김사원", LocalDate.of(2024, 8, 30)),
+                new UnclosedCommute("EMP001", "임형준", LocalDate.of(2024, 8, 31))
+        );
+    }
+
+    @Test
+    @DisplayName("findUnclosedByWorkDateBetween — 직원 행이 없는 미마감 기록도 게이트에서 사라지지 않는다")
+    void findUnclosedByWorkDateBetween_keepsOrphanRows() {
+        // given — 직원 행이 사라진(잘못된 데이터) 미마감 기록이 조인에서 탈락하면
+        // 게이트가 조용히 좁아져, 데이터가 깨졌을수록 리포트가 그냥 나가는 역전이 생긴다.
+        ZoneId zone = ZoneId.of("Asia/Seoul");
+        commuteHistoryRepository.save(
+                CommuteHistoryFixture.open(null, 999L, ZonedDateTime.of(2024, 8, 30, 9, 0, 0, 0, zone), zone));
+
+        // when
+        List<UnclosedCommute> unclosed = commuteHistoryRepository.findUnclosedByWorkDateBetween(
                 LocalDate.of(2024, 8, 1), LocalDate.of(2024, 8, 31));
 
         // then
-        assertThat(unclosed).isEqualTo(2);
+        assertThat(unclosed).containsExactly(
+                new UnclosedCommute("(직원 정보 없음)", "(직원 정보 없음)", LocalDate.of(2024, 8, 30)));
+    }
+
+    private Long persistEmployee(String employeeCode, String name) {
+        Employee employee = new EmployeeBuilder()
+                .withName(name)
+                .withRole(Role.MEMBER)
+                .withBirthday(LocalDate.of(1990, 1, 1))
+                .withStartDate(LocalDate.of(2020, 1, 1))
+                .withEmployeeCode(employeeCode)
+                .withEmail(employeeCode.toLowerCase() + "@company.com")
+                .withPassword("password")
+                .build();
+        return entityManager.persistAndFlush(employee).getEmployeeId();
     }
 
     @Test

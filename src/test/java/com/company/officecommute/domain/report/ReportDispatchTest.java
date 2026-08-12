@@ -40,6 +40,19 @@ class ReportDispatchTest {
     }
 
     @Test
+    @DisplayName("발송 확정은 SENT 저장 전이어도 자동 재시도 대상이 아니다")
+    void commitDelivery_isFinalizedBeforeSent() {
+        ReportDispatch dispatch = ReportDispatch.claim(JULY, NOW);
+
+        dispatch.commitDelivery(NOW.plusSeconds(1));
+
+        assertThat(dispatch.getStatus()).isEqualTo(DispatchStatus.DELIVERY_COMMITTED);
+        assertThat(dispatch.isSent()).isFalse();
+        assertThat(dispatch.isDeliveryFinalized()).isTrue();
+        assertThat(dispatch.isLeaseHeld(NOW.plus(Duration.ofHours(1)), LEASE)).isFalse();
+    }
+
+    @Test
     @DisplayName("실패는 시도 횟수를 올리고 사유를 남긴다")
     void markFailed_recordsReason() {
         ReportDispatch dispatch = ReportDispatch.claim(JULY, NOW);
