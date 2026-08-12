@@ -6,6 +6,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.YearMonth;
@@ -51,5 +54,29 @@ class ReportDispatchRepositoryTest {
                 .get()
                 .extracting(ReportDispatch::getTargetYearMonth)
                 .isEqualTo(JULY);
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("같은 FAILED 이력을 동시에 읽어 재선점해도 한 실행만 낙관적 락을 통과한다")
+    void concurrentRetry_onlyOneClaimSucceeds() {
+        ReportDispatch failed = ReportDispatch.claim(JULY, NOW.minusSeconds(60));
+        failed.markFailed("temporary failure", NOW.minusSeconds(30));
+        reportDispatchRepository.saveAndFlush(failed);
+
+        try {
+            ReportDispatch first = reportDispatchRepository.findByTargetYearMonth(JULY).orElseThrow();
+            ReportDispatch second = reportDispatchRepository.findByTargetYearMonth(JULY).orElseThrow();
+
+            first.beginAttempt(NOW);
+            second.beginAttempt(NOW.plusSeconds(1));
+
+            reportDispatchRepository.saveAndFlush(first);
+
+            assertThatThrownBy(() -> reportDispatchRepository.saveAndFlush(second))
+                    .isInstanceOf(OptimisticLockingFailureException.class);
+        } finally {
+            reportDispatchRepository.deleteAll();
+        }
     }
 }
