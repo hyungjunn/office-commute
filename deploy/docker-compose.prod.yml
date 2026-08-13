@@ -3,7 +3,9 @@
 # 사용법 (서버에서):
 #   1. frontend 빌드 산출물(dist/)을 이 파일 옆의 ./dist 로 배치 (rsync)
 #   2. 시크릿은 이 파일 옆의 .env (gitignored) 로만 주입:
-#      APP_IMAGE, DB_URL, DB_USERNAME, DB_PASSWORD, PUBLIC_API_SERVICE_KEY, ADMIN_PASSWORD_HASH
+#      APP_IMAGE, DB_URL, DB_USERNAME, DB_PASSWORD, PUBLIC_API_SERVICE_KEY, ADMIN_PASSWORD_HASH,
+#      MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD,
+#      REPORT_MAIL_FROM, REPORT_MAIL_CEO, REPORT_MAIL_MANAGERS
 #      — 로컬용 고정 비밀번호(office_password 등)를 운영에 재사용하지 않는다 (§4)
 #   3. docker compose -f docker-compose.prod.yml up -d
 #
@@ -37,6 +39,18 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       PUBLIC_API_SERVICE_KEY: ${PUBLIC_API_SERVICE_KEY}
       ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
+      # 메일 발송 (ADR 3) — prod 는 기본값이 없어 누락 시 부팅 실패가 정상 (§4 fail-fast)
+      MAIL_HOST: ${MAIL_HOST}
+      MAIL_PORT: ${MAIL_PORT}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-true}
+      MAIL_SMTP_STARTTLS: ${MAIL_SMTP_STARTTLS:-true}
+      REPORT_MAIL_FROM: ${REPORT_MAIL_FROM}
+      REPORT_MAIL_CEO: ${REPORT_MAIL_CEO}
+      REPORT_MAIL_MANAGERS: ${REPORT_MAIL_MANAGERS}
+      PUBLIC_API_CONNECT_TIMEOUT: ${PUBLIC_API_CONNECT_TIMEOUT:-3s}
+      PUBLIC_API_READ_TIMEOUT: ${PUBLIC_API_READ_TIMEOUT:-5s}
     volumes:
       - app-logs:/app/logs
 
