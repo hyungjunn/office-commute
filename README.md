@@ -160,34 +160,40 @@ erDiagram
 > 팀의 "소속 인원 수"는 별도 컬럼으로 저장하지 않고, 조회 시 `employee.team_id` 의 `COUNT` 로 파생합니다 (V3 마이그레이션에서 `team.member_count` 제거 — denormalized counter drift / lost-update race 회피).
 
 ## Architecture
+
+배포 토폴로지는 `docs/DEPLOYMENT.md` §2 — Nginx 가 React dist 를 정적 서빙하고 `/api/**` 만 백엔드로 프록시합니다. 로컬 풀스택(`docker compose --profile full`)과 운영(EC2, `deploy/docker-compose.prod.yml`)이 같은 구조입니다.
+
 ```mermaid
 graph TD
     subgraph "Client"
-        User["👤<br/>User"]
+        User["👤<br/>Browser (React SPA)"]
     end
 
-    subgraph "Application Server"
-        Interceptor["🔐<br/>AuthInterceptor<br/>(Session + @ManagerOnly)"]
-        Controllers["Presentation Layer<br/>(Controllers)"]
-        Services["Business Logic Layer<br/>(Services)"]
-        Repositories["Data Access Layer<br/>(Repositories)"]
-        Excel["📄<br/>OverTimeExcelWriter<br/>(Apache POI · XLSX 스트리밍)"]
+    subgraph "Docker Compose"
+        Nginx["🌐<br/>Nginx<br/>TLS 종료(운영) · React dist 정적 서빙<br/>미매칭 경로는 index.html (SPA fallback)"]
+
+        subgraph "app: Spring Boot"
+            Interceptor["🔐<br/>AuthInterceptor<br/>(Session + @ManagerOnly)"]
+            Controllers["Presentation Layer<br/>(Controllers)"]
+            Services["Business Logic Layer<br/>(Services)"]
+            Repositories["Data Access Layer<br/>(Repositories)"]
+            Excel["📄<br/>OverTimeExcelWriter<br/>(Apache POI · XLSX 스트리밍)"]
+        end
+
+        DB["🗄️<br/>MySQL 8<br/>Flyway 마이그레이션 관리<br/>(mysql-data 볼륨)"]
     end
 
     subgraph "External Services"
         ExternalAPI["📅<br/>공공데이터포털<br/>특일 정보 API (XML)"]
     end
 
-    subgraph "Database"
-        DB["🗄️<br/>Database<br/>(MySQL / H2)<br/>Flyway 마이그레이션 관리"]
-    end
-
     %% High-Level Flow
-    User -- "1. HTTP Request<br/>(JSESSIONID)" --> Interceptor
-    Interceptor -- "2. currentEmployeeId / role 주입" --> Controllers
-    Controllers -- "3. 호출" --> Services
-    Services -- "4. JPA / 커스텀 쿼리" --> Repositories
-    Repositories -- "5. SQL" --> DB
+    User -- "1. HTTP(S) 요청<br/>(JSESSIONID)" --> Nginx
+    Nginx -- "2. /api/** 만<br/>proxy_pass app:8080" --> Interceptor
+    Interceptor -- "3. currentEmployeeId / role 주입" --> Controllers
+    Controllers -- "4. 호출" --> Services
+    Services -- "5. JPA / 커스텀 쿼리" --> Repositories
+    Repositories -- "6. SQL (JDBC)" --> DB
 
     %% External / Output Flow
     Services -- "공휴일 조회 (요청 시점, 캐시 없음)" --> ExternalAPI
@@ -201,10 +207,14 @@ graph TD
     classDef external fill:#422224,stroke:#ff8585;
     classDef db fill:#17304f,stroke:#6cb6ff;
     classDef interceptor fill:#48321a,stroke:#eac54f;
-    
+    classDef nginx fill:#1f3d2b,stroke:#56d364;
+
     class User client;
+    class Nginx nginx;
     class ExternalAPI external;
     class DB db;
     class Interceptor interceptor;
     class Excel default;
 ```
+
+> 개발 모드는 이 그림과 다릅니다 — `dev` 프로파일은 H2 인메모리로 뜨고, `mysql` 프로파일의 `./gradlew bootRun` 은 컨테이너 밖(호스트)에서 `localhost:3306` 의 MySQL 컨테이너에 직접 붙습니다. 테스트의 MySQL 검증은 Testcontainers 가 담당합니다.
