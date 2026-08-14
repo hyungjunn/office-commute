@@ -49,6 +49,28 @@ SPRING_PROFILES_ACTIVE=mysql ./gradlew bootRun
 - MySQL 계열 스키마는 Flyway 마이그레이션으로 관리하고, 애플리케이션은 `ddl-auto: validate` 로만 검증합니다 — 적용된 `V*__*.sql` 은 절대 수정하지 마세요.
 - **`PUBLIC_API_SERVICE_KEY`** (공공데이터포털 특일 정보 API 키) 가 없으면 초과근무 관련 엔드포인트가 `HOLIDAY_DATA_UNAVAILABLE 503` 으로 실패합니다. 키 발급 후 `.env` 에 넣으세요.
 
+## 로컬 풀스택 검증하기 (배포 리허설)
+
+EC2 배포 전에 운영 토폴로지(`docs/DEPLOYMENT.md` §2 — nginx → Spring Boot → MySQL)를 로컬에서 그대로 띄워 봅니다.
+
+```bash
+# 1. 산출물 빌드 (운영 파이프라인과 동일한 방식)
+./gradlew bootJar
+cd frontend && pnpm build && cd ..
+
+# 2. 풀스택 기동 (nginx + app + mysql)
+docker compose --profile full up -d --build
+
+# 3. http://localhost 접속 → 로그인 → 직원/출퇴근 조회 → DB 저장 확인
+#    API 스모크: BASE_URL=http://localhost/api 등 scripts/api_test.sh 참고
+
+# 종료
+docker compose --profile full down
+```
+
+- 앱은 `mysql` 프로파일로 뜹니다 — `prod` 는 HTTPS 전제(secure 쿠키)라 `http://localhost` 에서 로그인이 되지 않습니다. TLS 를 제외한 라우팅·JDBC·Flyway·세션 흐름은 운영과 동일합니다.
+- `--profile full` 없이 `docker compose up -d` 하면 기존처럼 MySQL 만 뜹니다 (위 개발 흐름 그대로).
+
 ## 개요
 `사내 출퇴근 관리 시스템` 으로, flex 류 HR 플랫폼을 **실서비스 품질**로 구현하는 것을 목표로 합니다. 시간·날짜·돈처럼 경계가 까다로운 데이터를 다루며, 시간대(timezone) 정합성, 동시성, 외부 API 의존, 명세-구현 일치(Spec-first) 같은 운영급 문제를 코드 안에서 해소하는 데 초점을 둡니다.
 

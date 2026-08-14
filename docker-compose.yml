@@ -15,6 +15,38 @@ services:
       - --collation-server=utf8mb4_unicode_ci
     volumes:
       - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  app:
+    profiles: ["full"]
+    build: .
+    image: office-commute:local
+    container_name: office-commute-app
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: mysql
+      DB_URL: jdbc:mysql://mysql:3306/office_commute?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+      PUBLIC_API_SERVICE_KEY: ${PUBLIC_API_SERVICE_KEY}
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  nginx:
+    profiles: ["full"]
+    image: nginx:1.27
+    container_name: office-commute-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./deploy/nginx.local.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend/dist:/srv/office-commute/dist:ro
+    depends_on:
+      - app
 
 volumes:
   mysql-data:
