@@ -72,10 +72,16 @@
 
 - 서버에 `/etc/letsencrypt/live/$DOMAIN/fullchain.pem` 이 이미 있으면 스킵.
 - 없으면: 80 포트가 비어 있는지 확인 후 `sudo certbot certonly --standalone -d $DOMAIN` (certbot 미설치 시 설치).
-- 갱신 설정: 갱신 방식을 webroot 로 전환한다 — `/etc/letsencrypt/renewal/$DOMAIN.conf` 의 authenticator 를 webroot,
-  webroot-path 를 `~/office-commute/dist` (절대경로) 로. deploy-hook 으로
-  `docker compose -f ~/office-commute/docker-compose.prod.yml exec nginx nginx -s reload` 등록.
-- 검증은 6단계 이후(dist 가 존재해야 webroot dry-run 이 성공한다).
+- 갱신 방식의 webroot 전환은 **6단계 이후**(dist 가 서버에 존재해야 검증이 통과한다)에,
+  절대 규칙 2에 따라 renewal conf 를 직접 편집하지 말고 **certbot 명령으로만** 한다:
+  ```
+  sudo certbot reconfigure --cert-name $DOMAIN \
+    --webroot -w /home/<SSH유저>/office-commute/dist \
+    --deploy-hook 'docker compose -f /home/<SSH유저>/office-commute/docker-compose.prod.yml exec nginx nginx -s reload'
+  ```
+  `reconfigure` 는 내부 dry-run 이 성공해야만 갱신 설정을 바꾼다. 경로는 반드시 절대경로 —
+  deploy-hook 과 갱신 타이머는 root 로 실행되므로 `~` 는 root 홈으로 풀린다.
+  certbot 이 구버전이라 `reconfigure` 가 없으면 직접 편집하지 말고 STOP — 사람에게 보고.
 
 ### 5. 빌드 (로컬에서)
 
