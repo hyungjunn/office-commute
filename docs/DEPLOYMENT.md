@@ -38,7 +38,7 @@
 
 **구현 파일이 canonical이다.** 이 문서의 스니펫이 아니라 아래 파일을 본다:
 
-- `deploy/nginx.conf` — 운영 라우팅. `server_name`과 인증서 경로만 배포 도메인으로 수정
+- `deploy/nginx.conf` — 운영 라우팅 실물(서버 사본과 동일 유지). 현재 `office-commute.com`(주) + `13-125-8-177.sslip.io`(레거시) 2도메인 서빙, 인증서는 도메인별 발급
 - `deploy/docker-compose.prod.yml` — 운영 compose. 사용법·주입 변수는 파일 상단 주석
 - `deploy/nginx.local.conf` + 루트 `docker-compose.yml --profile full` — 배포 전 로컬 풀스택 리허설. 라우팅은 운영과 동일, TLS만 없음
 
