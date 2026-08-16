@@ -7,6 +7,11 @@
 #      MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD,
 #      REPORT_MAIL_FROM, REPORT_MAIL_CEO, REPORT_MAIL_MANAGERS
 #      — 로컬용 고정 비밀번호(office_password 등)를 운영에 재사용하지 않는다 (§4)
+#      — 필수 변수는 전부 ${VAR:?} 로 강제한다. compose 는 미설정 변수를 빈 문자열로
+#        "존재하게" 주입해 Spring 의 placeholder fail-fast 를 무력화하므로,
+#        누락·빈 값을 기동 시점에 거부하는 1차 방어선은 여기다 (§4).
+#      — .env 값은 작은따옴표로 감싼다: ADMIN_PASSWORD_HASH='$2a$10$...'
+#        따옴표가 없으면 $ 이하가 변수 보간으로 해석돼 해시가 조용히 잘린다 (§4).
 #   3. docker compose -f docker-compose.prod.yml up -d
 #
 # DB 는 관리형(RDS 등)을 권장한다. 불가하면 mysql 서비스를 여기에 추가하되
@@ -29,26 +34,28 @@ services:
       - app
 
   app:
-    # 이미지 태그는 커밋 SHA — 롤백은 이전 태그로 up -d (§3)
-    image: ${APP_IMAGE:-office-commute:latest}
+    # 이미지 태그는 커밋 SHA — 롤백은 이전 태그로 up -d (§3).
+    # latest fallback 을 두지 않는다: 어떤 코드가 떠 있는지 모르게 되는 순간 롤백 전략이 무너진다.
+    image: ${APP_IMAGE:?APP_IMAGE is required (commit-SHA tag, see DEPLOYMENT.md §3)}
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      DB_URL: ${DB_URL}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
-      PUBLIC_API_SERVICE_KEY: ${PUBLIC_API_SERVICE_KEY}
-      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
-      # 메일 발송 (ADR 3) — prod 는 기본값이 없어 누락 시 부팅 실패가 정상 (§4 fail-fast)
-      MAIL_HOST: ${MAIL_HOST}
-      MAIL_PORT: ${MAIL_PORT}
-      MAIL_USERNAME: ${MAIL_USERNAME}
-      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      DB_URL: ${DB_URL:?DB_URL is required}
+      DB_USERNAME: ${DB_USERNAME:?DB_USERNAME is required}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      PUBLIC_API_SERVICE_KEY: ${PUBLIC_API_SERVICE_KEY:?PUBLIC_API_SERVICE_KEY is required}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:?ADMIN_PASSWORD_HASH is required (single-quote it in .env)}
+      # 메일 발송 (ADR 3) — prod 는 기본값 없음. 빈 값으로 앱이 뜨면 다음 달 초 발송 시점에야
+      # 터지므로(§4), :? 로 기동 자체를 막는다.
+      MAIL_HOST: ${MAIL_HOST:?MAIL_HOST is required}
+      MAIL_PORT: ${MAIL_PORT:?MAIL_PORT is required}
+      MAIL_USERNAME: ${MAIL_USERNAME:?MAIL_USERNAME is required}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:?MAIL_PASSWORD is required}
       MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-true}
       MAIL_SMTP_STARTTLS: ${MAIL_SMTP_STARTTLS:-true}
-      REPORT_MAIL_FROM: ${REPORT_MAIL_FROM}
-      REPORT_MAIL_CEO: ${REPORT_MAIL_CEO}
-      REPORT_MAIL_MANAGERS: ${REPORT_MAIL_MANAGERS}
+      REPORT_MAIL_FROM: ${REPORT_MAIL_FROM:?REPORT_MAIL_FROM is required}
+      REPORT_MAIL_CEO: ${REPORT_MAIL_CEO:?REPORT_MAIL_CEO is required}
+      REPORT_MAIL_MANAGERS: ${REPORT_MAIL_MANAGERS:?REPORT_MAIL_MANAGERS is required}
       PUBLIC_API_CONNECT_TIMEOUT: ${PUBLIC_API_CONNECT_TIMEOUT:-3s}
       PUBLIC_API_READ_TIMEOUT: ${PUBLIC_API_READ_TIMEOUT:-5s}
     volumes:
