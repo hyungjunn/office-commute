@@ -1,7 +1,9 @@
 package com.company.officecommute.controller.commute;
 
+import com.company.officecommute.domain.commute.CommuteStatus;
 import com.company.officecommute.domain.commute.DuplicateWorkOnDateException;
 import com.company.officecommute.domain.employee.Role;
+import com.company.officecommute.dto.commute.response.CommuteDetailResponse;
 import com.company.officecommute.dto.commute.response.WorkDurationPerDateResponse;
 import com.company.officecommute.service.commute.CommuteHistoryService;
 import org.junit.jupiter.api.DisplayName;
@@ -15,7 +17,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.YearMonth;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,10 +61,23 @@ class CommuteHistoryControllerTest {
     @DisplayName("GET /commute — yearMonth로 조회하면 200과 월별 근무 시간을 반환한다")
     void getWorkDurationPerDate_returns200() {
         // given
+        ZoneOffset kst = ZoneOffset.ofHours(9);
         given(commuteHistoryService.getWorkDurationPerDate(2L, YearMonth.of(2026, 7)))
-                .willReturn(new WorkDurationPerDateResponse(List.of(), 0L));
+                .willReturn(new WorkDurationPerDateResponse(
+                        List.of(
+                                new CommuteDetailResponse(
+                                        LocalDate.of(2026, 7, 1),
+                                        OffsetDateTime.of(2026, 7, 1, 9, 3, 0, 0, kst),
+                                        OffsetDateTime.of(2026, 7, 1, 18, 58, 0, 0, kst),
+                                        595L,
+                                        false,
+                                        CommuteStatus.COMPLETED),
+                                new CommuteDetailResponse(
+                                        LocalDate.of(2026, 7, 2), null, null, 0L, true,
+                                        CommuteStatus.DAY_OFF)),
+                        595L));
 
-        // when / then
+        // when / then — 미퇴근·연차의 null 시각은 non_null 직렬화 정책상 필드 자체가 빠진다
         assertThat(mockMvcTester
                 .get()
                 .uri("/api/commute?yearMonth=2026-07")
@@ -69,8 +86,23 @@ class CommuteHistoryControllerTest {
                 .bodyJson()
                 .isLenientlyEqualTo("""
                         {
-                            "details": [],
-                            "sumWorkingMinutes": 0
+                            "details": [
+                                {
+                                    "date": "2026-07-01",
+                                    "workStartTime": "2026-07-01T09:03:00+09:00",
+                                    "workEndTime": "2026-07-01T18:58:00+09:00",
+                                    "workingMinutes": 595,
+                                    "usingDayOff": false,
+                                    "status": "COMPLETED"
+                                },
+                                {
+                                    "date": "2026-07-02",
+                                    "workingMinutes": 0,
+                                    "usingDayOff": true,
+                                    "status": "DAY_OFF"
+                                }
+                            ],
+                            "sumWorkingMinutes": 595
                         }
                         """);
     }

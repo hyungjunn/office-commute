@@ -112,7 +112,7 @@ public class CommuteHistoryService {
         Employee employee = getEmployee(employeeId);
         List<CommuteHistory> histories = findCommuteHistoriesByEmployeeIdAndMonth(
                 employee.getEmployeeId(), yearMonth);
-        return new CommuteHistories(histories).toWorkDurationPerDateResponse();
+        return new CommuteHistories(histories).toWorkDurationPerDateResponse(clock.instant());
     }
 
     private List<CommuteHistory> findCommuteHistoriesByEmployeeIdAndMonth(Long employeeId, YearMonth yearMonth) {

@@ -1,12 +1,15 @@
 package com.company.officecommute.service.commute;
 
 import com.company.officecommute.domain.commute.CommuteHistoryFixture;
+import com.company.officecommute.domain.commute.CommuteStatus;
 import com.company.officecommute.domain.commute.DuplicateWorkOnDateException;
 import com.company.officecommute.domain.commute.PreviousCommuteNotEndedException;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.EmployeeBuilder;
 import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.domain.team.Team;
+import com.company.officecommute.dto.commute.response.CommuteDetailResponse;
+import com.company.officecommute.dto.commute.response.WorkDurationPerDateResponse;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.repository.team.TeamRepository;
@@ -18,10 +21,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 @SpringBootTest
 class CommuteHistoryServiceIntegrationTest {
@@ -114,5 +120,39 @@ class CommuteHistoryServiceIntegrationTest {
         assertThatThrownBy(() -> commuteHistoryService.registerWorkStartTime(testEmployeeId))
                 .isInstanceOf(DuplicateWorkOnDateException.class)
                 .hasMessageContaining("이미 출근 기록이 존재");
+    }
+
+    @Test
+    @DisplayName("월별 조회는 일자별 출퇴근 시각과 상태를 돌려준다 — 날이 지난 미기록은 UNCLOSED")
+    void monthlyViewCarriesCheckInAndCheckOutTimes() {
+        ZoneId korea = ZoneId.of("Asia/Seoul");
+        ZonedDateTime closedStart = ZonedDateTime.of(2026, 3, 2, 9, 3, 0, 0, korea);
+        ZonedDateTime closedEnd = ZonedDateTime.of(2026, 3, 2, 18, 58, 0, 0, korea);
+        ZonedDateTime openStart = ZonedDateTime.of(2026, 3, 3, 9, 1, 0, 0, korea);
+        commuteHistoryRepository.save(
+                CommuteHistoryFixture.ended(null, testEmployeeId, closedStart, closedEnd, korea));
+        commuteHistoryRepository.save(
+                CommuteHistoryFixture.open(null, testEmployeeId, openStart, korea));
+        commuteHistoryRepository.save(
+                CommuteHistoryFixture.annualLeave(testEmployeeId, LocalDate.of(2026, 3, 4), korea));
+
+        WorkDurationPerDateResponse response =
+                commuteHistoryService.getWorkDurationPerDate(testEmployeeId, YearMonth.of(2026, 3));
+
+        assertThat(response.details())
+                .extracting(
+                        CommuteDetailResponse::date,
+                        CommuteDetailResponse::workStartTime,
+                        CommuteDetailResponse::workEndTime,
+                        CommuteDetailResponse::workingMinutes,
+                        CommuteDetailResponse::usingDayOff,
+                        CommuteDetailResponse::status)
+                .containsExactlyInAnyOrder(
+                        tuple(LocalDate.of(2026, 3, 2), closedStart.toOffsetDateTime(),
+                                closedEnd.toOffsetDateTime(), 9L * 60 + 55, false, CommuteStatus.COMPLETED),
+                        tuple(LocalDate.of(2026, 3, 3), openStart.toOffsetDateTime(), null, 0L, false,
+                                CommuteStatus.UNCLOSED),
+                        tuple(LocalDate.of(2026, 3, 4), null, null, 0L, true, CommuteStatus.DAY_OFF));
+        assertThat(response.sumWorkingMinutes()).isEqualTo(9L * 60 + 55);
     }
 }

@@ -1007,7 +1007,35 @@ export interface components {
         CommuteDetail: {
             /** Format: date */
             date: string;
+            /**
+             * Format: date-time
+             * @description 출근 시각. 기록의 workZone(직원 timezone) 오프셋으로 내려간다 — 표시는 이 오프셋
+             *     기준으로 하고 브라우저 timezone 으로 재해석하지 않는다.
+             *     연차 기록은 출퇴근 시각이 자정으로 합성된 값이므로 내려가지 않는다.
+             * @example 2026-08-19T09:03:12+09:00
+             */
+            workStartTime?: string | null;
+            /**
+             * Format: date-time
+             * @description 퇴근 시각. 미퇴근(진행 중이거나 마감 누락)이거나 연차이면 내려가지 않는다.
+             *     날짜 부분이 date 와 다르면 자정을 넘긴 근무다.
+             * @example 2026-08-19T18:58:41+09:00
+             */
+            workEndTime?: string | null;
+            /**
+             * Format: int64
+             * @description 해당 일자 근무 시간(분). 미퇴근·연차는 0
+             */
+            workingMinutes: number;
             usingDayOff: boolean;
+            /**
+             * @description IN_PROGRESS = 퇴근 미기록이지만 그 기록의 workZone 기준 오늘 = 아직 근무 중,
+             *     UNCLOSED = 퇴근 미기록인 채 날이 지남(초과근무가 0분으로 집계되는 미마감 기록),
+             *     COMPLETED = 퇴근까지 기록됨, DAY_OFF = 연차.
+             *     "오늘"의 판정은 서버가 기록의 workZone 으로 한다 — 클라이언트 타임존으로 유추하지 않는다.
+             * @enum {string}
+             */
+            status: "COMPLETED" | "IN_PROGRESS" | "UNCLOSED" | "DAY_OFF";
         };
         WorkDurationPerDateResponse: {
             details: components["schemas"]["CommuteDetail"][];
