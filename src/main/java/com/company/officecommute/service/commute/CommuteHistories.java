@@ -3,8 +3,10 @@ package com.company.officecommute.service.commute;
 import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.domain.commute.DailyWorkDuration;
 import com.company.officecommute.domain.commute.DailyWorkDurations;
+import com.company.officecommute.dto.commute.response.CommuteDetailResponse;
 import com.company.officecommute.dto.commute.response.WorkDurationPerDateResponse;
 
+import java.time.Instant;
 import java.util.List;
 
 public class CommuteHistories {
@@ -15,11 +17,16 @@ public class CommuteHistories {
         this.commuteHistories = commuteHistories;
     }
 
-    public WorkDurationPerDateResponse toWorkDurationPerDateResponse() {
-        List<DailyWorkDuration> details = toDailyWorkDurations();
-        long sumWorkingMinutes = new DailyWorkDurations(details).sumWorkingMinutes();
-        // TODO 여기서 dto 변환 처리를 해줘도 되는지 생각해보기
-        return new WorkDurationPerDateResponse(details, sumWorkingMinutes);
+    public WorkDurationPerDateResponse toWorkDurationPerDateResponse(Instant now) {
+        long sumWorkingMinutes = new DailyWorkDurations(toDailyWorkDurations()).sumWorkingMinutes();
+        return new WorkDurationPerDateResponse(toDetails(now), sumWorkingMinutes);
+    }
+
+    private List<CommuteDetailResponse> toDetails(Instant now) {
+        return commuteHistories
+                .stream()
+                .map(commuteHistory -> CommuteDetailResponse.from(commuteHistory, now))
+                .toList();
     }
 
     private List<DailyWorkDuration> toDailyWorkDurations() {

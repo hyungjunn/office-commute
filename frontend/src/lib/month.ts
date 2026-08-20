@@ -19,3 +19,15 @@ export function formatMinutes(mins: number): string {
   const m = mins % 60;
   return m === 0 ? `${h}시간` : `${h}시간 ${m}분`;
 }
+
+// 백엔드는 출퇴근 시각을 기록의 workZone(직원 timezone) 오프셋이 붙은 ISO 문자열로 내려준다.
+// Date로 파싱하면 브라우저 timezone으로 재해석되므로, 문자열에서 그대로 잘라 쓴다.
+export function formatZonedTime(isoDateTime: string | null | undefined): string | null {
+  if (!isoDateTime) return null;
+  return isoDateTime.slice(11, 16);
+}
+
+export function zonedDatePart(isoDateTime: string | null | undefined): string | null {
+  if (!isoDateTime) return null;
+  return isoDateTime.slice(0, 10);
+}

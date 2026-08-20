@@ -5,8 +5,33 @@ import {
 import { MonthPickerInput } from '@mantine/dates';
 import { IconLogin2, IconLogout2 } from '@tabler/icons-react';
 import { useWorkDuration, useClockIn, useClockOut } from '@/hooks/useCommute';
-import { currentYearMonth, toYearMonth, fromYearMonth, formatMinutes } from '@/lib/month';
+import {
+  currentYearMonth, toYearMonth, fromYearMonth, formatMinutes, formatZonedTime, zonedDatePart,
+} from '@/lib/month';
 import { notifyError, notifySuccess } from '@/lib/notify';
+import type { schemas } from '@/api/types';
+
+const DASH = <Text c="dimmed" span>—</Text>;
+
+// "오늘인가"의 판정은 서버가 기록의 workZone 으로 끝내서 status 로 내려준다 —
+// 브라우저 타임존이 직원 타임존과 다를 때 유추하면 틀린다.
+function CheckOutCell({ detail }: { detail: schemas['CommuteDetail'] }) {
+  switch (detail.status) {
+    case 'IN_PROGRESS':
+      return <Text c="dimmed" span>근무 중</Text>;
+    case 'UNCLOSED':
+      return <Badge color="orange" variant="light">미퇴근</Badge>;
+    case 'DAY_OFF':
+      return DASH;
+    default: {
+      const endTime = formatZonedTime(detail.workEndTime);
+      if (!endTime) return DASH;
+      // 자정을 넘긴 근무는 퇴근 날짜가 근무일과 다르다 — 시각만 보이면 8h가 -16h로 읽힌다.
+      const overnight = zonedDatePart(detail.workEndTime) !== detail.date;
+      return <Text span>{endTime}{overnight && <Text c="dimmed" span> (익일)</Text>}</Text>;
+    }
+  }
+}
 
 export function MyCommutePage() {
   const [ym, setYm] = useState(currentYearMonth());
@@ -56,6 +81,9 @@ export function MyCommutePage() {
           <Table.Thead>
             <Table.Tr>
               <Table.Th>날짜</Table.Th>
+              <Table.Th>출근</Table.Th>
+              <Table.Th>퇴근</Table.Th>
+              <Table.Th>근무 시간</Table.Th>
               <Table.Th>연차 사용</Table.Th>
             </Table.Tr>
           </Table.Thead>
@@ -63,6 +91,9 @@ export function MyCommutePage() {
             {data?.details.map((d) => (
               <Table.Tr key={d.date}>
                 <Table.Td>{d.date}</Table.Td>
+                <Table.Td>{formatZonedTime(d.workStartTime) ?? DASH}</Table.Td>
+                <Table.Td><CheckOutCell detail={d} /></Table.Td>
+                <Table.Td>{d.workingMinutes > 0 ? formatMinutes(d.workingMinutes) : DASH}</Table.Td>
                 <Table.Td>
                   {d.usingDayOff ? <Badge color="grape" variant="light">연차</Badge> : <Text c="dimmed" span>근무</Text>}
                 </Table.Td>
@@ -70,7 +101,7 @@ export function MyCommutePage() {
             ))}
             {!isLoading && data?.details.length === 0 && (
               <Table.Tr>
-                <Table.Td colSpan={2}>
+                <Table.Td colSpan={5}>
                   <Text c="dimmed" ta="center" py="lg">이 달 기록이 없습니다.</Text>
                 </Table.Td>
               </Table.Tr>

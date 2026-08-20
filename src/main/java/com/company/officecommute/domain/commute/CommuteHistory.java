@@ -11,6 +11,7 @@ import jakarta.persistence.UniqueConstraint;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Objects;
 
@@ -114,6 +115,41 @@ public class CommuteHistory {
         return new DailyWorkDuration(this.workDate, this.workingMinutes, this.usingDayOff);
     }
 
+    // "오늘"은 기록 자신의 workZone 으로 판정한다 — workDate 도 같은 zone 에서 파생됐으므로
+    // 양변이 같은 달력 위에 놓인다. 호출자(브라우저·JVM)의 기본 타임존은 개입하지 않는다.
+    public CommuteStatus status(Instant now) {
+        if (isAnnualLeaveDate()) {
+            return CommuteStatus.DAY_OFF;
+        }
+        if (this.workEndTime != null) {
+            return CommuteStatus.COMPLETED;
+        }
+        LocalDate todayInWorkZone = now.atZone(ZoneId.of(this.workZone)).toLocalDate();
+        if (this.workDate.isBefore(todayInWorkZone)) {
+            return CommuteStatus.UNCLOSED;
+        }
+        return CommuteStatus.IN_PROGRESS;
+    }
+
+    // 연차는 workStartTime/workEndTime이 자정으로 합성된 값이라 표시할 출퇴근 시각이 없다.
+    public OffsetDateTime zonedWorkStartTime() {
+        if (isAnnualLeaveDate()) {
+            return null;
+        }
+        return toWorkZone(this.workStartTime);
+    }
+
+    public OffsetDateTime zonedWorkEndTime() {
+        if (isAnnualLeaveDate() || this.workEndTime == null) {
+            return null;
+        }
+        return toWorkZone(this.workEndTime);
+    }
+
+    private OffsetDateTime toWorkZone(Instant instant) {
+        return instant.atZone(ZoneId.of(this.workZone)).toOffsetDateTime();
+    }
+
     private boolean isAnnualLeaveDate() {
         return this.usingDayOff;
     }
@@ -124,6 +160,10 @@ public class CommuteHistory {
 
     public LocalDate getWorkDate() {
         return workDate;
+    }
+
+    public boolean isUsingDayOff() {
+        return usingDayOff;
     }
 
     public boolean endTimeIsNull() {
