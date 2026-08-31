@@ -1,5 +1,6 @@
 package com.company.officecommute.service.overtime;
 
+import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
 import com.company.officecommute.web.HolidayApiClient;
@@ -52,23 +53,32 @@ public class OverTimeService {
     public List<OverTimeCalculateResponse> calculateOverTime(YearMonth yearMonth) {
         Set<LocalDate> holidays = findHolidays(yearMonth);
         OverTimeSnapshot snapshot = overTimeSnapshotReader.read(yearMonth);
+        Map<Long, Map<LocalDate, Long>> workingMinutesByEmployee =
+                groupWorkingMinutesByEmployee(snapshot.dailyWorkingMinutes());
 
-        Map<Long, Map<LocalDate, Long>> workingMinutesByEmployee = snapshot.dailyWorkingMinutes().stream()
+        return snapshot.employees().stream()
+                .map(employee -> calculateOverTimeResponse(
+                        employee, yearMonth, workingMinutesByEmployee, holidays
+                ))
+                .toList();
+    }
+
+    private static OverTimeCalculateResponse calculateOverTimeResponse(Employee employee, YearMonth yearMonth, Map<Long, Map<LocalDate, Long>> workingMinutesByEmployee, Set<LocalDate> holidays) {
+        MonthlyOverTime overTime = MonthlyOverTimeCalculator.calculate(
+                yearMonth,
+                workingMinutesByEmployee.getOrDefault(employee.getEmployeeId(), Map.of()),
+                holidays
+        );
+        return OverTimeCalculateResponse.from(employee, overTime);
+    }
+
+    private static Map<Long, Map<LocalDate, Long>> groupWorkingMinutesByEmployee(
+            List<DailyWorkingMinutes> dailyWorkingMinutes) {
+        return dailyWorkingMinutes.stream()
                 .collect(Collectors.groupingBy(
                         DailyWorkingMinutes::employeeId,
                         Collectors.toMap(DailyWorkingMinutes::workDate, DailyWorkingMinutes::workingMinutes)
                 ));
-
-        return snapshot.employees().stream()
-                .map(employee -> {
-                    MonthlyOverTime overTime = MonthlyOverTimeCalculator.calculate(
-                            yearMonth,
-                            workingMinutesByEmployee.getOrDefault(employee.getEmployeeId(), Map.of()),
-                            holidays
-                    );
-                    return OverTimeCalculateResponse.from(employee, overTime);
-                })
-                .toList();
     }
 
     /**
