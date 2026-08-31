@@ -139,5 +139,5 @@ docker compose -f docker-compose.prod.yml -f docker-compose.mysql.yml <ps|logs a
       80 포트를 닫고 싶어지는 시점에 전환. 프록시 상시 on 이면 Origin CA(15년 유효, 갱신 불필요)가
       관리 포인트 최소, 프록시를 안 켤 거면 DNS-01 이 정석. DNS-01 은 API 토큰(Zone DNS Edit)을
       서버에 자격증명 파일로 보관해야 함(600)
-- [ ] CD 자동화 (push → 자동 배포). 현재는 위 치트시트의 수동 절차
+- [ ] CD 첫 운영 실행 검증 — ECR/S3/SSM 기반 workflow와 서버 스크립트는 구현됨. 첫 성공 전까지는 위 치트시트의 수동 절차를 복구 경로로 유지
 - [ ] DEPLOYMENT.md §6 로드맵 "높음" 3건 (로그인 실패 메시지 통일, nginx `limit_req`, 프론트 401 리다이렉트)

@@ -59,13 +59,31 @@
 5. **갱신은 webroot 방식으로**: standalone 갱신은 80 포트를 요구해 기동 중인 nginx와 충돌한다. dist 디렉토리를 webroot로 쓰면 `try_files $uri`가 `/.well-known/acme-challenge/*` 파일을 그대로 서빙하므로 nginx 설정 추가가 필요 없다. 단, 80 서버는 301 리다이렉트뿐이므로 챌린지는 HTTPS로 따라와야 한다 — certbot은 리다이렉트를 따라가므로 동작한다:
    `certbot renew --webroot -w <compose 옆 dist 절대경로>` + 갱신 훅(`--deploy-hook`)에서 `docker compose exec nginx nginx -s reload`.
 
-## 3. 빌드·배포 파이프라인 (GitHub Actions 권장)
+## 3. 빌드·배포 파이프라인 (GitHub Actions)
 
 1. **CI (PR/main push)** — `.github/workflows/ci.yml`로 구현됨. `backend` 잡이 `./gradlew check`(테스트 + openApiValidate), `frontend` 잡이 `pnpm install --frozen-lockfile && pnpm lint && pnpm build`(tsc 포함)를 돈다. Testcontainers 사용하므로 러너에 Docker 필요 — `ubuntu-latest`는 기본 제공 (Testcontainers 1.21.4 핀 유지). 잡 이름 `backend`/`frontend`를 `main` 브랜치 보호의 required status check로 등록해야 실제로 머지를 막는다.
-2. **CD (main 태그/수동 트리거)** — 미구현. 당분간 수동 절차(`deploy/docker-compose.prod.yml` 상단 주석과 동일):
-   - 백엔드: `./gradlew bootJar` → Dockerfile(eclipse-temurin:21-jre)로 이미지 빌드 → 레지스트리 push → 서버에서 `docker compose pull && up -d app`. **`build`가 아니라 `bootJar`를 돌린다** — `build`는 plain jar까지 만들어 `Dockerfile`의 `COPY build/libs/*.jar`가 두 파일에 매칭돼 깨진다 (`jar { enabled = false }`로 못박는 것은 §6 로드맵).
-   - 프론트: `pnpm build` → `dist/`를 compose 옆 `./dist`로 rsync → `docker compose exec nginx nginx -s reload`.
-3. **롤백**: 이미지 태그를 커밋 SHA로 지정(`APP_IMAGE`)해 이전 태그로 `up -d`. 프론트는 이전 dist 디렉토리 심볼릭 링크 전환.
+2. **CD (CI 성공 후 자동/수동 트리거)** — `.github/workflows/deploy.yml`로 구현됨. `main`의 CI가 성공하면 자동 실행하고, `main`에서 `workflow_dispatch`로 재실행할 수도 있다.
+   - GitHub는 OIDC로 단기 AWS 자격증명을 발급받는다. 장기 Access Key와 운영 애플리케이션 시크릿은 GitHub에 저장하지 않는다.
+   - 백엔드: `./gradlew bootJar` → Docker 이미지 빌드 → 커밋 SHA 태그로 private ECR push. **`build`가 아니라 `bootJar`를 돌린다** — `build`는 plain jar까지 만들어 `Dockerfile`의 `COPY build/libs/*.jar`가 두 파일에 매칭돼 깨진다 (`jar { enabled = false }`로 못박는 것은 §6 로드맵).
+   - 프론트: `pnpm build` → compose/nginx 설정과 함께 release tarball 생성 → private S3의 `releases/<SHA>/release.tar.gz`에 업로드.
+   - 배포: SSM Run Command가 `deploy/ssm-bootstrap.sh`와 `deploy/remote-deploy.sh`를 실행한다. EC2는 instance role로 ECR/S3에 접근하므로 GitHub runner가 SSH로 서버에 접속하지 않는다.
+   - 순서는 **백엔드 배포 및 `/api/auth/me` 401 확인 → 프론트 교체 및 번들 해시 확인**으로 고정한다. 새 백엔드+구 프론트는 필드 추가에 안전하지만 그 반대는 안전하지 않다(`DEPLOY_LOG_2026-08-20.md` §1.2).
+3. **배포 안전장치**:
+   - 운영 배포 concurrency는 하나로 직렬화하며 실행 중인 배포를 취소하지 않는다.
+   - 서버 `.env`와 현재 dist/config를 `~/office-commute/backups/<UTC>-<SHA>/`에 먼저 보존한다. `.env` 내용은 Actions/SSM 출력에 노출하지 않는다.
+   - 새 백엔드가 401 스모크를 통과하기 전에는 프론트를 바꾸지 않는다. 프론트 검증 실패는 이전 dist로 자동 복구한다.
+   - 백엔드 검증 실패는 자동 롤백하지 않는다. Flyway가 이미 적용됐을 수 있어 이전 앱으로 되돌리는 판단은 마이그레이션 호환성을 확인한 사람이 해야 한다.
+
+### 3.1 CD 사전 조건
+
+- EC2 instance role: `AmazonSSMManagedInstanceCore` + 해당 ECR repository pull + 배포 S3 prefix read.
+- GitHub deploy role: OIDC trust를 `repo:limhjun/office-commute:ref:refs/heads/main`으로 제한 + 해당 ECR repository `DescribeImages`/push + 배포 S3 prefix write + 운영 EC2 한 대에 대한 `ssm:SendCommand`.
+- EC2 필수 명령: `aws`, `docker`, Docker Compose plugin, `curl`, `rsync`, `flock`.
+- GitHub Actions Repository variables:
+  `AWS_REGION`, `AWS_ROLE_ARN`, `ECR_REGISTRY`, `ECR_REPOSITORY`, `DEPLOY_BUCKET`,
+  `EC2_INSTANCE_ID`, `DEPLOY_DOMAIN`, `DEPLOY_PATH`, `CD_ENABLED`.
+- `CD_ENABLED`는 첫 운영 검증 전 `false`로 두고, 준비가 끝난 뒤 정확히 `true`로 바꾼다. 값이 없거나 다른 문자열이면 자동/수동 배포 job을 모두 건너뛴다.
+- 서버의 `~/office-commute/.env`는 기존처럼 유지한다. CD는 `APP_IMAGE` 한 줄만 새 ECR SHA 태그로 바꾸고 나머지 값을 복사·출력하지 않는다.
 
 > ⚠️ Flyway 마이그레이션이 포함된 릴리스는 앱 롤백만으로 스키마가 돌아가지 않는다. 마이그레이션은 하위 호환(additive)으로 작성하고, 파괴적 변경(컬럼 drop 등)은 앱 배포와 분리해 한 릴리스 뒤에 적용한다 (V3, V6, V10 스타일의 drop은 특히 주의).
 
@@ -98,7 +116,7 @@
 > `ADMIN_PASSWORD_HASH=""`면 V11이 빈 해시를 심어 admin이 조용히 잠긴다). 그래서 `deploy/docker-compose.prod.yml`이 필수 변수 전부에
 > `${VAR:?...}`를 걸어 누락·빈 값이면 `docker compose up` 자체를 거부한다.
 
-시크릿은 서버의 `.env`(compose 파일 옆, gitignored) 또는 GitHub Actions Secrets로만 관리한다. docker-compose.yml의 로컬용 고정 비밀번호(`office_password` 등)를 운영에 재사용하지 않는다.
+운영 애플리케이션 시크릿은 서버의 `.env`(compose 파일 옆, gitignored)에만 유지한다. GitHub Actions에는 비시크릿 Repository variables만 두고 AWS 인증은 OIDC 단기 자격증명을 사용한다. docker-compose.yml의 로컬용 고정 비밀번호(`office_password` 등)를 운영에 재사용하지 않는다.
 
 `.env` 값은 **작은따옴표로 감싼다.** compose는 `.env` 안에서도 `$` 변수 보간을 수행하므로, 따옴표 없이
 `ADMIN_PASSWORD_HASH=$2a$10$abc...`로 쓰면 `$abc...`가 (존재하지 않는) 변수로 해석돼 **해시가 조용히 잘린다**

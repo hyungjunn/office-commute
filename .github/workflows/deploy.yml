@@ -1,0 +1,226 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+
+# 운영 배포는 동시에 하나만 실행한다. 실행 중인 배포를 취소하면 서버가 중간 상태로 남을 수 있다.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: production
+    if: >-
+      vars.CD_ENABLED == 'true' &&
+      ((github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main') ||
+       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+      ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
+      ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+      DEPLOY_BUCKET: ${{ vars.DEPLOY_BUCKET }}
+      EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+      DEPLOY_DOMAIN: ${{ vars.DEPLOY_DOMAIN }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+
+    steps:
+      - name: Validate deployment variables
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          required=(
+            RELEASE_SHA AWS_REGION AWS_ROLE_ARN ECR_REGISTRY ECR_REPOSITORY
+            DEPLOY_BUCKET EC2_INSTANCE_ID DEPLOY_DOMAIN DEPLOY_PATH
+          )
+          for variable_name in "${required[@]}"; do
+            if [[ -z "${!variable_name:-}" ]]; then
+              printf 'Missing repository variable: %s\n' "$variable_name" >&2
+              exit 1
+            fi
+          done
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$DEPLOY_PATH" == "/home/ubuntu/office-commute" ]]
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build backend artifact
+        run: ./gradlew bootJar
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Build frontend artifact
+        working-directory: frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Configure AWS credentials through OIDC
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          allowed-account-ids: '656009294205'
+          role-session-name: office-commute-${{ github.run_id }}
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2.1.6
+
+      - name: Build and push backend image
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          image_uri="$ECR_REGISTRY/$ECR_REPOSITORY:$RELEASE_SHA"
+          describe_error="$RUNNER_TEMP/ecr-describe-error"
+          if aws ecr describe-images \
+            --repository-name "$ECR_REPOSITORY" \
+            --image-ids "imageTag=$RELEASE_SHA" \
+            --region "$AWS_REGION" \
+            >/dev/null 2>"$describe_error"; then
+            printf 'ECR image already exists; reusing immutable tag %s\n' "$RELEASE_SHA"
+          elif grep -q 'ImageNotFoundException' "$describe_error"; then
+            docker build \
+              --label "org.opencontainers.image.revision=$RELEASE_SHA" \
+              --tag "$image_uri" \
+              .
+            docker push "$image_uri"
+          else
+            cat "$describe_error" >&2
+            exit 1
+          fi
+
+      - name: Package and upload frontend release
+        id: release
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          package_root="$RUNNER_TEMP/office-commute-release"
+          artifact="$RUNNER_TEMP/release-$RELEASE_SHA.tar.gz"
+          mkdir -p "$package_root/dist" "$package_root/deploy"
+          cp -R frontend/dist/. "$package_root/dist/"
+          cp deploy/docker-compose.prod.yml "$package_root/deploy/"
+          cp deploy/docker-compose.mysql.yml "$package_root/deploy/"
+          cp deploy/nginx.conf "$package_root/deploy/"
+          cp deploy/remote-deploy.sh "$package_root/deploy/"
+          printf '%s\n' "$RELEASE_SHA" > "$package_root/REVISION"
+          tar -czf "$artifact" -C "$package_root" .
+          checksum="$(sha256sum "$artifact" | awk '{print $1}')"
+          bootstrap_checksum="$(sha256sum deploy/ssm-bootstrap.sh | awk '{print $1}')"
+          aws s3 cp \
+            "$artifact" \
+            "s3://$DEPLOY_BUCKET/releases/$RELEASE_SHA/release.tar.gz" \
+            --region "$AWS_REGION" \
+            --only-show-errors
+          aws s3 cp \
+            deploy/ssm-bootstrap.sh \
+            "s3://$DEPLOY_BUCKET/releases/$RELEASE_SHA/ssm-bootstrap.sh" \
+            --region "$AWS_REGION" \
+            --content-type 'text/x-shellscript' \
+            --only-show-errors
+          printf 'checksum=%s\n' "$checksum" >> "$GITHUB_OUTPUT"
+          printf 'bootstrap_checksum=%s\n' "$bootstrap_checksum" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy through SSM
+        shell: bash
+        env:
+          RELEASE_CHECKSUM: ${{ steps.release.outputs.checksum }}
+          BOOTSTRAP_CHECKSUM: ${{ steps.release.outputs.bootstrap_checksum }}
+        run: |
+          set -Eeuo pipefail
+          image_uri="$ECR_REGISTRY/$ECR_REPOSITORY:$RELEASE_SHA"
+          bootstrap_uri="s3://$DEPLOY_BUCKET/releases/$RELEASE_SHA/ssm-bootstrap.sh"
+          bootstrap_path="/tmp/office-commute-bootstrap-$RELEASE_SHA.sh"
+          printf -v remote_command \
+            "set -eu; command -v aws >/dev/null 2>&1; command -v sha256sum >/dev/null 2>&1; aws s3 cp %q %q --region %q --only-show-errors; printf '%%s  %%s\\n' %q %q | sha256sum --check --status; chmod 700 %q; %q %q %q %q %q %q %q %q %q" \
+            "$bootstrap_uri" \
+            "$bootstrap_path" \
+            "$AWS_REGION" \
+            "$BOOTSTRAP_CHECKSUM" \
+            "$bootstrap_path" \
+            "$bootstrap_path" \
+            "$bootstrap_path" \
+            "$DEPLOY_BUCKET" \
+            "$RELEASE_SHA" \
+            "$RELEASE_CHECKSUM" \
+            "$DEPLOY_PATH" \
+            "$image_uri" \
+            "$ECR_REGISTRY" \
+            "$AWS_REGION" \
+            "$DEPLOY_DOMAIN"
+
+          request_json="$RUNNER_TEMP/ssm-request.json"
+          jq -n \
+            --arg instance_id "$EC2_INSTANCE_ID" \
+            --arg command "$remote_command" \
+            --arg comment "Deploy office-commute $RELEASE_SHA" \
+            '{
+              DocumentName: "AWS-RunShellScript",
+              InstanceIds: [$instance_id],
+              Comment: $comment,
+              TimeoutSeconds: 900,
+              Parameters: {commands: [$command]}
+            }' > "$request_json"
+
+          command_id="$(aws ssm send-command \
+            --cli-input-json "file://$request_json" \
+            --region "$AWS_REGION" \
+            --query 'Command.CommandId' \
+            --output text)"
+          printf 'SSM command: %s\n' "$command_id"
+
+          status="Pending"
+          for _ in $(seq 1 180); do
+            status="$(aws ssm get-command-invocation \
+              --command-id "$command_id" \
+              --instance-id "$EC2_INSTANCE_ID" \
+              --region "$AWS_REGION" \
+              --query 'Status' \
+              --output text 2>/dev/null || true)"
+            case "$status" in
+              Success|Cancelled|TimedOut|Failed|Cancelling)
+                break
+                ;;
+            esac
+            sleep 5
+          done
+
+          aws ssm get-command-invocation \
+            --command-id "$command_id" \
+            --instance-id "$EC2_INSTANCE_ID" \
+            --region "$AWS_REGION" \
+            --query '{Status:Status,StandardOutput:StandardOutputContent,StandardError:StandardErrorContent}' \
+            --output json
+
+          [[ "$status" == "Success" ]]
