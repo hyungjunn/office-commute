@@ -102,7 +102,7 @@ class HolidayApiClientTest {
     }
 
     @Test
-    @DisplayName("HTTP 200이지만 resultCode가 오류면 공휴일 0개로 해석하지 않고 중단한다")
+    @DisplayName("resultCode가 오류면 공휴일 0개로 해석하지 않고 중단한다")
     void getHolidays_throwsException_whenResultCodeIsNotNormal() {
         HolidayResponse response = HolidayResponseFixture.normalResponse();
         response.setHeader(HolidayResponseFixture.header("30", "SERVICE_KEY_IS_NOT_REGISTERED_ERROR"));

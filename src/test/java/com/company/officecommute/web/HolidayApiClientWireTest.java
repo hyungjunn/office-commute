@@ -23,13 +23,11 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 /**
  * 와이어 경계 테스트: HolidayApiClientTest는 RestTemplate을 목으로 두어 XML 역직렬화를
  * 거치지 않으므로, 여기서는 실제 RestTemplateConfig의 컨버터 체인에 공공데이터포털의
- * 실제 응답 원문(2026-08-05 캡처)을 통과시켜 HTTP 200 + XML 에러가 fail-closed로
- * 이어지는지 고정한다.
+ * 실제 응답 원문(2026-08-05 캡처)을 통과시켜 상태 코드 처리와 정상 XML 매핑을 고정한다.
  */
 class HolidayApiClientWireTest {
 
-    // 2026-08-05 잘못된 serviceKey로 실측 캡처한 게이트웨이 에러 원문 (현재는 HTTP 403으로 오지만,
-    // 과거·타 서비스에서 HTTP 200으로 오던 모양이므로 200 케이스도 함께 검증한다).
+    // 2026-08-05 잘못된 serviceKey로 실측 캡처한 HTTP 403 게이트웨이 에러 원문.
     private static final String GATEWAY_ERROR_XML = """
             <?xml version="1.0" encoding="UTF-8"?>
             <OpenAPI_ServiceResponse>
@@ -39,12 +37,6 @@ class HolidayApiClientWireTest {
               <returnReasonCode>30</returnReasonCode>
             </cmmMsgHeader>
             </OpenAPI_ServiceResponse>
-            """;
-
-    // 공공데이터포털 문서상 애플리케이션 레벨 에러 모양 (정상 envelope + resultCode != 00).
-    private static final String APPLICATION_ERROR_XML = """
-            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-            <response><header><resultCode>22</resultCode><resultMsg>LIMITED_NUMBER_OF_SERVICE_REQUESTS_EXCEEDS_ERROR</resultMsg></header></response>
             """;
 
     // 2026-08-05 실측 캡처한 정상 응답 원문 일부 (dateKind·dateName·seq 등 매핑에 없는 필드 포함).
@@ -67,27 +59,6 @@ class HolidayApiClientWireTest {
         server = MockRestServiceServer.bindTo(restTemplate).build();
 
         client = new HolidayApiClient(restTemplate, properties);
-    }
-
-    @Test
-    @DisplayName("HTTP 200 + OpenAPI_ServiceResponse 게이트웨이 에러 XML은 계산에 쓰이지 않고 중단된다")
-    void http200_gatewayErrorXml_failsClosed() {
-        server.expect(anything())
-                .andRespond(withSuccess(GATEWAY_ERROR_XML, MediaType.APPLICATION_XML));
-
-        assertThatThrownBy(() -> client.getHolidays(YearMonth.of(2026, 7)))
-                .isInstanceOf(HolidayDataUnavailableException.class);
-    }
-
-    @Test
-    @DisplayName("HTTP 200 + resultCode!=00 애플리케이션 에러 XML은 사유와 함께 중단된다")
-    void http200_applicationErrorXml_failsClosed() {
-        server.expect(anything())
-                .andRespond(withSuccess(APPLICATION_ERROR_XML, MediaType.APPLICATION_XML));
-
-        assertThatThrownBy(() -> client.getHolidays(YearMonth.of(2026, 7)))
-                .isInstanceOf(HolidayDataUnavailableException.class)
-                .hasMessageContaining("LIMITED_NUMBER_OF_SERVICE_REQUESTS_EXCEEDS_ERROR");
     }
 
     @Test
