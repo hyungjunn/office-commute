@@ -56,7 +56,7 @@ class OverTimeServiceTest {
         Employee noHistoryEmployee = employee(2L, "김개발", backend, "EMP002", "dev@company.com");
         given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
         // 7/1(월) 12시간 근무 — 일별 8시간 초과 4시간
-        given(overTimeSnapshotReader.read(JULY)).willReturn(new OverTimeSnapshot(
+        given(overTimeSnapshotReader.read(new OverTimePeriod(JULY))).willReturn(new OverTimeSnapshot(
                 List.of(recordedEmployee, noHistoryEmployee),
                 List.of(new DailyWorkingMinutes(1L, LocalDate.of(2024, 7, 1), 720L))
         ));
@@ -84,7 +84,7 @@ class OverTimeServiceTest {
     void calculateOverTime_usesUnassignedTeamNameForEmployeeWithoutTeam() {
         Employee employee = employee(1L, "임형준", null, "EMP001", "hyungjun@company.com");
         given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
-        given(overTimeSnapshotReader.read(JULY))
+        given(overTimeSnapshotReader.read(new OverTimePeriod(JULY)))
                 .willReturn(new OverTimeSnapshot(List.of(employee), List.of()));
 
         List<OverTimeCalculateResponse> responses = overTimeService.calculateOverTime(JULY);
@@ -98,7 +98,7 @@ class OverTimeServiceTest {
     @DisplayName("월 1일이 속한 주가 전월에 걸치면 전월 공휴일도 함께 가져온다")
     void calculateOverTime_fetchesStraddlingMonthHolidays() {
         given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
-        given(overTimeSnapshotReader.read(AUGUST)).willReturn(emptySnapshot());
+        given(overTimeSnapshotReader.read(new OverTimePeriod(AUGUST))).willReturn(emptySnapshot());
 
         overTimeService.calculateOverTime(AUGUST);
 
@@ -111,7 +111,7 @@ class OverTimeServiceTest {
     @DisplayName("월 1일이 월요일이면 해당 월 공휴일만 가져온다")
     void calculateOverTime_singleMonthHolidaysWhenWeekAlignsWithMonth() {
         given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
-        given(overTimeSnapshotReader.read(JULY)).willReturn(emptySnapshot());
+        given(overTimeSnapshotReader.read(new OverTimePeriod(JULY))).willReturn(emptySnapshot());
 
         overTimeService.calculateOverTime(JULY);
 
@@ -123,13 +123,13 @@ class OverTimeServiceTest {
     @DisplayName("공휴일 외부 호출은 DB 읽기 스냅샷보다 먼저 끝난다 — 트랜잭션이 외부 API를 기다리지 않는다")
     void calculateOverTime_callsHolidayApiBeforeOpeningSnapshot() {
         given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
-        given(overTimeSnapshotReader.read(JULY)).willReturn(emptySnapshot());
+        given(overTimeSnapshotReader.read(new OverTimePeriod(JULY))).willReturn(emptySnapshot());
 
         overTimeService.calculateOverTime(JULY);
 
         InOrder inOrder = Mockito.inOrder(holidayApiClient, overTimeSnapshotReader);
         inOrder.verify(holidayApiClient).getHolidays(JULY);
-        inOrder.verify(overTimeSnapshotReader).read(JULY);
+        inOrder.verify(overTimeSnapshotReader).read(new OverTimePeriod(JULY));
     }
 
     @Test
@@ -150,7 +150,7 @@ class OverTimeServiceTest {
         Team backend = new Team(1L, "백엔드팀", "팀장", 0);
         Employee employee = employee(1L, "임형준", backend, "EMP001", "hyungjun@company.com");
         given(holidayApiClient.getHolidays(JULY)).willReturn(Set.of(LocalDate.of(2024, 7, 3)));
-        given(overTimeSnapshotReader.read(JULY)).willReturn(new OverTimeSnapshot(
+        given(overTimeSnapshotReader.read(new OverTimePeriod(JULY))).willReturn(new OverTimeSnapshot(
                 List.of(employee),
                 List.of(
                         new DailyWorkingMinutes(1L, LocalDate.of(2024, 7, 3), 600L), // 공휴일 10h

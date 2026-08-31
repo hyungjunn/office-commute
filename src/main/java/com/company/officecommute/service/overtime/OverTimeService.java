@@ -32,16 +32,15 @@ public class OverTimeService {
     }
 
     /**
-     * {@link #calculateOverTime}이 소비하는 범위(스필오버 주 월요일 ~ 월 말일)에서 퇴근이 찍히지
+     * {@link #calculateOverTime}이 소비하는 범위({@link OverTimePeriod})에서 퇴근이 찍히지
      * 않은 기록 목록. 비어 있으면 미마감으로 인한 과소 집계가 없음이 보장된다.
      * 전월 말 스필오버 일자도 첫 주의 40시간 판정에 0분으로 들어가므로 검사 범위에 포함해야 한다.
      * <p>
      * 건수가 필요한 곳도 이 목록의 크기를 쓴다 — 별도 건수 쿼리를 두면 범위·조인 의미가 어긋날 수 있다.
      */
     public List<UnclosedCommute> findUnclosedCommutes(YearMonth yearMonth) {
-        return commuteHistoryRepository.findUnclosedByWorkDateBetween(
-                MonthlyOverTimeCalculator.requiredRangeStart(yearMonth), yearMonth.atEndOfMonth()
-        );
+        OverTimePeriod period = new OverTimePeriod(yearMonth);
+        return commuteHistoryRepository.findUnclosedByWorkDateBetween(period.rangeStart(), period.rangeEnd());
     }
 
     /**
@@ -51,21 +50,22 @@ public class OverTimeService {
      * {@link OverTimeSnapshotReader}가 하나의 읽기 트랜잭션으로 보장한다.
      */
     public List<OverTimeCalculateResponse> calculateOverTime(YearMonth yearMonth) {
-        Set<LocalDate> holidays = findHolidays(yearMonth);
-        OverTimeSnapshot snapshot = overTimeSnapshotReader.read(yearMonth);
+        OverTimePeriod period = new OverTimePeriod(yearMonth);
+        Set<LocalDate> holidays = findHolidays(period);
+        OverTimeSnapshot snapshot = overTimeSnapshotReader.read(period);
         Map<Long, Map<LocalDate, Long>> workingMinutesByEmployee =
                 groupWorkingMinutesByEmployee(snapshot.dailyWorkingMinutes());
 
         return snapshot.employees().stream()
                 .map(employee -> calculateOverTimeResponse(
-                        employee, yearMonth, workingMinutesByEmployee, holidays
+                        employee, period, workingMinutesByEmployee, holidays
                 ))
                 .toList();
     }
 
-    private static OverTimeCalculateResponse calculateOverTimeResponse(Employee employee, YearMonth yearMonth, Map<Long, Map<LocalDate, Long>> workingMinutesByEmployee, Set<LocalDate> holidays) {
+    private static OverTimeCalculateResponse calculateOverTimeResponse(Employee employee, OverTimePeriod period, Map<Long, Map<LocalDate, Long>> workingMinutesByEmployee, Set<LocalDate> holidays) {
         MonthlyOverTime overTime = MonthlyOverTimeCalculator.calculate(
-                yearMonth,
+                period,
                 workingMinutesByEmployee.getOrDefault(employee.getEmployeeId(), Map.of()),
                 holidays
         );
@@ -81,14 +81,10 @@ public class OverTimeService {
                 ));
     }
 
-    /**
-     * 대상 월 1일이 속한 주가 전월에 걸치면 전월 공휴일도 필요하다 — 그 주의 휴일근로 분류에 쓰인다.
-     */
-    private Set<LocalDate> findHolidays(YearMonth yearMonth) {
-        Set<LocalDate> holidays = new HashSet<>(holidayApiClient.getHolidays(yearMonth));
-        YearMonth firstWeekMonth = YearMonth.from(MonthlyOverTimeCalculator.requiredRangeStart(yearMonth));
-        if (!firstWeekMonth.equals(yearMonth)) {
-            holidays.addAll(holidayApiClient.getHolidays(firstWeekMonth));
+    private Set<LocalDate> findHolidays(OverTimePeriod period) {
+        Set<LocalDate> holidays = new HashSet<>();
+        for (YearMonth month : period.requiredHolidayMonths()) {
+            holidays.addAll(holidayApiClient.getHolidays(month));
         }
         return holidays;
     }

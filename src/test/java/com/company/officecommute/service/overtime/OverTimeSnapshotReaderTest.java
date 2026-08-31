@@ -20,9 +20,9 @@ import static org.mockito.BDDMockito.then;
 class OverTimeSnapshotReaderTest {
 
     // 2024-08-01은 목요일 — 1일이 속한 주가 7월에 걸친다
-    private static final YearMonth AUGUST = YearMonth.of(2024, 8);
+    private static final OverTimePeriod AUGUST = new OverTimePeriod(YearMonth.of(2024, 8));
     // 2024-07-01은 월요일 — 주 경계와 월 경계가 일치한다
-    private static final YearMonth JULY = YearMonth.of(2024, 7);
+    private static final OverTimePeriod JULY = new OverTimePeriod(YearMonth.of(2024, 7));
 
     @InjectMocks
     private OverTimeSnapshotReader overTimeSnapshotReader;
@@ -58,7 +58,7 @@ class OverTimeSnapshotReaderTest {
     @DisplayName("스냅샷 조회는 읽기 전용 트랜잭션이다 — 두 쿼리 사이의 비일관 스냅샷을 막는 유일한 근거다")
     void read_isReadOnlyTransactional() throws NoSuchMethodException {
         Transactional transactional = OverTimeSnapshotReader.class
-                .getMethod("read", YearMonth.class)
+                .getMethod("read", OverTimePeriod.class)
                 .getAnnotation(Transactional.class);
 
         assertThat(transactional).isNotNull();

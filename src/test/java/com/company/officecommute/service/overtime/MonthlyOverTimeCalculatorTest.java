@@ -24,7 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class MonthlyOverTimeCalculatorTest {
 
-    private static final YearMonth JULY = YearMonth.of(2024, 7);
+    private static final OverTimePeriod JULY = new OverTimePeriod(YearMonth.of(2024, 7));
+    private static final OverTimePeriod AUGUST = new OverTimePeriod(YearMonth.of(2024, 8));
     private static final Set<LocalDate> NO_HOLIDAYS = Set.of();
 
     @Test
@@ -161,22 +162,11 @@ class MonthlyOverTimeCalculatorTest {
     void straddlingWeekWeeklyRemainderBelongsToWeekEndMonth() {
         Map<LocalDate, Long> minutes = straddlingWeekMinutes();
 
-        MonthlyOverTime august = MonthlyOverTimeCalculator.calculate(YearMonth.of(2024, 8), minutes, NO_HOLIDAYS);
+        MonthlyOverTime august = MonthlyOverTimeCalculator.calculate(AUGUST, minutes, NO_HOLIDAYS);
 
         // 8/1~2 일별 초과 4h + 주간 잔여 8h(기반 48h − 40h, 전월 사흘 포함 주 전체로 판정).
         // 7월분(6h)과 합치면 매 시간이 정확히 한 번 집계된다
         assertThat(august).isEqualTo(new MonthlyOverTime(720, 0, 0));
-    }
-
-    @Test
-    @DisplayName("입력 범위 시작일은 계산기가 소유한다 — 월 1일이 속한 주의 월요일")
-    void requiredRangeStartIsMondayOfFirstWeek() {
-        // 조회가 이 날짜보다 늦게 시작하면 누락일이 조용히 0분 처리되어 첫 주 40시간 기반이 과소 집계된다.
-        // 호출자(OverTimeService의 조회·미마감 검사)가 이 헬퍼를 공유해 범위 불일치를 컴파일 타임에 막는다.
-        assertThat(MonthlyOverTimeCalculator.requiredRangeStart(YearMonth.of(2024, 8)))
-                .isEqualTo(LocalDate.of(2024, 7, 29)); // 8/1(목)이 속한 주의 월요일 — 전월로 스필오버
-        assertThat(MonthlyOverTimeCalculator.requiredRangeStart(JULY))
-                .isEqualTo(LocalDate.of(2024, 7, 1));  // 1일이 월요일이면 확장 없음
     }
 
     @Test

@@ -5,9 +5,6 @@ import com.company.officecommute.repository.employee.EmployeeRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
-import java.time.YearMonth;
-
 /**
  * 초과근무 계산이 필요로 하는 두 조회를 <b>하나의 읽기 트랜잭션</b>으로 묶는다.
  * <p>
@@ -33,15 +30,15 @@ public class OverTimeSnapshotReader {
     }
 
     @Transactional(readOnly = true)
-    public OverTimeSnapshot read(YearMonth yearMonth) {
-        // 대상 월 1일이 속한 주(월~일)의 월요일부터 조회 — 그 주의 40시간 판정에 전월 말 기록이 필요하다
-        LocalDate rangeStart = MonthlyOverTimeCalculator.requiredRangeStart(yearMonth);
-        LocalDate rangeEnd = yearMonth.atEndOfMonth();
-
+    public OverTimeSnapshot read(OverTimePeriod period) {
         return new OverTimeSnapshot(
                 // 대상자 판정은 월 경계 기준 — 스필오버 주(전월 말)의 근무는 그 직원의 전월 리포트가 이미 집계했다
-                employeeRepository.findAllWithTeamEmployedBetween(yearMonth.atDay(1), rangeEnd),
-                commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(rangeStart, rangeEnd)
+                employeeRepository.findAllWithTeamEmployedBetween(
+                        period.targetMonth().atDay(1), period.rangeEnd()
+                ),
+                commuteHistoryRepository.findDailyWorkingMinutesByWorkDateBetween(
+                        period.rangeStart(), period.rangeEnd()
+                )
         );
     }
 }
