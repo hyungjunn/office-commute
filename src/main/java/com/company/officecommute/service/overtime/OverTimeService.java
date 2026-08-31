@@ -16,8 +16,6 @@ import java.util.stream.Collectors;
 @Service
 public class OverTimeService {
 
-    private static final String UNASSIGNED_TEAM_NAME = "미배정";
-
     private final CommuteHistoryRepository commuteHistoryRepository;
     private final OverTimeSnapshotReader overTimeSnapshotReader;
     private final HolidayApiClient holidayApiClient;
@@ -68,15 +66,7 @@ public class OverTimeService {
                             workingMinutesByEmployee.getOrDefault(employee.getEmployeeId(), Map.of()),
                             holidays
                     );
-                    return new OverTimeCalculateResponse(
-                            employee.getEmployeeId(),
-                            employee.getEmployeeCode(),
-                            employee.getName(),
-                            employee.getTeamName() != null ? employee.getTeamName() : UNASSIGNED_TEAM_NAME,
-                            overTime.overTimeMinutes(),
-                            overTime.holidayWithin8HoursMinutes(),
-                            overTime.holidayExceeding8HoursMinutes()
-                    );
+                    return OverTimeCalculateResponse.from(employee, overTime);
                 })
                 .toList();
     }
