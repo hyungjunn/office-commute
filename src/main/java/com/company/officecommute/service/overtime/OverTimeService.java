@@ -3,12 +3,10 @@ package com.company.officecommute.service.overtime;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
-import com.company.officecommute.web.HolidayApiClient;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -19,16 +17,16 @@ public class OverTimeService {
 
     private final CommuteHistoryRepository commuteHistoryRepository;
     private final OverTimeSnapshotReader overTimeSnapshotReader;
-    private final HolidayApiClient holidayApiClient;
+    private final HolidayCalendar holidayCalendar;
 
     public OverTimeService(
             CommuteHistoryRepository commuteHistoryRepository,
             OverTimeSnapshotReader overTimeSnapshotReader,
-            HolidayApiClient holidayApiClient
+            HolidayCalendar holidayCalendar
     ) {
         this.commuteHistoryRepository = commuteHistoryRepository;
         this.overTimeSnapshotReader = overTimeSnapshotReader;
-        this.holidayApiClient = holidayApiClient;
+        this.holidayCalendar = holidayCalendar;
     }
 
     /**
@@ -44,14 +42,14 @@ public class OverTimeService {
     }
 
     /**
-     * 공휴일 조회는 외부 API 라이브 호출이라 <b>읽기 트랜잭션 밖</b>에 둔다.
-     * DB 스냅샷 안에 넣으면 외부 API 응답 시간만큼 커넥션을 붙잡고, 그 API 가 느려지는 날
+     * 공휴일 조회({@link HolidayCalendar})는 외부 호출일 수 있어 <b>읽기 트랜잭션 밖</b>에 둔다.
+     * DB 스냅샷 안에 넣으면 외부 응답 시간만큼 커넥션을 붙잡고, 그 API 가 느려지는 날
      * 커넥션 풀이 먼저 마른다. 두 DB 조회의 일관성은
      * {@link OverTimeSnapshotReader}가 하나의 읽기 트랜잭션으로 보장한다.
      */
     public List<OverTimeCalculateResponse> calculateOverTime(YearMonth yearMonth) {
         OverTimePeriod period = new OverTimePeriod(yearMonth);
-        Set<LocalDate> holidays = findHolidays(period);
+        Set<LocalDate> holidays = holidayCalendar.findHolidays(period);
         OverTimeSnapshot snapshot = overTimeSnapshotReader.read(period);
         Map<Long, Map<LocalDate, Long>> workingMinutesByEmployee =
                 groupWorkingMinutesByEmployee(snapshot.dailyWorkingMinutes());
@@ -79,13 +77,5 @@ public class OverTimeService {
                         DailyWorkingMinutes::employeeId,
                         Collectors.toMap(DailyWorkingMinutes::workDate, DailyWorkingMinutes::workingMinutes)
                 ));
-    }
-
-    private Set<LocalDate> findHolidays(OverTimePeriod period) {
-        Set<LocalDate> holidays = new HashSet<>();
-        for (YearMonth month : period.requiredHolidayMonths()) {
-            holidays.addAll(holidayApiClient.getHolidays(month));
-        }
-        return holidays;
     }
 }

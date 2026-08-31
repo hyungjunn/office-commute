@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 따로 부르면 두 쿼리 사이에 출퇴근 기록이나 직원 정보가 바뀌어 비일관 스냅샷이 나올 수 있다.
  * 급여 근거 자료에서 그 종류의 어긋남은 조용히 틀린 값이 된다.
  * <p>
- * 별도 빈으로 뽑은 이유: 공휴일 API 라이브 호출({@code HolidayApiClient})은 트랜잭션 <b>밖</b>에
+ * 별도 빈으로 뽑은 이유: 공휴일 조회({@link HolidayCalendar})는 트랜잭션 <b>밖</b>에
  * 있어야 하는데, 같은 클래스 안에서 {@code @Transactional} 메서드를 자기호출하면 프록시를
  * 타지 않아 애초에 트랜잭션이 걸리지 않는다. 경계를 클래스 경계와 일치시킨다.
  */

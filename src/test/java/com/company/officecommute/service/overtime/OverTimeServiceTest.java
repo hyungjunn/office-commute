@@ -6,7 +6,6 @@ import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
-import com.company.officecommute.web.HolidayApiClient;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,10 +22,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class OverTimeServiceTest {
@@ -46,7 +42,7 @@ class OverTimeServiceTest {
     private OverTimeSnapshotReader overTimeSnapshotReader;
 
     @Mock
-    private HolidayApiClient holidayApiClient;
+    private HolidayCalendar holidayCalendar;
 
     @Test
     @DisplayName("근무 기록 없는 직원도 모든 트랙 0분으로 포함한다")
@@ -54,7 +50,7 @@ class OverTimeServiceTest {
         Team backend = new Team(1L, "백엔드팀", "팀장", 0);
         Employee recordedEmployee = employee(1L, "임형준", backend, "EMP001", "hyungjun@company.com");
         Employee noHistoryEmployee = employee(2L, "김개발", backend, "EMP002", "dev@company.com");
-        given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
+        given(holidayCalendar.findHolidays(new OverTimePeriod(JULY))).willReturn(Set.of());
         // 7/1(월) 12시간 근무 — 일별 8시간 초과 4시간
         given(overTimeSnapshotReader.read(new OverTimePeriod(JULY))).willReturn(new OverTimeSnapshot(
                 List.of(recordedEmployee, noHistoryEmployee),
@@ -83,7 +79,7 @@ class OverTimeServiceTest {
     @DisplayName("미배정 직원은 근무 기록이 없어도 팀명을 미배정으로 표시한다")
     void calculateOverTime_usesUnassignedTeamNameForEmployeeWithoutTeam() {
         Employee employee = employee(1L, "임형준", null, "EMP001", "hyungjun@company.com");
-        given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
+        given(holidayCalendar.findHolidays(new OverTimePeriod(JULY))).willReturn(Set.of());
         given(overTimeSnapshotReader.read(new OverTimePeriod(JULY)))
                 .willReturn(new OverTimeSnapshot(List.of(employee), List.of()));
 
@@ -95,40 +91,15 @@ class OverTimeServiceTest {
     }
 
     @Test
-    @DisplayName("월 1일이 속한 주가 전월에 걸치면 전월 공휴일도 함께 가져온다")
-    void calculateOverTime_fetchesStraddlingMonthHolidays() {
-        given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
-        given(overTimeSnapshotReader.read(new OverTimePeriod(AUGUST))).willReturn(emptySnapshot());
-
-        overTimeService.calculateOverTime(AUGUST);
-
-        // 8/1(목)이 속한 주의 월요일은 7/29 — 그 주의 휴일근로 분류에 전월 공휴일이 필요하다
-        then(holidayApiClient).should().getHolidays(AUGUST);
-        then(holidayApiClient).should().getHolidays(JULY);
-    }
-
-    @Test
-    @DisplayName("월 1일이 월요일이면 해당 월 공휴일만 가져온다")
-    void calculateOverTime_singleMonthHolidaysWhenWeekAlignsWithMonth() {
-        given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
+    @DisplayName("공휴일 조회는 DB 읽기 스냅샷보다 먼저 끝난다 — 트랜잭션이 외부 호출을 기다리지 않는다")
+    void calculateOverTime_findsHolidaysBeforeOpeningSnapshot() {
+        given(holidayCalendar.findHolidays(new OverTimePeriod(JULY))).willReturn(Set.of());
         given(overTimeSnapshotReader.read(new OverTimePeriod(JULY))).willReturn(emptySnapshot());
 
         overTimeService.calculateOverTime(JULY);
 
-        then(holidayApiClient).should().getHolidays(JULY);
-        then(holidayApiClient).should(never()).getHolidays(YearMonth.of(2024, 6));
-    }
-
-    @Test
-    @DisplayName("공휴일 외부 호출은 DB 읽기 스냅샷보다 먼저 끝난다 — 트랜잭션이 외부 API를 기다리지 않는다")
-    void calculateOverTime_callsHolidayApiBeforeOpeningSnapshot() {
-        given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
-        given(overTimeSnapshotReader.read(new OverTimePeriod(JULY))).willReturn(emptySnapshot());
-
-        overTimeService.calculateOverTime(JULY);
-
-        InOrder inOrder = Mockito.inOrder(holidayApiClient, overTimeSnapshotReader);
-        inOrder.verify(holidayApiClient).getHolidays(JULY);
+        InOrder inOrder = Mockito.inOrder(holidayCalendar, overTimeSnapshotReader);
+        inOrder.verify(holidayCalendar).findHolidays(new OverTimePeriod(JULY));
         inOrder.verify(overTimeSnapshotReader).read(new OverTimePeriod(JULY));
     }
 
@@ -149,7 +120,8 @@ class OverTimeServiceTest {
     void calculateOverTime_populatesHolidayTracks() {
         Team backend = new Team(1L, "백엔드팀", "팀장", 0);
         Employee employee = employee(1L, "임형준", backend, "EMP001", "hyungjun@company.com");
-        given(holidayApiClient.getHolidays(JULY)).willReturn(Set.of(LocalDate.of(2024, 7, 3)));
+        given(holidayCalendar.findHolidays(new OverTimePeriod(JULY)))
+                .willReturn(Set.of(LocalDate.of(2024, 7, 3)));
         given(overTimeSnapshotReader.read(new OverTimePeriod(JULY))).willReturn(new OverTimeSnapshot(
                 List.of(employee),
                 List.of(
